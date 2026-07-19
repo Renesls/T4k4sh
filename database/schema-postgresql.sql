@@ -704,10 +704,40 @@ INSERT INTO habilidades (id_habilidad, nombre_habilidad, descripcion, estado) VA
     (5, 'Figma', 'Diseno de interfaces y prototipado.', true)
 ON CONFLICT (id_habilidad) DO NOTHING;
 
+INSERT INTO usuarios (
+    id_usuario,
+    nombre,
+    apellido,
+    correo,
+    password_hash,
+    fecha_registro,
+    estado_usuario,
+    id_universidad
+) VALUES
+    (1, 'Cliente', 'Demo', 'cliente.demo@unidemo.edu', 'demo-password-hash', CURRENT_TIMESTAMP, 'ACTIVO', 1),
+    (2, 'Estudiante', 'Demo', 'estudiante.demo@unidemo.edu', 'demo-password-hash', CURRENT_TIMESTAMP, 'ACTIVO', 1)
+ON CONFLICT (id_usuario) DO NOTHING;
+
+INSERT INTO usuario_roles (id_usuario, id_rol) VALUES
+    (1, 3),
+    (2, 2)
+ON CONFLICT (id_usuario, id_rol) DO NOTHING;
+
+INSERT INTO usuarios_estudiantes (
+    id_usuario,
+    id_carrera,
+    carnet_universitario,
+    estado_perfil_estudiante,
+    fecha_creacion
+) VALUES
+    (2, 1, '2026-0001', 'ACTIVO', CURRENT_TIMESTAMP)
+ON CONFLICT (id_usuario) DO NOTHING;
+
 ALTER TABLE roles ALTER COLUMN id_rol RESTART WITH 4;
 ALTER TABLE universidades ALTER COLUMN id_universidad RESTART WITH 2;
 ALTER TABLE carreras ALTER COLUMN id_carrera RESTART WITH 4;
 ALTER TABLE categorias_tarea ALTER COLUMN id_categoria RESTART WITH 5;
 ALTER TABLE habilidades ALTER COLUMN id_habilidad RESTART WITH 6;
+ALTER TABLE usuarios ALTER COLUMN id_usuario RESTART WITH 3;
 
 COMMIT;
