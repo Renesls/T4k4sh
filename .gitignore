@@ -1,5 +1,24 @@
-script.sql
-Planificacion Diagramas/mermaid-diagram.png
-Planificacion Diagramas/mermaid-diagram (2).png
-Planificacion Diagramas/mermaid-diagram (1).png
-Planificacion Diagramas/erd-diagram-2026-07-05T01-10-13-4k.png
+# Entornos locales
+.env
+.env.*
+!.env.example
+
+# Java / Spring Boot
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# Android / Gradle
+.gradle/
+mobile/.gradle/
+mobile/build/
+mobile/app/build/
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# Sistema operativo y logs
+.DS_Store
+Thumbs.db
+*.log

@@ -73,6 +73,18 @@ Desde navegador o Postman:
 http://localhost:8080/api/
 ```
 
+## Estructura del repositorio
+
+```text
+T4k4sh/
+  backend/              API REST con Spring Boot
+  mobile/               Aplicacion Android en Kotlin
+  database/             Scripts SQL del proyecto
+  docs/
+    diagramas/          Diagramas usados como entregables
+  README.md             Documentacion principal
+```
+
 ## Diseno
 
 Prototipo de referencia en Figma:
@@ -85,13 +97,14 @@ Las pantallas nuevas deben mantener consistencia visual con el prototipo: colore
 
 El modelo original fue disenado en SQL Server para facilitar la diagramacion. Para el desarrollo real se migro a PostgreSQL.
 
-Archivo principal:
+Archivos principales:
 
 ```text
-schema-postgresql.sql
+database/schema-postgresql.sql
+database/sqlserver-original.sql
 ```
 
-El archivo contiene:
+`schema-postgresql.sql` contiene:
 
 - 34 tablas del modelo original.
 - Llaves primarias.
@@ -148,7 +161,7 @@ CREATE DATABASE t4kash;
 Ejecutar el esquema:
 
 ```powershell
-psql -U postgres -d t4kash -f schema-postgresql.sql
+psql -U postgres -d t4kash -f database/schema-postgresql.sql
 ```
 
 ## Conventional Commits
@@ -156,12 +169,12 @@ psql -U postgres -d t4kash -f schema-postgresql.sql
 Ejemplos de commits para el equipo:
 
 ```text
-docs: update project readme
-feat: add postgresql database schema
-feat: add marketplace task endpoints
-feat: add android opportunity list screen
-fix: correct application status flow
-chore: configure local docker environment
+docs: actualizar documentacion principal
+feat: agregar esquema postgresql
+feat: agregar endpoints de tareas del marketplace
+feat: agregar pantalla android de oportunidades
+fix: corregir flujo de estado de postulaciones
+chore: configurar entorno local con docker
 ```
 
 ## Estado actual
