@@ -1,41 +1,60 @@
 # T4KASH
 
-T4KASH es una aplicacion movil para networking universitario y oportunidades de trabajo flexible. La plataforma conecta estudiantes con personas, empresas o instituciones que necesitan microtrabajos, tutorias, colaboraciones, proyectos, servicios, practicas o voluntariados.
+T4KASH es una aplicacion movil orientada al networking universitario y a la gestion de oportunidades flexibles para estudiantes. Su objetivo es conectar estudiantes con personas, empresas o instituciones que necesitan apoyo en microtrabajos, tutorias, colaboraciones, proyectos, servicios, practicas o voluntariados.
 
-La idea es ofrecer una alternativa mas organizada y segura que Facebook Marketplace o grupos de WhatsApp, usando perfiles profesionales, habilidades, postulaciones, entregas, reputacion y seguimiento de pagos.
+La plataforma busca ofrecer un entorno mas organizado y confiable que canales informales como grupos de WhatsApp o publicaciones sueltas en redes sociales. Para lograrlo, el sistema se apoya en perfiles profesionales, habilidades, postulaciones, entregas, reputacion, reportes y seguimiento de pagos.
 
 ## Problema
 
-Muchos estudiantes necesitan generar ingresos mientras estudian, pero no siempre pueden aceptar trabajos de tiempo completo por sus horarios variables. Al mismo tiempo, muchas personas necesitan ayuda puntual y no encuentran estudiantes confiables.
+Muchos estudiantes universitarios necesitan generar ingresos mientras estudian, pero sus horarios no siempre les permiten aceptar empleos tradicionales. Al mismo tiempo, muchas personas necesitan ayuda puntual y no siempre encuentran estudiantes confiables o con habilidades verificables.
 
-Los canales informales actuales provocan problemas como:
+Los canales informales actuales presentan problemas como:
 
-- Perfiles falsos.
-- Falta de reputacion.
-- Poco seguimiento de trabajos.
-- Riesgo de estafas.
-- Dificultad para validar habilidades.
-- Desorden en pagos, entregas y comunicacion.
+- Perfiles falsos o dificiles de verificar.
+- Falta de reputacion entre usuarios.
+- Poco seguimiento de tareas, entregas y pagos.
+- Riesgo de estafas o incumplimientos.
+- Dificultad para organizar postulaciones.
+- Ausencia de historial profesional del estudiante.
 
-## Objetivo
+## Propuesta
 
-Crear una aplicacion movil que permita publicar oportunidades universitarias, postular estudiantes, asignar trabajos y dar seguimiento a entregas y pagos desde una API centralizada.
+T4KASH centraliza el proceso completo de una oportunidad universitaria:
 
-## Alcance MVP
+1. Un usuario publica una tarea u oportunidad.
+2. Los estudiantes revisan oportunidades disponibles.
+3. Un estudiante envia una postulacion.
+4. El publicador acepta o rechaza postulaciones.
+5. Una postulacion aceptada se convierte en trabajo asignado.
+6. El estudiante envia entregas.
+7. El publicador revisa la entrega.
+8. El sistema registra estados, pagos, reportes y reputacion.
 
-Para el hackathon se prioriza el flujo principal:
+## Alcance del MVP
 
-1. Registro e inicio de sesion.
-2. Perfil basico del estudiante.
-3. Listado de oportunidades.
-4. Creacion de oportunidades.
-5. Postulacion a una oportunidad.
-6. Aceptacion o rechazo de postulaciones.
-7. Asignacion de trabajo.
-8. Envio y revision de entregas.
-9. Estado basico de pago.
+Para el hackathon se prioriza un MVP funcional y defendible. El objetivo no es implementar todo el ecosistema desde el primer avance, sino demostrar el flujo principal con una arquitectura lista para crecer.
 
-Funciones como chat avanzado, reportes completos, verificacion institucional automatica, auditoria, recomendaciones y administracion avanzada quedan planteadas en el modelo de datos para siguientes iteraciones.
+El MVP incluye:
+
+- Registro e inicio de sesion.
+- Perfil basico de usuario/estudiante.
+- Consulta de oportunidades.
+- Creacion de oportunidades.
+- Postulaciones.
+- Aceptacion o rechazo de postulaciones.
+- Trabajos asignados.
+- Entregas.
+- Estado basico de pago.
+
+Quedan como fases posteriores:
+
+- Mensajeria completa.
+- Verificacion institucional automatica.
+- Notificaciones avanzadas.
+- Sistema completo de reportes.
+- Auditoria administrativa.
+- Recomendaciones y calificaciones avanzadas.
+- Panel web administrativo.
 
 ## Tecnologias
 
@@ -45,74 +64,84 @@ Funciones como chat avanzado, reportes completos, verificacion institucional aut
 | Backend | Java, Spring Boot, Spring Data JPA |
 | API | REST, Swagger / OpenAPI |
 | Base de datos | PostgreSQL |
-| Pruebas locales | Docker Compose |
+| Entorno local | Docker Compose |
 | Diseno | Figma |
-| Versionamiento | GitHub, Conventional Commits |
+| Control de versiones | GitHub, Conventional Commits |
 
 ## Arquitectura
 
 ```text
-Aplicacion Android (Kotlin)
-          |
-          v
-API REST (Spring Boot)
-          |
-          v
-PostgreSQL
+Aplicacion Android
+        |
+        | HTTPS / REST
+        v
+API Backend Spring Boot
+        |
+        | JDBC / JPA
+        v
+Base de datos PostgreSQL
 ```
 
-La aplicacion movil consumira la API REST. El backend centralizara la logica de negocio y se conectara a PostgreSQL. Para pruebas locales, Android Emulator debe consumir la API con:
+La aplicacion movil consume una API REST desarrollada con Spring Boot. El backend contiene la logica de negocio y se conecta a PostgreSQL mediante Spring Data JPA.
 
-```text
-http://10.0.2.2:8080/api/
-```
+Durante el desarrollo se usara Docker Compose para levantar la API y la base de datos en local. Despues de validar que el flujo funciona correctamente, el backend y la base de datos se prepararan para desplegarse en un hosting gratuito compatible con Java/Spring Boot y PostgreSQL.
 
-Desde navegador o Postman:
+## Entornos
 
-```text
-http://localhost:8080/api/
-```
+| Entorno | Uso | Estado |
+|---|---|---|
+| Local | Desarrollo, pruebas con Docker Compose y Android Studio | Planificado |
+| Testing/Demo | Validacion previa a entrega del hackathon | Pendiente |
+| Produccion | Hosting gratuito con API publica y base de datos desplegada | Pendiente |
+
+Las URLs locales solo se usan para desarrollo. En produccion, la aplicacion movil debe apuntar a la URL real del backend desplegado.
 
 ## Estructura del repositorio
 
 ```text
 T4k4sh/
-  backend/              API REST con Spring Boot
-  mobile/               Aplicacion Android en Kotlin
-  database/             Scripts SQL del proyecto
+  backend/                 API REST con Spring Boot
+  mobile/                  Aplicacion Android en Kotlin
+  database/                Scripts SQL del proyecto
+    schema-postgresql.sql  Esquema principal en PostgreSQL
+    sqlserver-original.sql Script original usado como referencia
   docs/
-    diagramas/          Diagramas usados como entregables
-  README.md             Documentacion principal
+    diagramas/             Diagramas de base de datos y UML
+  README.md                Documentacion principal
 ```
-
-## Diseno
-
-Prototipo de referencia en Figma:
-
-[Figma - T4KASH](https://www.figma.com/design/k5PeSZUFQJgIja3Mw2BpAw/Sin-t%C3%ADtulo?node-id=0-1&t=mX1bigfYctB3XCdZ-0)
-
-Las pantallas nuevas deben mantener consistencia visual con el prototipo: colores, espaciado, componentes, jerarquia y estilo general.
 
 ## Base de datos
 
-El modelo original fue disenado en SQL Server para facilitar la diagramacion. Para el desarrollo real se migro a PostgreSQL.
+El modelo original fue creado en SQL Server para facilitar la diagramacion. Para el desarrollo real se migro a PostgreSQL.
 
-Archivos principales:
+Archivo principal:
 
 ```text
 database/schema-postgresql.sql
-database/sqlserver-original.sql
 ```
 
-`schema-postgresql.sql` contiene:
+El esquema PostgreSQL incluye:
 
-- 34 tablas del modelo original.
+- 34 tablas.
 - Llaves primarias.
-- Relaciones por llaves foraneas.
-- Restricciones unicas principales.
-- Datos iniciales minimos para roles, universidad, carreras, categorias y habilidades.
+- Llaves foraneas.
+- Restricciones unicas.
+- Validaciones basicas.
+- Datos iniciales para roles, universidad, carreras, categorias y habilidades.
 
-## Modulos del sistema
+Tablas principales del MVP:
+
+- `usuarios`
+- `roles`
+- `usuarios_estudiantes`
+- `categorias_tarea`
+- `tareas`
+- `postulaciones`
+- `trabajos_asignados`
+- `entregas`
+- `pagos`
+
+## Modulos y responsables
 
 | Modulo | Tablas principales | Responsable |
 |---|---|---|
@@ -121,19 +150,76 @@ database/sqlserver-original.sql
 | Social y Comunicacion | mensajes, conversaciones, notificaciones, calificaciones, recomendaciones | Dev 1 |
 | Finanzas y Sistema | pagos, transacciones_pago, reportes, auditoria_sistema, archivos_adjuntos | Dev 2 |
 
-## Flujo principal
+## Diseno de interfaz
 
-1. Un usuario se registra o inicia sesion.
-2. El usuario solicitante publica una tarea u oportunidad.
-3. El estudiante revisa oportunidades disponibles.
-4. El estudiante envia una postulacion.
-5. El solicitante acepta o rechaza postulaciones.
-6. Al aceptar una postulacion se crea un trabajo asignado.
-7. El estudiante envia una entrega.
-8. El solicitante aprueba, rechaza o solicita correccion.
-9. Se actualizan estados de trabajo, entrega y pago.
+Prototipo de referencia:
 
-## Endpoints MVP esperados
+[Figma - T4KASH](https://www.figma.com/design/k5PeSZUFQJgIja3Mw2BpAw/Sin-t%C3%ADtulo?node-id=0-1&t=mX1bigfYctB3XCdZ-0)
+
+Las pantallas nuevas deben respetar el estilo definido en Figma: colores, jerarquia visual, componentes, espaciado y comportamiento general.
+
+## Diagramas
+
+Los diagramas del proyecto se encuentran en:
+
+```text
+docs/diagramas/
+```
+
+Incluyen:
+
+- Diagrama entidad-relacion.
+- Diagrama de clases.
+- Diagrama de actividades.
+- Diagrama de casos de uso.
+
+Estos diagramas documentan el alcance completo del sistema, aunque el MVP se enfoque en el flujo principal de oportunidades, postulaciones y entregas.
+
+## Variables de entorno previstas
+
+Estas variables se usaran cuando se cree el backend:
+
+| Variable | Descripcion | Ejemplo local |
+|---|---|---|
+| `SERVER_PORT` | Puerto donde corre la API | `8080` |
+| `SPRING_DATASOURCE_URL` | Conexion JDBC a PostgreSQL | `jdbc:postgresql://db:5432/t4kash` |
+| `SPRING_DATASOURCE_USERNAME` | Usuario de la base de datos | `t4kash` |
+| `SPRING_DATASOURCE_PASSWORD` | Password de la base de datos | `t4kash` |
+| `SPRING_JPA_HIBERNATE_DDL_AUTO` | Estrategia de JPA | `validate` |
+| `APP_CORS_ALLOWED_ORIGINS` | Origenes permitidos para consumir la API | URL del frontend/app |
+
+En produccion estas variables no deben guardarse dentro del repositorio. Deben configurarse desde el panel del hosting.
+
+## Ejecucion local prevista
+
+Cuando el backend este creado, el entorno local se levantara con Docker Compose:
+
+```powershell
+cd backend
+docker compose up -d --build
+```
+
+La API local se documentara con Swagger/OpenAPI. La URL final dependera de la configuracion del backend, pero durante desarrollo normalmente se usara un puerto local.
+
+Para Android Emulator, la app no usa `localhost` directamente. En desarrollo se utiliza la direccion especial del emulador para comunicarse con la maquina anfitriona.
+
+## Despliegue previsto
+
+El flujo recomendado sera:
+
+1. Crear backend Spring Boot.
+2. Conectar backend con PostgreSQL local usando Docker Compose.
+3. Probar endpoints con Swagger o Postman.
+4. Conectar la app Android al backend local.
+5. Validar el flujo completo del MVP.
+6. Preparar variables de entorno para hosting.
+7. Desplegar backend en un hosting gratuito.
+8. Desplegar o conectar base de datos PostgreSQL en un servicio compatible.
+9. Cambiar la URL base de la app Android hacia la API desplegada.
+
+## Contrato inicial de endpoints
+
+Estos endpoints representan el contrato esperado del MVP. Su implementacion se realizara en el backend.
 
 | Metodo | Ruta | Uso |
 |---|---|---|
@@ -143,40 +229,82 @@ database/sqlserver-original.sql
 | `POST` | `/api/tasks` | Crear oportunidad |
 | `GET` | `/api/tasks/{id}` | Ver detalle de oportunidad |
 | `POST` | `/api/tasks/{id}/applications` | Postularse a una oportunidad |
-| `GET` | `/api/tasks/{id}/applications` | Ver postulaciones |
+| `GET` | `/api/tasks/{id}/applications` | Ver postulaciones de una oportunidad |
 | `POST` | `/api/applications/{id}/accept` | Aceptar postulacion |
 | `POST` | `/api/applications/{id}/reject` | Rechazar postulacion |
 | `GET` | `/api/jobs` | Listar trabajos asignados |
 | `POST` | `/api/jobs/{id}/deliveries` | Enviar entrega |
 | `POST` | `/api/deliveries/{id}/approve` | Aprobar entrega |
 
-## Como ejecutar la base en PostgreSQL
+Ejemplo de creacion de oportunidad:
 
-Crear la base:
-
-```sql
-CREATE DATABASE t4kash;
+```json
+{
+  "titulo": "Tutoria de programacion",
+  "descripcion": "Necesito apoyo con ejercicios de Java y bases de datos.",
+  "presupuesto": 25.00,
+  "idCategoria": 1,
+  "tipoOportunidad": "TUTORIA",
+  "modalidad": "REMOTA"
+}
 ```
 
-Ejecutar el esquema:
+Ejemplo de postulacion:
+
+```json
+{
+  "mensaje": "Tengo experiencia explicando Java y puedo ayudarte por la tarde.",
+  "precioPropuesto": 20.00
+}
+```
+
+## Scripts previstos
+
+Estos comandos se definiran conforme avance el backend:
 
 ```powershell
-psql -U postgres -d t4kash -f database/schema-postgresql.sql
+cd backend
+docker compose up -d --build
+docker compose logs -f api
+docker compose down
 ```
 
-## Conventional Commits
+Para Android:
 
-Ejemplos de commits para el equipo:
+```powershell
+cd mobile
+.\gradlew.bat :app:assembleDebug
+```
+
+## Control de versiones
+
+El proyecto usara ramas y Conventional Commits.
+
+Ejemplos:
 
 ```text
-docs: actualizar documentacion principal
+docs: actualizar readme principal
 feat: agregar esquema postgresql
-feat: agregar endpoints de tareas del marketplace
-feat: agregar pantalla android de oportunidades
-fix: corregir flujo de estado de postulaciones
-chore: configurar entorno local con docker
+feat: crear proyecto android inicial
+feat: agregar endpoints de tareas
+fix: corregir estado de postulaciones
+chore: configurar docker compose
 ```
 
 ## Estado actual
 
-El proyecto esta en fase de organizacion inicial y definicion tecnica. La prioridad inmediata es crear el backend con Spring Boot usando el esquema PostgreSQL y luego conectar la aplicacion Android mediante Retrofit.
+- Repositorio organizado por carpetas.
+- Proyecto Android inicial creado en `mobile/`.
+- Esquema PostgreSQL migrado en `database/schema-postgresql.sql`.
+- Diagramas colocados en `docs/diagramas/`.
+- Backend pendiente de crear en `backend/`.
+
+## Proximos pasos
+
+1. Crear el proyecto Spring Boot dentro de `backend/`.
+2. Configurar Docker Compose con PostgreSQL.
+3. Conectar el backend con `database/schema-postgresql.sql`.
+4. Implementar el modulo Marketplace Core.
+5. Probar endpoints con Swagger/Postman.
+6. Conectar la app Android al backend.
+7. Preparar despliegue en hosting gratuito.
