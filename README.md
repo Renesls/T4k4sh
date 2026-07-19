@@ -192,14 +192,16 @@ En produccion estas variables no deben guardarse dentro del repositorio. Deben c
 
 ## Ejecucion local prevista
 
-Cuando el backend este creado, el entorno local se levantara con Docker Compose:
+El entorno local del backend se levanta con Docker Compose:
 
 ```powershell
 cd backend
 docker compose up -d --build
 ```
 
-La API local se documentara con Swagger/OpenAPI. La URL final dependera de la configuracion del backend, pero durante desarrollo normalmente se usara un puerto local.
+Docker Compose inicia PostgreSQL, carga el esquema ubicado en `database/schema-postgresql.sql` y luego inicia la API Spring Boot.
+
+La documentacion local de la API queda disponible mediante Swagger/OpenAPI cuando el backend esta corriendo. La URL final de produccion dependera del hosting elegido.
 
 Para Android Emulator, la app no usa `localhost` directamente. En desarrollo se utiliza la direccion especial del emulador para comunicarse con la maquina anfitriona.
 
@@ -219,7 +221,7 @@ El flujo recomendado sera:
 
 ## Contrato inicial de endpoints
 
-Estos endpoints representan el contrato esperado del MVP. Su implementacion se realizara en el backend.
+Estos endpoints representan el contrato inicial del MVP. La primera version del backend implementa el flujo Marketplace Core sin autenticacion real; por ahora los requests usan IDs de usuarios demo para poder validar el flujo completo.
 
 | Metodo | Ruta | Uso |
 |---|---|---|
@@ -260,7 +262,7 @@ Ejemplo de postulacion:
 
 ## Scripts previstos
 
-Estos comandos se definiran conforme avance el backend:
+Comandos principales del backend:
 
 ```powershell
 cd backend
@@ -295,16 +297,16 @@ chore: configurar docker compose
 
 - Repositorio organizado por carpetas.
 - Proyecto Android inicial creado en `mobile/`.
+- Backend Spring Boot inicial creado en `backend/`.
+- Docker Compose configurado para API y PostgreSQL.
 - Esquema PostgreSQL migrado en `database/schema-postgresql.sql`.
+- Datos demo agregados para probar el flujo Marketplace Core.
 - Diagramas colocados en `docs/diagramas/`.
-- Backend pendiente de crear en `backend/`.
 
 ## Proximos pasos
 
-1. Crear el proyecto Spring Boot dentro de `backend/`.
-2. Configurar Docker Compose con PostgreSQL.
-3. Conectar el backend con `database/schema-postgresql.sql`.
-4. Implementar el modulo Marketplace Core.
-5. Probar endpoints con Swagger/Postman.
-6. Conectar la app Android al backend.
-7. Preparar despliegue en hosting gratuito.
+1. Probar el backend con Docker Compose.
+2. Validar endpoints con Swagger/Postman.
+3. Conectar la app Android al backend local.
+4. Implementar autenticacion real.
+5. Preparar despliegue en hosting gratuito.
