@@ -21,11 +21,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.t4kash.app.ui.theme.T4Primary
+import com.t4kash.app.ui.theme.T4PrimarySoft
 import kotlinx.coroutines.delay
 
 @Composable
@@ -40,7 +42,11 @@ fun SplashScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(T4Primary),
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(T4PrimarySoft, T4Primary)
+                )
+            ),
         contentAlignment = Alignment.Center
     ) {
         Column(

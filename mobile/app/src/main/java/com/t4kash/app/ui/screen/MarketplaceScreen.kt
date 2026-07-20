@@ -1,6 +1,7 @@
 package com.t4kash.app.ui.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Notifications
@@ -24,7 +27,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,6 +43,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -53,6 +59,9 @@ import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.navigation.Routes
 import com.t4kash.app.ui.theme.T4Amber
 import com.t4kash.app.ui.theme.T4Background
+import com.t4kash.app.ui.theme.T4Border
+import com.t4kash.app.ui.theme.T4Mint
+import com.t4kash.app.ui.theme.T4MintDark
 import com.t4kash.app.ui.theme.T4Primary
 import com.t4kash.app.ui.theme.T4Surface
 import com.t4kash.app.ui.theme.T4Text
@@ -81,6 +90,9 @@ fun MarketplaceScreen(
             matchesQuery && matchesCategory
         }
     }
+    val categoriesById = remember(state.categories) {
+        state.categories.associateBy { it.idCategoria }
+    }
 
     Scaffold(
         containerColor = T4Background,
@@ -105,18 +117,17 @@ fun MarketplaceScreen(
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
+            FloatingActionButton(
                 onClick = onCreateTask,
-                icon = {
-                    Icon(
-                        imageVector = Icons.Filled.Add,
-                        contentDescription = null
-                    )
-                },
-                text = { Text("Post") },
                 containerColor = T4Primary,
-                contentColor = androidx.compose.ui.graphics.Color.White
-            )
+                contentColor = Color.White,
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Add,
+                    contentDescription = "Crear oportunidad"
+                )
+            }
         }
     ) { innerPadding ->
         LazyColumn(
@@ -134,6 +145,7 @@ fun MarketplaceScreen(
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text("Search tasks or students...") },
                     singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Filled.Search,
@@ -204,6 +216,7 @@ fun MarketplaceScreen(
                     items(filteredTasks, key = { it.idTarea }) { task ->
                         TaskCard(
                             task = task,
+                            categoryLabel = categoriesById[task.idCategoria]?.nombreCategoria,
                             onClick = { onTaskSelected(task) }
                         )
                     }
@@ -226,14 +239,18 @@ private fun CategoryChips(
             StatusChip(
                 text = "All",
                 selected = selectedCategoryId == 0,
-                modifier = Modifier.clickable { onSelected(0) }
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable { onSelected(0) }
             )
         }
         items(categories, key = { it.idCategoria }) { category ->
             StatusChip(
                 text = category.nombreCategoria,
                 selected = selectedCategoryId == category.idCategoria,
-                modifier = Modifier.clickable { onSelected(category.idCategoria) }
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable { onSelected(category.idCategoria) }
             )
         }
     }
@@ -257,22 +274,29 @@ private fun LoadingState() {
 @Composable
 private fun TaskCard(
     task: TaskDto,
+    categoryLabel: String?,
     onClick: () -> Unit
 ) {
-    val accentCard = task.tipoOportunidad.equals("tech", ignoreCase = true) ||
+    val tag = categoryLabel?.takeIf { it.isNotBlank() } ?: task.tipoOportunidad.ifBlank { "Task" }
+    val accentCard = tag.contains("tech", ignoreCase = true) ||
+        tag.contains("program", ignoreCase = true) ||
         task.modalidad.equals("remoto", ignoreCase = true)
+    val contentColor = if (accentCard) Color.White else T4Text
+    val mutedColor = if (accentCard) Color.White.copy(alpha = 0.78f) else T4TextMuted
 
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (accentCard) T4Primary else T4Surface
         ),
+        border = BorderStroke(1.dp, if (accentCard) T4Primary else T4Border),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -280,19 +304,16 @@ private fun TaskCard(
                 verticalAlignment = Alignment.Top
             ) {
                 StatusChip(
-                    text = task.tipoOportunidad.ifBlank { "Task" },
+                    text = tag,
                     selected = true,
-                    modifier = if (accentCard) {
-                        Modifier.background(T4Primary)
-                    } else {
-                        Modifier
-                    }
+                    containerColor = if (accentCard) Color.White.copy(alpha = 0.20f) else T4Mint,
+                    contentColor = if (accentCard) Color.White else T4MintDark
                 )
                 Text(
                     text = "$${"%.2f".format(task.presupuesto)}",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = if (accentCard) androidx.compose.ui.graphics.Color.White else T4Amber
+                    color = if (accentCard) Color.White else T4Amber
                 )
             }
 
@@ -300,18 +321,18 @@ private fun TaskCard(
                 text = task.titulo,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = if (accentCard) androidx.compose.ui.graphics.Color.White else T4Text
+                color = contentColor
             )
             Text(
                 text = task.descripcion,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (accentCard) {
-                    androidx.compose.ui.graphics.Color.White.copy(alpha = 0.82f)
-                } else {
-                    T4TextMuted
-                }
+                color = mutedColor
+            )
+
+            HorizontalDivider(
+                color = if (accentCard) Color.White.copy(alpha = 0.20f) else T4Border.copy(alpha = 0.45f)
             )
 
             Row(
@@ -326,23 +347,19 @@ private fun TaskCard(
                     Icon(
                         imageVector = Icons.Filled.School,
                         contentDescription = null,
-                        tint = if (accentCard) androidx.compose.ui.graphics.Color.White else T4Primary,
+                        tint = if (accentCard) Color.White else T4Primary,
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
                         text = task.modalidad ?: "Campus",
                         style = MaterialTheme.typography.labelMedium,
-                        color = if (accentCard) androidx.compose.ui.graphics.Color.White else T4TextMuted
+                        color = mutedColor
                     )
                 }
                 Text(
                     text = task.estadoTarea,
                     style = MaterialTheme.typography.labelMedium,
-                    color = if (accentCard) {
-                        androidx.compose.ui.graphics.Color.White.copy(alpha = 0.72f)
-                    } else {
-                        T4TextMuted
-                    }
+                    color = mutedColor
                 )
             }
         }

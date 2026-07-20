@@ -1,7 +1,8 @@
 package com.t4kash.app.ui.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -33,9 +35,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -43,10 +42,12 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.t4kash.app.ui.navigation.Routes
 import com.t4kash.app.ui.theme.T4Background
@@ -54,6 +55,7 @@ import com.t4kash.app.ui.theme.T4Border
 import com.t4kash.app.ui.theme.T4Mint
 import com.t4kash.app.ui.theme.T4MintDark
 import com.t4kash.app.ui.theme.T4Primary
+import com.t4kash.app.ui.theme.T4PrimaryContainer
 import com.t4kash.app.ui.theme.T4Surface
 import com.t4kash.app.ui.theme.T4SurfaceVariant
 import com.t4kash.app.ui.theme.T4Text
@@ -158,30 +160,49 @@ fun T4BottomBar(
     currentRoute: String,
     onNavigate: (String) -> Unit
 ) {
-    NavigationBar(
-        containerColor = T4Background,
-        tonalElevation = 4.dp
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(80.dp),
+        color = T4Background,
+        shadowElevation = 6.dp
     ) {
-        T4BottomDestinations.forEach { destination ->
-            val selected = currentRoute == destination.route
-            NavigationBarItem(
-                selected = selected,
-                onClick = { onNavigate(destination.route) },
-                icon = {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            T4BottomDestinations.forEach { destination ->
+                val selected = currentRoute == destination.route
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(if (selected) T4Primary else Color.Transparent)
+                        .clickable { onNavigate(destination.route) }
+                        .padding(horizontal = 4.dp, vertical = 6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
                     Icon(
                         imageVector = destination.icon,
-                        contentDescription = destination.label
+                        contentDescription = destination.label,
+                        tint = if (selected) Color.White else T4TextMuted,
+                        modifier = Modifier.size(20.dp)
                     )
-                },
-                label = { Text(destination.label) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Color.White,
-                    selectedTextColor = T4Primary,
-                    indicatorColor = T4Primary,
-                    unselectedIconColor = T4TextMuted,
-                    unselectedTextColor = T4TextMuted
-                )
-            )
+                    Text(
+                        text = destination.label,
+                        color = if (selected) T4PrimaryContainer else T4TextMuted,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
         }
     }
 }
@@ -190,10 +211,12 @@ fun T4BottomBar(
 fun StatusChip(
     text: String,
     selected: Boolean = false,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    containerColor: Color? = null,
+    contentColor: Color? = null
 ) {
-    val background = if (selected) T4Mint else T4SurfaceVariant
-    val content = if (selected) T4MintDark else T4TextMuted
+    val background = containerColor ?: if (selected) T4Mint else T4SurfaceVariant
+    val content = contentColor ?: if (selected) T4MintDark else T4TextMuted
 
     Surface(
         modifier = modifier,
@@ -205,7 +228,9 @@ fun StatusChip(
             text = text,
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
             style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

@@ -1,5 +1,6 @@
 package com.t4kash.app.ui.screen
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,7 +12,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -43,6 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.t4kash.app.ui.components.T4BrandMark
 import com.t4kash.app.ui.theme.T4Background
+import com.t4kash.app.ui.theme.T4Border
 import com.t4kash.app.ui.theme.T4Surface
 import com.t4kash.app.ui.theme.T4Text
 import com.t4kash.app.ui.theme.T4TextMuted
@@ -111,6 +115,8 @@ fun LoginScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = T4Surface),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, T4Border.copy(alpha = 0.60f)),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(
@@ -126,6 +132,7 @@ fun LoginScreen(
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text("University Email") },
                             singleLine = true,
+                            shape = RoundedCornerShape(8.dp),
                             isError = errorMessage != null
                         )
                         OutlinedTextField(
@@ -137,6 +144,7 @@ fun LoginScreen(
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text("Password") },
                             singleLine = true,
+                            shape = RoundedCornerShape(8.dp),
                             visualTransformation = if (passwordVisible) {
                                 VisualTransformation.None
                             } else {
@@ -157,6 +165,15 @@ fun LoginScreen(
                             isError = errorMessage != null
                         )
 
+                        TextButton(
+                            onClick = {
+                                errorMessage = "La recuperacion de contrasena se conectara al modulo de identidad."
+                            },
+                            modifier = Modifier.align(Alignment.End)
+                        ) {
+                            Text("Forgot Password?")
+                        }
+
                         if (errorMessage != null) {
                             Text(
                                 text = errorMessage.orEmpty(),
@@ -172,7 +189,7 @@ fun LoginScreen(
                                 .height(56.dp)
                         ) {
                             Text("Login")
-                            Spacer(modifier = Modifier.size(8.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = null

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -167,7 +168,7 @@ fun PostTaskScreen(
                                 imageVector = Icons.Filled.CheckCircle,
                                 contentDescription = null
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text("Validar publicacion")
                         }
                     }

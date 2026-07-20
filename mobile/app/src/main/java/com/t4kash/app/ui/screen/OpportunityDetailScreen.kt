@@ -1,5 +1,6 @@
 package com.t4kash.app.ui.screen
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,7 +12,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.BookmarkBorder
@@ -41,6 +44,9 @@ import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.theme.T4Amber
 import com.t4kash.app.ui.theme.T4AmberContainer
 import com.t4kash.app.ui.theme.T4Background
+import com.t4kash.app.ui.theme.T4Border
+import com.t4kash.app.ui.theme.T4Mint
+import com.t4kash.app.ui.theme.T4MintDark
 import com.t4kash.app.ui.theme.T4Primary
 import com.t4kash.app.ui.theme.T4Surface
 import com.t4kash.app.ui.theme.T4Text
@@ -195,7 +201,9 @@ private fun OpportunityDetailContent(
 private fun HeroCard(task: TaskDto) {
     Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = T4Surface),
+        border = BorderStroke(1.dp, T4Border.copy(alpha = 0.50f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
@@ -207,7 +215,12 @@ private fun HeroCard(task: TaskDto) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                StatusChip(text = task.tipoOportunidad, selected = true)
+                StatusChip(
+                    text = task.tipoOportunidad,
+                    selected = true,
+                    containerColor = T4Mint,
+                    contentColor = T4MintDark
+                )
                 Text(
                     text = task.estadoTarea,
                     style = MaterialTheme.typography.labelMedium,
@@ -272,7 +285,9 @@ private fun DetailSection(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = T4Surface),
+        border = BorderStroke(1.dp, T4Border.copy(alpha = 0.50f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
@@ -354,7 +369,7 @@ private fun DetailActionBar(
                 imageVector = Icons.Filled.BookmarkBorder,
                 contentDescription = null
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             Text("Save")
         }
         Button(
@@ -362,7 +377,7 @@ private fun DetailActionBar(
             modifier = Modifier.weight(2f)
         ) {
             Text("Apply Now")
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                 contentDescription = null
