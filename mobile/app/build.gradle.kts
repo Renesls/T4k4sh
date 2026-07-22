@@ -3,6 +3,10 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val apiBaseUrl = providers.gradleProperty("T4KASH_API_BASE_URL")
+    .orElse(providers.environmentVariable("T4KASH_API_BASE_URL"))
+    .orElse("http://10.0.2.2:8080/api/")
+
 android {
     namespace = "com.t4kash.app"
     compileSdk {
@@ -19,6 +23,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "API_BASE_URL", "\"${apiBaseUrl.get()}\"")
     }
 
     buildTypes {
@@ -36,6 +41,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
