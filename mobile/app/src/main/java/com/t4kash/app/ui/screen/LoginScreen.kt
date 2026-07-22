@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,14 +39,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4BrandMark
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
+import com.t4kash.app.ui.theme.T4Primary
+import com.t4kash.app.ui.theme.T4PrimarySoft
 import com.t4kash.app.ui.theme.T4Surface
 import com.t4kash.app.ui.theme.T4Text
 import com.t4kash.app.ui.theme.T4TextMuted
@@ -62,13 +68,11 @@ fun LoginScreen(
 
     fun submit() {
         errorMessage = when {
-            email.isBlank() || password.isBlank() -> "Completa tu correo y contrasena para continuar."
-            !email.contains("@") -> "Ingresa un correo universitario valido."
+            email.isBlank() || password.isBlank() -> "Completa tu correo y contraseña para continuar."
+            !email.contains("@") -> "Ingresa un correo universitario válido."
             else -> null
         }
-        if (errorMessage == null) {
-            onLoginSuccess()
-        }
+        if (errorMessage == null) onLoginSuccess()
     }
 
     Scaffold(
@@ -77,6 +81,7 @@ fun LoginScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .statusBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -88,24 +93,70 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(T4Background)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(T4Background, Color(0xFFF1F4FF))
+                    )
+                )
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 32.dp),
+                .padding(horizontal = 16.dp, vertical = 24.dp),
             contentAlignment = Alignment.TopCenter
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(28.dp))
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(Color(0xFF2717B8), T4PrimarySoft, T4Primary)
+                            )
+                        )
+                        .padding(24.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = "Bienvenido a T4KASH",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Accede a oportunidades, publica trabajos y sigue tus entregas desde un mismo lugar.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.86f)
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            StatusChip(
+                                text = "Marketplace",
+                                selected = true,
+                                containerColor = Color.White.copy(alpha = 0.18f),
+                                contentColor = Color.White
+                            )
+                            StatusChip(
+                                text = "Seguimiento",
+                                selected = true,
+                                containerColor = Color.White.copy(alpha = 0.14f),
+                                contentColor = Color.White
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
                 Text(
-                    text = "Welcome back",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
+                    text = "Ingresa a tu cuenta",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
                     color = T4Text
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Sign in to access your campus marketplace",
+                    text = "Usa tu correo universitario para continuar.",
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                     color = T4TextMuted
@@ -115,13 +166,13 @@ fun LoginScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = T4Surface),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(24.dp),
                     border = BorderStroke(1.dp, T4Border.copy(alpha = 0.60f)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Column(
-                        modifier = Modifier.padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         OutlinedTextField(
                             value = email,
@@ -130,9 +181,9 @@ fun LoginScreen(
                                 errorMessage = null
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            label = { Text("University Email") },
+                            label = { Text("Correo universitario") },
                             singleLine = true,
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(14.dp),
                             isError = errorMessage != null
                         )
                         OutlinedTextField(
@@ -142,9 +193,9 @@ fun LoginScreen(
                                 errorMessage = null
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Password") },
+                            label = { Text("Contraseña") },
                             singleLine = true,
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(14.dp),
                             visualTransformation = if (passwordVisible) {
                                 VisualTransformation.None
                             } else {
@@ -158,7 +209,7 @@ fun LoginScreen(
                                         } else {
                                             Icons.Filled.Visibility
                                         },
-                                        contentDescription = "Mostrar contrasena"
+                                        contentDescription = "Mostrar contraseña"
                                     )
                                 }
                             },
@@ -171,7 +222,7 @@ fun LoginScreen(
                             },
                             modifier = Modifier.align(Alignment.End)
                         ) {
-                            Text("Forgot Password?")
+                            Text("Olvidaste tu contraseña?")
                         }
 
                         if (errorMessage != null) {
@@ -188,7 +239,7 @@ fun LoginScreen(
                                 .fillMaxWidth()
                                 .height(56.dp)
                         ) {
-                            Text("Login")
+                            Text("Entrar")
                             Spacer(modifier = Modifier.width(8.dp))
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
@@ -203,7 +254,7 @@ fun LoginScreen(
                         ) {
                             HorizontalDivider(modifier = Modifier.weight(1f))
                             Text(
-                                text = "or continue with",
+                                text = "o continuar con",
                                 color = T4TextMuted,
                                 style = MaterialTheme.typography.labelMedium
                             )

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -68,7 +69,7 @@ data class BottomDestination(
 )
 
 val T4BottomDestinations = listOf(
-    BottomDestination(Routes.MARKETPLACE, "Home", Icons.Filled.Home),
+    BottomDestination(Routes.MARKETPLACE, "Inicio", Icons.Filled.Home),
     BottomDestination(Routes.NETWORK, "Network", Icons.Filled.Group),
     BottomDestination(Routes.POST, "Post", Icons.Filled.AddBox),
     BottomDestination(Routes.CHAT, "Chat", Icons.Filled.ChatBubble),
@@ -244,6 +245,7 @@ fun ConnectionErrorState(
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = T4Surface),
+        shape = RoundedCornerShape(18.dp),
         border = BorderStroke(1.dp, T4Border)
     ) {
         Column(
@@ -295,6 +297,7 @@ fun EmptyState(
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = T4Surface),
+        shape = RoundedCornerShape(18.dp),
         border = BorderStroke(1.dp, T4Border)
     ) {
         Column(

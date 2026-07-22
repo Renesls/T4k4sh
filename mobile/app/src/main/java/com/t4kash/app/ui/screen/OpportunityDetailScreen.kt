@@ -34,6 +34,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.t4kash.app.ui.components.ConnectionErrorState
@@ -41,13 +44,11 @@ import com.t4kash.app.ui.components.EmptyState
 import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4TopBar
 import com.t4kash.app.ui.model.TaskDto
-import com.t4kash.app.ui.theme.T4Amber
-import com.t4kash.app.ui.theme.T4AmberContainer
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
-import com.t4kash.app.ui.theme.T4Mint
 import com.t4kash.app.ui.theme.T4MintDark
 import com.t4kash.app.ui.theme.T4Primary
+import com.t4kash.app.ui.theme.T4PrimarySoft
 import com.t4kash.app.ui.theme.T4Surface
 import com.t4kash.app.ui.theme.T4Text
 import com.t4kash.app.ui.theme.T4TextMuted
@@ -67,8 +68,8 @@ fun OpportunityDetailScreen(
         containerColor = T4Background,
         topBar = {
             T4TopBar(
-                title = "T4KASH",
-                subtitle = "Detalle de oportunidad",
+                title = "Detalle",
+                subtitle = "Oportunidad universitaria",
                 onBack = onBack
             )
         },
@@ -141,16 +142,18 @@ private fun OpportunityDetailContent(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(T4Background),
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(T4Background, Color(0xFFF4F7FF))
+                )
+            ),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        item {
-            HeroCard(task = task)
-        }
+        item { HeroCard(task = task) }
         item {
             DetailSection(
-                title = "Description",
+                title = "Descripcion",
                 icon = Icons.Filled.Description
             ) {
                 Text(
@@ -168,30 +171,26 @@ private fun OpportunityDetailContent(
         }
         item {
             DetailSection(
-                title = "Required Skills",
+                title = "Perfil ideal",
                 icon = Icons.Filled.School
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     StatusChip(text = task.tipoOportunidad)
                     StatusChip(text = task.modalidad ?: "Campus")
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     StatusChip(text = "Comunicacion")
                     StatusChip(text = "Responsabilidad")
                 }
             }
         }
         item {
-            DetailSection(title = "Quick Summary") {
-                SummaryRow("Estado", task.estadoTarea)
-                SummaryRow("Modalidad", task.modalidad ?: "No definida")
-                SummaryRow("Fecha limite", task.fechaLimite ?: "Por confirmar")
-                SummaryRow("Visibilidad", task.visibilidad)
+            DetailSection(title = "Resumen rapido") {
+                SummaryRow("Estado", task.estadoTarea, Icons.Filled.Event)
+                SummaryRow("Modalidad", task.modalidad ?: "No definida", Icons.Filled.Place)
+                SummaryRow("Fecha limite", task.fechaLimite ?: "Por confirmar", Icons.Filled.Event)
+                SummaryRow("Visibilidad", task.visibilidad, Icons.Filled.Place)
             }
         }
     }
@@ -201,13 +200,20 @@ private fun OpportunityDetailContent(
 private fun HeroCard(task: TaskDto) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = T4Surface),
-        border = BorderStroke(1.dp, T4Border.copy(alpha = 0.50f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        border = BorderStroke(1.dp, T4Border.copy(alpha = 0.55f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
-            modifier = Modifier.padding(24.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(T4PrimarySoft, T4Primary)
+                    )
+                )
+                .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(
@@ -218,37 +224,38 @@ private fun HeroCard(task: TaskDto) {
                 StatusChip(
                     text = task.tipoOportunidad,
                     selected = true,
-                    containerColor = T4Mint,
-                    contentColor = T4MintDark
+                    containerColor = Color.White.copy(alpha = 0.18f),
+                    contentColor = Color.White
                 )
                 Text(
                     text = task.estadoTarea,
                     style = MaterialTheme.typography.labelMedium,
-                    color = T4TextMuted
+                    color = Color.White.copy(alpha = 0.86f)
                 )
             }
+
             Text(
                 text = task.titulo,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
-                color = T4Text
+                color = Color.White
             )
-            Column {
+
+            Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     text = "$${"%.2f".format(task.presupuesto)}",
-                    modifier = Modifier
-                        .background(T4Amber, MaterialTheme.shapes.medium)
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    color = T4AmberContainer,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
+                    color = Color.White,
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Black
                 )
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Presupuesto estimado",
-                    color = T4TextMuted,
-                    style = MaterialTheme.typography.labelSmall
+                    text = "presupuesto estimado",
+                    color = Color.White.copy(alpha = 0.76f),
+                    style = MaterialTheme.typography.labelMedium
                 )
             }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -257,18 +264,18 @@ private fun HeroCard(task: TaskDto) {
                 Icon(
                     imageVector = Icons.Filled.School,
                     contentDescription = null,
-                    tint = T4Primary
+                    tint = Color.White
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Cliente #${task.idCliente}",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = T4Text
+                        color = Color.White
                     )
                     Text(
                         text = "Perfil verificado por T4KASH",
-                        color = T4TextMuted,
+                        color = Color.White.copy(alpha = 0.76f),
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
@@ -280,14 +287,14 @@ private fun HeroCard(task: TaskDto) {
 @Composable
 private fun DetailSection(
     title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    icon: ImageVector? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = T4Surface),
-        border = BorderStroke(1.dp, T4Border.copy(alpha = 0.50f)),
+        border = BorderStroke(1.dp, T4Border.copy(alpha = 0.55f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
@@ -320,17 +327,18 @@ private fun DetailSection(
 @Composable
 private fun SummaryRow(
     label: String,
-    value: String
+    value: String,
+    icon: ImageVector
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp),
+            .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top
     ) {
         Icon(
-            imageVector = if (label == "Fecha limite") Icons.Filled.Event else Icons.Filled.Place,
+            imageVector = icon,
             contentDescription = null,
             tint = T4Primary
         )
@@ -370,13 +378,13 @@ private fun DetailActionBar(
                 contentDescription = null
             )
             Spacer(modifier = Modifier.width(4.dp))
-            Text("Save")
+            Text("Guardar")
         }
         Button(
             onClick = onApply,
             modifier = Modifier.weight(2f)
         ) {
-            Text("Apply Now")
+            Text("Postularse")
             Spacer(modifier = Modifier.width(4.dp))
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,

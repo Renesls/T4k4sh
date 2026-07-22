@@ -5,7 +5,7 @@ plugins {
 
 val apiBaseUrl = providers.gradleProperty("T4KASH_API_BASE_URL")
     .orElse(providers.environmentVariable("T4KASH_API_BASE_URL"))
-    .orElse("http://10.0.2.2:8080/api/")
+    .orElse("https://t4k4sh.onrender.com/api/")
 
 android {
     namespace = "com.t4kash.app"
