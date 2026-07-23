@@ -65,6 +65,7 @@ Quedan como fases posteriores:
 | API | REST, Swagger / OpenAPI |
 | Base de datos | PostgreSQL |
 | Entorno local | Docker Compose |
+| Hosting demo | Render, Supabase |
 | Diseno | Figma |
 | Control de versiones | GitHub, Conventional Commits |
 
@@ -84,15 +85,15 @@ Base de datos PostgreSQL
 
 La aplicacion movil consume una API REST desarrollada con Spring Boot. El backend contiene la logica de negocio y se conecta a PostgreSQL mediante Spring Data JPA.
 
-Durante el desarrollo se usara Docker Compose para levantar la API y la base de datos en local. Despues de validar que el flujo funciona correctamente, el backend y la base de datos se prepararan para desplegarse en un hosting gratuito compatible con Java/Spring Boot y PostgreSQL.
+Durante el desarrollo se usa Docker Compose para levantar la API y la base de datos en local. Para la demo publicada, la propuesta es desplegar la API en Render y usar Supabase como base de datos PostgreSQL administrada.
 
 ## Entornos
 
 | Entorno | Uso | Estado |
 |---|---|---|
-| Local | Desarrollo, pruebas con Docker Compose y Android Studio | Planificado |
-| Testing/Demo | Validacion previa a entrega del hackathon | Pendiente |
-| Produccion | Hosting gratuito con API publica y base de datos desplegada | Pendiente |
+| Local | Desarrollo, pruebas con Docker Compose y Android Studio | Configurado |
+| Testing/Demo | API publicada en Render y base de datos en Supabase | Preparado |
+| Produccion | Version estable posterior al hackathon | Pendiente |
 
 Las URLs locales solo se usan para desarrollo. En produccion, la aplicacion movil debe apuntar a la URL real del backend desplegado.
 
@@ -107,6 +108,8 @@ T4k4sh/
     sqlserver-original.sql Script original usado como referencia
   docs/
     diagramas/             Diagramas de base de datos y UML
+    deployment.md          Guia de despliegue con Render y Supabase
+  render.yaml              Configuracion de deploy para Render
   README.md                Documentacion principal
 ```
 
@@ -186,6 +189,8 @@ Estas variables se usaran cuando se cree el backend:
 | `SPRING_DATASOURCE_USERNAME` | Usuario de la base de datos | `t4kash` |
 | `SPRING_DATASOURCE_PASSWORD` | Password de la base de datos | `t4kash` |
 | `SPRING_JPA_HIBERNATE_DDL_AUTO` | Estrategia de JPA | `validate` |
+| `SPRING_DATASOURCE_MAX_POOL_SIZE` | Maximo de conexiones del pool | `5` |
+| `SPRING_DATASOURCE_MIN_IDLE` | Conexiones minimas en reposo | `1` |
 | `APP_CORS_ALLOWED_ORIGINS` | Origenes permitidos para consumir la API | URL del frontend/app |
 
 En produccion estas variables no deben guardarse dentro del repositorio. Deben configurarse desde el panel del hosting.
@@ -205,9 +210,15 @@ La documentacion local de la API queda disponible mediante Swagger/OpenAPI cuand
 
 Para Android Emulator, la app no usa `localhost` directamente. En desarrollo se utiliza la direccion especial del emulador para comunicarse con la maquina anfitriona.
 
-## Despliegue previsto
+## Despliegue
 
-El flujo recomendado sera:
+La guia paso a paso esta en:
+
+```text
+docs/deployment.md
+```
+
+El flujo recomendado es:
 
 1. Crear backend Spring Boot.
 2. Conectar backend con PostgreSQL local usando Docker Compose.
@@ -215,8 +226,8 @@ El flujo recomendado sera:
 4. Conectar la app Android al backend local.
 5. Validar el flujo completo del MVP.
 6. Preparar variables de entorno para hosting.
-7. Desplegar backend en un hosting gratuito.
-8. Desplegar o conectar base de datos PostgreSQL en un servicio compatible.
+7. Crear la base de datos PostgreSQL en Supabase.
+8. Desplegar el backend en Render usando `render.yaml`.
 9. Cambiar la URL base de la app Android hacia la API desplegada.
 
 ## Contrato inicial de endpoints
@@ -302,11 +313,15 @@ chore: configurar docker compose
 - Esquema PostgreSQL migrado en `database/schema-postgresql.sql`.
 - Datos demo agregados para probar el flujo Marketplace Core.
 - Diagramas colocados en `docs/diagramas/`.
+- App Android conectada al backend mediante Retrofit.
+- Pantallas iniciales implementadas con navegacion, estados de carga y manejo visual de errores.
+- Configuracion base agregada para desplegar la API en Render y conectar PostgreSQL en Supabase.
 
 ## Proximos pasos
 
-1. Probar el backend con Docker Compose.
-2. Validar endpoints con Swagger/Postman.
-3. Conectar la app Android al backend local.
-4. Implementar autenticacion real.
-5. Preparar despliegue en hosting gratuito.
+1. Crear el proyecto de Supabase y ejecutar `database/schema-postgresql.sql`.
+2. Crear el servicio de Render usando `render.yaml`.
+3. Configurar en Render las variables de conexion a Supabase.
+4. Probar `/api/health` y Swagger en la URL publicada.
+5. Compilar Android apuntando a la URL de Render.
+6. Continuar con autenticacion real y mejoras visuales del flujo principal.

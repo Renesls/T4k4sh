@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: t4kash-api
+    runtime: docker
+    plan: free
+    rootDir: backend
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: validate
+      - key: SPRING_DATASOURCE_MAX_POOL_SIZE
+        value: "5"
+      - key: SPRING_DATASOURCE_MIN_IDLE
+        value: "1"
+      - key: SPRING_DATASOURCE_CONNECTION_TIMEOUT
+        value: "30000"
+      - key: APP_CORS_ALLOWED_ORIGINS
+        value: "*"
+      - key: JAVA_TOOL_OPTIONS
+        value: "-XX:MaxRAMPercentage=75.0"
