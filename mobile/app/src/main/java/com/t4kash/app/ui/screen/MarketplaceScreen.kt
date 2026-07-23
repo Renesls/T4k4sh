@@ -334,7 +334,7 @@ private fun TaskCard(
     val tag = categoryLabel?.takeIf { it.isNotBlank() } ?: task.tipoOportunidad.ifBlank { "Task" }
     val accentCard = tag.contains("tech", ignoreCase = true) ||
         tag.contains("program", ignoreCase = true) ||
-        task.modalidad.equals("remoto", ignoreCase = true)
+        task.modalidad.equals("remota", ignoreCase = true)
     val contentColor = if (accentCard) Color.White else T4Text
     val mutedColor = if (accentCard) Color.White.copy(alpha = 0.78f) else T4TextMuted
 

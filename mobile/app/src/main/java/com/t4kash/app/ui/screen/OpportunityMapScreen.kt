@@ -8,11 +8,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.Button
@@ -42,15 +44,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.theme.T4BrandDark
 import com.t4kash.app.ui.theme.T4Mint
 import com.t4kash.app.ui.theme.T4Primary
 import com.t4kash.app.ui.theme.T4Surface
 import com.t4kash.app.ui.theme.T4Text
 import com.t4kash.app.ui.theme.T4TextMuted
+import com.t4kash.app.ui.viewmodel.MarketplaceViewModel
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
+import org.maplibre.compose.expressions.dsl.const
+import org.maplibre.compose.layers.CircleLayer
 import org.maplibre.compose.location.LocationPuck
 import org.maplibre.compose.location.LocationPuckColors
 import org.maplibre.compose.location.LocationTrackingEffect
@@ -58,6 +66,8 @@ import org.maplibre.compose.location.rememberDefaultLocationProvider
 import org.maplibre.compose.location.rememberNullLocationProvider
 import org.maplibre.compose.location.rememberUserLocationState
 import org.maplibre.compose.map.MaplibreMap
+import org.maplibre.compose.sources.GeoJsonData
+import org.maplibre.compose.sources.rememberGeoJsonSource
 import org.maplibre.compose.style.BaseStyle
 import org.maplibre.spatialk.geojson.Position
 
@@ -66,13 +76,25 @@ private const val OPEN_FREE_MAP_STYLE =
 
 @Composable
 fun OpportunityMapScreen(
+    viewModel: MarketplaceViewModel,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val uiState = viewModel.uiState
+    val locatedTasks = remember(uiState.tasks) {
+        uiState.tasks.filter {
+            it.latitud != null &&
+                it.longitud != null &&
+                !it.modalidad.equals("REMOTA", ignoreCase = true)
+        }
+    }
+    val taskGeoJson = remember(locatedTasks) {
+        locatedTasks.toGeoJson()
+    }
     var reloadKey by rememberSaveable { mutableIntStateOf(0) }
-    var isLoading by remember { mutableStateOf(true) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isMapLoading by remember { mutableStateOf(true) }
+    var mapErrorMessage by remember { mutableStateOf<String?>(null) }
     var hasCenteredOnUser by rememberSaveable { mutableStateOf(false) }
     var hasLocationPermission by remember {
         mutableStateOf(context.hasLocationPermission())
@@ -87,6 +109,7 @@ fun OpportunityMapScreen(
     }
 
     LaunchedEffect(Unit) {
+        viewModel.refresh()
         if (!hasLocationPermission) {
             locationPermissionLauncher.launch(LOCATION_PERMISSIONS)
         }
@@ -108,11 +131,26 @@ fun OpportunityMapScreen(
     }
     val locationState = rememberUserLocationState(locationProvider)
 
+    LaunchedEffect(locatedTasks, hasLocationPermission) {
+        if (!hasLocationPermission && locatedTasks.isNotEmpty()) {
+            val firstTask = locatedTasks.first()
+            cameraState.animateTo(
+                CameraPosition(
+                    target = Position(
+                        latitude = firstTask.latitud ?: return@LaunchedEffect,
+                        longitude = firstTask.longitud ?: return@LaunchedEffect
+                    ),
+                    zoom = 14.0
+                )
+            )
+        }
+    }
+
     Scaffold(
         topBar = {
             T4TopBar(
                 title = "Mapa",
-                subtitle = "Explora oportunidades por ubicación",
+                subtitle = "Oportunidades cerca de ti",
                 onBack = onBack
             )
         }
@@ -128,28 +166,47 @@ fun OpportunityMapScreen(
                     baseStyle = BaseStyle.Uri(OPEN_FREE_MAP_STYLE),
                     cameraState = cameraState,
                     onMapLoadFinished = {
-                        isLoading = false
-                        errorMessage = null
+                        isMapLoading = false
+                        mapErrorMessage = null
                     },
                     onMapLoadFailed = { reason ->
-                        isLoading = false
-                        errorMessage = reason?.takeIf { it.isNotBlank() }
+                        isMapLoading = false
+                        mapErrorMessage = reason?.takeIf { it.isNotBlank() }
                             ?: "No se pudo cargar el mapa."
                     }
                 ) {
+                    val taskSource = rememberGeoJsonSource(
+                        data = GeoJsonData.JsonString(taskGeoJson)
+                    )
+                    CircleLayer(
+                        id = "t4kash-task-halo",
+                        source = taskSource,
+                        radius = const(15.dp),
+                        color = const(T4Primary.copy(alpha = 0.18f)),
+                        strokeColor = const(Color.Transparent)
+                    )
+                    CircleLayer(
+                        id = "t4kash-tasks",
+                        source = taskSource,
+                        radius = const(9.dp),
+                        color = const(T4Primary),
+                        strokeColor = const(Color.White),
+                        strokeWidth = const(3.dp)
+                    )
+
                     if (hasLocationPermission) {
                         LocationPuck(
                             idPrefix = "t4kash-user",
                             location = locationState.location,
                             cameraState = cameraState,
                             colors = LocationPuckColors(
-                                dotFillColorCurrentLocation = T4Primary,
+                                dotFillColorCurrentLocation = T4Mint,
                                 dotFillColorOldLocation = T4TextMuted,
-                                dotStrokeColor = Color.White,
+                                dotStrokeColor = T4BrandDark,
                                 shadowColor = T4BrandDark,
-                                accuracyStrokeColor = T4Primary,
-                                accuracyFillColor = T4Primary.copy(alpha = 0.18f),
-                                bearingColor = T4Mint
+                                accuracyStrokeColor = T4Mint,
+                                accuracyFillColor = T4Mint.copy(alpha = 0.18f),
+                                bearingColor = T4Primary
                             )
                         )
                         LocationTrackingEffect(
@@ -167,6 +224,49 @@ fun OpportunityMapScreen(
                                 hasCenteredOnUser = true
                             }
                         }
+                    }
+                }
+            }
+
+            Card(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(14.dp)
+                    .widthIn(max = 360.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = T4Surface.copy(alpha = 0.96f)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.LocationOn,
+                        contentDescription = null,
+                        tint = T4Primary
+                    )
+                    Column {
+                        Text(
+                            text = when {
+                                uiState.isLoading -> "Buscando oportunidades..."
+                                locatedTasks.isEmpty() -> "Sin tareas ubicadas"
+                                locatedTasks.size == 1 -> "1 oportunidad en el mapa"
+                                else -> "${locatedTasks.size} oportunidades en el mapa"
+                            },
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = T4Text
+                        )
+                        Text(
+                            text = uiState.errorMessage
+                                ?: "Los puntos morados representan tareas presenciales o híbridas.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = T4TextMuted
+                        )
                     }
                 }
             }
@@ -200,7 +300,7 @@ fun OpportunityMapScreen(
                 )
             }
 
-            if (isLoading) {
+            if (isMapLoading) {
                 Card(
                     modifier = Modifier.align(Alignment.Center),
                     shape = RoundedCornerShape(18.dp),
@@ -221,7 +321,7 @@ fun OpportunityMapScreen(
                 }
             }
 
-            errorMessage?.let { message ->
+            mapErrorMessage?.let { message ->
                 Card(
                     modifier = Modifier
                         .align(Alignment.Center)
@@ -253,8 +353,8 @@ fun OpportunityMapScreen(
                         )
                         Button(
                             onClick = {
-                                isLoading = true
-                                errorMessage = null
+                                isMapLoading = true
+                                mapErrorMessage = null
                                 reloadKey += 1
                             }
                         ) {
@@ -265,6 +365,33 @@ fun OpportunityMapScreen(
             }
         }
     }
+}
+
+private fun List<TaskDto>.toGeoJson(): String {
+    val features = JSONArray()
+    forEach { task ->
+        val latitude = task.latitud ?: return@forEach
+        val longitude = task.longitud ?: return@forEach
+        val coordinates = JSONArray()
+            .put(longitude)
+            .put(latitude)
+        val geometry = JSONObject()
+            .put("type", "Point")
+            .put("coordinates", coordinates)
+        val properties = JSONObject()
+            .put("idTarea", task.idTarea)
+            .put("titulo", task.titulo)
+        features.put(
+            JSONObject()
+                .put("type", "Feature")
+                .put("geometry", geometry)
+                .put("properties", properties)
+        )
+    }
+    return JSONObject()
+        .put("type", "FeatureCollection")
+        .put("features", features)
+        .toString()
 }
 
 private val LOCATION_PERMISSIONS = arrayOf(

@@ -18,7 +18,10 @@ public record TaskResponse(
         Integer idCliente,
         String tipoOportunidad,
         String modalidad,
-        String visibilidad
+        String visibilidad,
+        String direccionReferencia,
+        BigDecimal latitud,
+        BigDecimal longitud
 ) {
     public static TaskResponse fromEntity(Tarea tarea) {
         return new TaskResponse(
@@ -34,7 +37,10 @@ public record TaskResponse(
                 tarea.getIdCliente(),
                 tarea.getTipoOportunidad(),
                 tarea.getModalidad(),
-                tarea.getVisibilidad()
+                tarea.getVisibilidad(),
+                tarea.getDireccionReferencia(),
+                tarea.getLatitud(),
+                tarea.getLongitud()
         );
     }
 }

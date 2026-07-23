@@ -60,6 +60,7 @@ fun NavGraph(
         }
         composable(Routes.OPPORTUNITY_MAP) {
             OpportunityMapScreen(
+                viewModel = marketplaceViewModel,
                 onBack = { navController.popBackStack() }
             )
         }
@@ -81,7 +82,15 @@ fun NavGraph(
             NetworkScreen(onNavigate = { route -> navController.navigateBottom(route) })
         }
         composable(Routes.POST) {
-            PostTaskScreen(onNavigate = { route -> navController.navigateBottom(route) })
+            PostTaskScreen(
+                viewModel = marketplaceViewModel,
+                onNavigate = { route -> navController.navigateBottom(route) },
+                onTaskPublished = {
+                    navController.navigate(Routes.OPPORTUNITY_MAP) {
+                        popUpTo(Routes.POST) { inclusive = true }
+                    }
+                }
+            )
         }
         composable(Routes.CHAT) {
             ChatScreen(onNavigate = { route -> navController.navigateBottom(route) })
