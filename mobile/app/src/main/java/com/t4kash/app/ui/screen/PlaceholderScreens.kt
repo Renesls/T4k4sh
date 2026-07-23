@@ -195,7 +195,7 @@ private fun FeatureScreen(
                 .padding(innerPadding)
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(T4Background, Color(0xFFF4F7FF))
+                        colors = listOf(T4Background, Color(0xFFF2F2ED))
                     )
                 ),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),

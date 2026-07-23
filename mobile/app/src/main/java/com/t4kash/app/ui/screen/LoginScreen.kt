@@ -95,7 +95,7 @@ fun LoginScreen(
                 .padding(innerPadding)
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(T4Background, Color(0xFFF1F4FF))
+                        colors = listOf(T4Background, Color(0xFFF2F2ED))
                     )
                 )
                 .verticalScroll(rememberScrollState())
@@ -112,7 +112,7 @@ fun LoginScreen(
                         .clip(RoundedCornerShape(28.dp))
                         .background(
                             Brush.linearGradient(
-                                colors = listOf(Color(0xFF2717B8), T4PrimarySoft, T4Primary)
+                                colors = listOf(Color(0xFF3D2FE0), T4PrimarySoft, T4Primary)
                             )
                         )
                         .padding(24.dp)

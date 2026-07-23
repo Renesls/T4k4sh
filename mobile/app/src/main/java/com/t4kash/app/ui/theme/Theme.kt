@@ -8,19 +8,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
-    primary = T4PrimaryContainer,
-    onPrimary = T4Text,
-    primaryContainer = T4Primary,
+    primary = T4PrimarySoft,
+    onPrimary = Color.White,
+    primaryContainer = T4PrimaryDark,
     onPrimaryContainer = Color.White,
     secondary = T4Mint,
-    onSecondary = T4Text,
+    onSecondary = T4BrandDark,
+    secondaryContainer = T4MintDark,
+    onSecondaryContainer = T4Mint,
     tertiary = T4AmberContainer,
-    background = T4Text,
+    onTertiary = T4BrandDark,
+    background = T4BrandDark,
     onBackground = Color.White,
-    surface = Color(0xFF202633),
+    surface = Color(0xFF242424),
     onSurface = Color.White,
-    surfaceVariant = Color(0xFF303747),
-    onSurfaceVariant = T4PrimaryContainer,
+    surfaceVariant = Color(0xFF32322F),
+    onSurfaceVariant = Color(0xFFE7E7E0),
+    outline = Color(0xFF777772),
     error = T4Danger
 )
 
@@ -36,7 +40,7 @@ private val LightColorScheme = lightColorScheme(
     tertiary = T4Amber,
     onTertiary = Color.White,
     tertiaryContainer = T4AmberContainer,
-    onTertiaryContainer = T4Amber,
+    onTertiaryContainer = T4BrandDark,
     background = T4Background,
     onBackground = T4Text,
     surface = T4Surface,
