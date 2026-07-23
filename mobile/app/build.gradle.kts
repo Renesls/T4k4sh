@@ -3,6 +3,10 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val apiBaseUrl = providers.gradleProperty("T4KASH_API_BASE_URL")
+    .orElse(providers.environmentVariable("T4KASH_API_BASE_URL"))
+    .orElse("https://t4k4sh.onrender.com/api/")
+
 android {
     namespace = "com.t4kash.app"
     compileSdk {
@@ -19,6 +23,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "API_BASE_URL", "\"${apiBaseUrl.get()}\"")
     }
 
     buildTypes {
@@ -36,6 +41,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -50,6 +56,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)
     implementation(libs.okhttp.logging.interceptor)
