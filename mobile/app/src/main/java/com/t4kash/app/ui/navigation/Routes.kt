@@ -4,6 +4,7 @@ object Routes {
     const val SPLASH = "splash"
     const val LOGIN = "login"
     const val MARKETPLACE = "marketplace"
+    const val OPPORTUNITY_MAP = "opportunity-map"
     const val NETWORK = "network"
     const val POST = "post"
     const val CHAT = "chat"

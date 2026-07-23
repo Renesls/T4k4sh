@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.School
@@ -34,6 +35,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -78,7 +80,8 @@ fun MarketplaceScreen(
     currentRoute: String = Routes.MARKETPLACE,
     onNavigate: (String) -> Unit = {},
     onTaskSelected: (TaskDto) -> Unit = {},
-    onCreateTask: () -> Unit = {}
+    onCreateTask: () -> Unit = {},
+    onOpenMap: () -> Unit = {}
 ) {
     val state = viewModel.uiState
     var query by remember { mutableStateOf("") }
@@ -104,6 +107,12 @@ fun MarketplaceScreen(
                 title = "T4KASH",
                 subtitle = "Oportunidades universitarias",
                 actions = {
+                    IconButton(onClick = onOpenMap) {
+                        Icon(
+                            imageVector = Icons.Filled.Map,
+                            contentDescription = "Explorar en el mapa"
+                        )
+                    }
                     IconButton(onClick = {}) {
                         Icon(
                             imageVector = Icons.Filled.Notifications,
@@ -176,6 +185,19 @@ fun MarketplaceScreen(
                             placeholder = { Text("Buscar tareas o estudiantes...") },
                             singleLine = true,
                             shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedContainerColor = Color.White.copy(alpha = 0.12f),
+                                unfocusedContainerColor = Color.White.copy(alpha = 0.08f),
+                                cursorColor = Color.White,
+                                focusedBorderColor = Color.White,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.72f),
+                                focusedLeadingIconColor = Color.White,
+                                unfocusedLeadingIconColor = Color.White.copy(alpha = 0.82f),
+                                focusedPlaceholderColor = Color.White.copy(alpha = 0.72f),
+                                unfocusedPlaceholderColor = Color.White.copy(alpha = 0.72f)
+                            ),
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Filled.Search,

@@ -14,6 +14,7 @@ import com.t4kash.app.ui.screen.LoginScreen
 import com.t4kash.app.ui.screen.MarketplaceScreen
 import com.t4kash.app.ui.screen.NetworkScreen
 import com.t4kash.app.ui.screen.OpportunityDetailScreen
+import com.t4kash.app.ui.screen.OpportunityMapScreen
 import com.t4kash.app.ui.screen.PostTaskScreen
 import com.t4kash.app.ui.screen.SplashScreen
 import com.t4kash.app.ui.screen.WalletScreen
@@ -53,7 +54,13 @@ fun NavGraph(
                 currentRoute = Routes.MARKETPLACE,
                 onNavigate = { route -> navController.navigateBottom(route) },
                 onTaskSelected = { task -> navController.navigate(Routes.taskDetails(task.idTarea)) },
-                onCreateTask = { navController.navigateBottom(Routes.POST) }
+                onCreateTask = { navController.navigateBottom(Routes.POST) },
+                onOpenMap = { navController.navigate(Routes.OPPORTUNITY_MAP) }
+            )
+        }
+        composable(Routes.OPPORTUNITY_MAP) {
+            OpportunityMapScreen(
+                onBack = { navController.popBackStack() }
             )
         }
         composable(
