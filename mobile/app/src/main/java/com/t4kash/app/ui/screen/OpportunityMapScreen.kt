@@ -1,5 +1,10 @@
 package com.t4kash.app.ui.screen
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,6 +14,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -16,20 +22,25 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.t4kash.app.ui.components.T4TopBar
 import com.t4kash.app.ui.theme.T4BrandDark
 import com.t4kash.app.ui.theme.T4Mint
@@ -37,8 +48,15 @@ import com.t4kash.app.ui.theme.T4Primary
 import com.t4kash.app.ui.theme.T4Surface
 import com.t4kash.app.ui.theme.T4Text
 import com.t4kash.app.ui.theme.T4TextMuted
+import kotlinx.coroutines.launch
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
+import org.maplibre.compose.location.LocationPuck
+import org.maplibre.compose.location.LocationPuckColors
+import org.maplibre.compose.location.LocationTrackingEffect
+import org.maplibre.compose.location.rememberDefaultLocationProvider
+import org.maplibre.compose.location.rememberNullLocationProvider
+import org.maplibre.compose.location.rememberUserLocationState
 import org.maplibre.compose.map.MaplibreMap
 import org.maplibre.compose.style.BaseStyle
 import org.maplibre.spatialk.geojson.Position
@@ -50,15 +68,51 @@ private const val OPEN_FREE_MAP_STYLE =
 fun OpportunityMapScreen(
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var reloadKey by rememberSaveable { mutableIntStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var hasCenteredOnUser by rememberSaveable { mutableStateOf(false) }
+    var hasLocationPermission by remember {
+        mutableStateOf(context.hasLocationPermission())
+    }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        hasLocationPermission =
+            permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+    }
+
+    LaunchedEffect(Unit) {
+        if (!hasLocationPermission) {
+            locationPermissionLauncher.launch(LOCATION_PERMISSIONS)
+        }
+    }
+
+    val cameraState = rememberCameraState(
+        firstPosition = CameraPosition(
+            target = Position(
+                latitude = 12.11499,
+                longitude = -86.23617
+            ),
+            zoom = 11.5
+        )
+    )
+    val locationProvider = if (hasLocationPermission) {
+        rememberDefaultLocationProvider()
+    } else {
+        rememberNullLocationProvider()
+    }
+    val locationState = rememberUserLocationState(locationProvider)
 
     Scaffold(
         topBar = {
             T4TopBar(
                 title = "Mapa",
-                subtitle = "Oportunidades cerca de ti",
+                subtitle = "Explora oportunidades por ubicación",
                 onBack = onBack
             )
         }
@@ -69,16 +123,6 @@ fun OpportunityMapScreen(
                 .padding(innerPadding)
         ) {
             key(reloadKey) {
-                val cameraState = rememberCameraState(
-                    firstPosition = CameraPosition(
-                        target = Position(
-                            latitude = 12.11499,
-                            longitude = -86.23617
-                        ),
-                        zoom = 11.5
-                    )
-                )
-
                 MaplibreMap(
                     modifier = Modifier.fillMaxSize(),
                     baseStyle = BaseStyle.Uri(OPEN_FREE_MAP_STYLE),
@@ -92,32 +136,68 @@ fun OpportunityMapScreen(
                         errorMessage = reason?.takeIf { it.isNotBlank() }
                             ?: "No se pudo cargar el mapa."
                     }
-                )
+                ) {
+                    if (hasLocationPermission) {
+                        LocationPuck(
+                            idPrefix = "t4kash-user",
+                            location = locationState.location,
+                            cameraState = cameraState,
+                            colors = LocationPuckColors(
+                                dotFillColorCurrentLocation = T4Primary,
+                                dotFillColorOldLocation = T4TextMuted,
+                                dotStrokeColor = Color.White,
+                                shadowColor = T4BrandDark,
+                                accuracyStrokeColor = T4Primary,
+                                accuracyFillColor = T4Primary.copy(alpha = 0.18f),
+                                bearingColor = T4Mint
+                            )
+                        )
+                        LocationTrackingEffect(
+                            locationState = locationState,
+                            trackBearing = false
+                        ) {
+                            val userPosition = currentLocation.location?.position?.value
+                            if (userPosition != null && !hasCenteredOnUser) {
+                                cameraState.animateTo(
+                                    CameraPosition(
+                                        target = userPosition,
+                                        zoom = 15.0
+                                    )
+                                )
+                                hasCenteredOnUser = true
+                            }
+                        }
+                    }
+                }
             }
 
-            Card(
+            SmallFloatingActionButton(
+                onClick = {
+                    if (!hasLocationPermission) {
+                        locationPermissionLauncher.launch(LOCATION_PERMISSIONS)
+                    } else {
+                        locationState.location?.position?.value?.let { userPosition ->
+                            coroutineScope.launch {
+                                cameraState.animateTo(
+                                    CameraPosition(
+                                        target = userPosition,
+                                        zoom = 15.0
+                                    )
+                                )
+                            }
+                        }
+                    }
+                },
                 modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(14.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = T4BrandDark)
+                    .align(Alignment.BottomCenter)
+                    .padding(18.dp),
+                containerColor = T4Mint,
+                contentColor = T4BrandDark
             ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Text(
-                        text = "OpenFreeMap",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = T4Mint
-                    )
-                    Text(
-                        text = "Explora Managua con gestos de zoom y desplazamiento.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.82f)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Filled.MyLocation,
+                    contentDescription = "Centrar en mi ubicación"
+                )
             }
 
             if (isLoading) {
@@ -185,4 +265,20 @@ fun OpportunityMapScreen(
             }
         }
     }
+}
+
+private val LOCATION_PERMISSIONS = arrayOf(
+    Manifest.permission.ACCESS_FINE_LOCATION,
+    Manifest.permission.ACCESS_COARSE_LOCATION
+)
+
+private fun Context.hasLocationPermission(): Boolean {
+    return ContextCompat.checkSelfPermission(
+        this,
+        Manifest.permission.ACCESS_FINE_LOCATION
+    ) == PackageManager.PERMISSION_GRANTED ||
+        ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
 }
