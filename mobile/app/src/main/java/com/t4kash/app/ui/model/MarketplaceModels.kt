@@ -20,7 +20,26 @@ data class TaskDto(
     val idCliente: Int,
     val tipoOportunidad: String,
     val modalidad: String?,
-    val visibilidad: String
+    val visibilidad: String,
+    val direccionReferencia: String?,
+    val latitud: Double?,
+    val longitud: Double?
+)
+
+data class CreateTaskRequest(
+    val titulo: String,
+    val descripcion: String,
+    val presupuesto: Double,
+    val fechaLimitePostulacion: String? = null,
+    val fechaLimite: String? = null,
+    val idCategoria: Int,
+    val idCliente: Int,
+    val tipoOportunidad: String = "TAREA",
+    val modalidad: String,
+    val visibilidad: String = "PUBLICA",
+    val direccionReferencia: String?,
+    val latitud: Double?,
+    val longitud: Double?
 )
 
 data class MarketplaceHomeData(

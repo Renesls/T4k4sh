@@ -140,8 +140,20 @@ CREATE TABLE tareas (
     tipo_oportunidad varchar(50) NOT NULL,
     modalidad varchar(30),
     visibilidad varchar(30) NOT NULL DEFAULT 'PUBLICA',
+    direccion_referencia varchar(250),
+    latitud numeric(9,6),
+    longitud numeric(9,6),
     CONSTRAINT pk_tareas PRIMARY KEY (id_tarea),
-    CONSTRAINT ck_tareas_presupuesto CHECK (presupuesto >= 0)
+    CONSTRAINT ck_tareas_presupuesto CHECK (presupuesto >= 0),
+    CONSTRAINT ck_tareas_coordenadas_validas CHECK (
+        (latitud IS NULL AND longitud IS NULL)
+        OR (
+            latitud IS NOT NULL
+            AND longitud IS NOT NULL
+            AND latitud BETWEEN -90 AND 90
+            AND longitud BETWEEN -180 AND 180
+        )
+    )
 );
 
 CREATE TABLE tareas_habilidades (
@@ -664,6 +676,8 @@ ALTER TABLE auditoria_sistema
 CREATE INDEX idx_tareas_estado ON tareas (estado_tarea);
 CREATE INDEX idx_tareas_categoria ON tareas (id_categoria);
 CREATE INDEX idx_tareas_cliente ON tareas (id_cliente);
+CREATE INDEX idx_tareas_coordenadas ON tareas (latitud, longitud)
+    WHERE latitud IS NOT NULL AND longitud IS NOT NULL;
 CREATE INDEX idx_postulaciones_estudiante ON postulaciones (id_estudiante);
 CREATE INDEX idx_postulaciones_estado ON postulaciones (estado_postulacion);
 CREATE INDEX idx_trabajos_estudiante ON trabajos_asignados (id_estudiante);

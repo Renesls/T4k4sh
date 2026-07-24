@@ -26,6 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 @Service
 public class MarketplaceService {
@@ -38,6 +40,9 @@ public class MarketplaceService {
     private static final String ESTADO_TRABAJO_FINALIZADO = "FINALIZADO";
     private static final String ESTADO_ENTREGA_ENVIADA = "ENVIADA";
     private static final String ESTADO_ENTREGA_APROBADA = "APROBADA";
+    private static final String MODALIDAD_REMOTA = "REMOTA";
+    private static final Set<String> MODALIDADES_VALIDAS =
+            Set.of(MODALIDAD_REMOTA, "PRESENCIAL", "HIBRIDA");
 
     private final CategoriaTareaRepository categoriaRepository;
     private final TareaRepository tareaRepository;
@@ -106,12 +111,56 @@ public class MarketplaceService {
         tarea.setIdCategoria(request.idCategoria());
         tarea.setIdCliente(request.idCliente());
         tarea.setTipoOportunidad(request.tipoOportunidad().trim());
-        tarea.setModalidad(request.modalidad());
+        String modalidad = normalizeModality(request.modalidad());
+        tarea.setModalidad(modalidad);
         tarea.setVisibilidad(request.visibilidad() == null || request.visibilidad().isBlank()
                 ? "PUBLICA"
-                : request.visibilidad().trim());
+                : request.visibilidad().trim().toUpperCase(Locale.ROOT));
+        applyLocation(tarea, request, modalidad);
 
         return TaskResponse.fromEntity(tareaRepository.save(tarea));
+    }
+
+    private String normalizeModality(String value) {
+        String modalidad = value == null || value.isBlank()
+                ? MODALIDAD_REMOTA
+                : value.trim().toUpperCase(Locale.ROOT);
+        if ("REMOTO".equals(modalidad)) {
+            modalidad = MODALIDAD_REMOTA;
+        }
+        if (!MODALIDADES_VALIDAS.contains(modalidad)) {
+            throw new IllegalArgumentException(
+                    "La modalidad debe ser REMOTA, PRESENCIAL o HIBRIDA."
+            );
+        }
+        return modalidad;
+    }
+
+    private void applyLocation(
+            Tarea tarea,
+            CreateTaskRequest request,
+            String modalidad
+    ) {
+        if (MODALIDAD_REMOTA.equals(modalidad)) {
+            tarea.setDireccionReferencia(null);
+            tarea.setLatitud(null);
+            tarea.setLongitud(null);
+            return;
+        }
+
+        if (request.latitud() == null || request.longitud() == null) {
+            throw new IllegalArgumentException(
+                    "Las tareas presenciales o hibridas requieren latitud y longitud."
+            );
+        }
+
+        tarea.setDireccionReferencia(
+                request.direccionReferencia() == null || request.direccionReferencia().isBlank()
+                        ? null
+                        : request.direccionReferencia().trim()
+        );
+        tarea.setLatitud(request.latitud());
+        tarea.setLongitud(request.longitud());
     }
 
     @Transactional(readOnly = true)
