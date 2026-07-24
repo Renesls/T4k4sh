@@ -54,6 +54,15 @@ public class Tarea {
     @Column(name = "visibilidad", nullable = false, length = 30)
     private String visibilidad;
 
+    @Column(name = "direccion_referencia", length = 250)
+    private String direccionReferencia;
+
+    @Column(name = "latitud", precision = 9, scale = 6)
+    private BigDecimal latitud;
+
+    @Column(name = "longitud", precision = 9, scale = 6)
+    private BigDecimal longitud;
+
     public Integer getIdTarea() {
         return idTarea;
     }
@@ -156,5 +165,29 @@ public class Tarea {
 
     public void setVisibilidad(String visibilidad) {
         this.visibilidad = visibilidad;
+    }
+
+    public String getDireccionReferencia() {
+        return direccionReferencia;
+    }
+
+    public void setDireccionReferencia(String direccionReferencia) {
+        this.direccionReferencia = direccionReferencia;
+    }
+
+    public BigDecimal getLatitud() {
+        return latitud;
+    }
+
+    public void setLatitud(BigDecimal latitud) {
+        this.latitud = latitud;
+    }
+
+    public BigDecimal getLongitud() {
+        return longitud;
+    }
+
+    public void setLongitud(BigDecimal longitud) {
+        this.longitud = longitud;
     }
 }
