@@ -42,6 +42,22 @@ data class CreateTaskRequest(
     val longitud: Double?
 )
 
+data class CreateApplicationRequest(
+    val idEstudiante: Int,
+    val mensaje: String?,
+    val precioPropuesto: Double?
+)
+
+data class ApplicationDto(
+    val idPostulacion: Int,
+    val idTarea: Int,
+    val idEstudiante: Int,
+    val mensaje: String?,
+    val precioPropuesto: Double?,
+    val fechaPostulacion: String,
+    val estadoPostulacion: String
+)
+
 data class MarketplaceHomeData(
     val categories: List<CategoryDto>,
     val tasks: List<TaskDto>

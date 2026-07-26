@@ -5,7 +5,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.t4kash.app.ui.model.ApplicationDto
 import com.t4kash.app.ui.model.CategoryDto
+import com.t4kash.app.ui.model.CreateApplicationRequest
 import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.repository.MarketplaceRepository
@@ -19,7 +21,10 @@ data class MarketplaceUiState(
     val errorMessage: String? = null,
     val isPublishing: Boolean = false,
     val publishError: String? = null,
-    val publishedTask: TaskDto? = null
+    val publishedTask: TaskDto? = null,
+    val isApplying: Boolean = false,
+    val applicationError: String? = null,
+    val sentApplication: ApplicationDto? = null
 )
 
 class MarketplaceViewModel(
@@ -83,5 +88,37 @@ class MarketplaceViewModel(
 
     fun clearPublishFeedback() {
         uiState = uiState.copy(publishError = null, publishedTask = null)
+    }
+
+    fun applyToTask(taskId: Int, request: CreateApplicationRequest) {
+        viewModelScope.launch {
+            uiState = uiState.copy(
+                isApplying = true,
+                applicationError = null,
+                sentApplication = null
+            )
+            when (val result = repository.applyToTask(taskId, request)) {
+                is ApiResult.Success -> {
+                    uiState = uiState.copy(
+                        isApplying = false,
+                        sentApplication = result.data
+                    )
+                }
+
+                is ApiResult.Error -> {
+                    uiState = uiState.copy(
+                        isApplying = false,
+                        applicationError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearApplicationFeedback() {
+        uiState = uiState.copy(
+            applicationError = null,
+            sentApplication = null
+        )
     }
 }
