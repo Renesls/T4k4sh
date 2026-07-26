@@ -1,6 +1,7 @@
 package com.t4kash.app.ui.screen
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,6 +26,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,6 +56,8 @@ import com.t4kash.app.ui.theme.T4Text
 import com.t4kash.app.ui.theme.T4TextMuted
 import com.t4kash.app.ui.viewmodel.MarketplaceViewModel
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import org.json.JSONArray
 import org.json.JSONObject
 import org.maplibre.compose.camera.CameraPosition
@@ -69,33 +74,44 @@ import org.maplibre.compose.map.MaplibreMap
 import org.maplibre.compose.sources.GeoJsonData
 import org.maplibre.compose.sources.rememberGeoJsonSource
 import org.maplibre.compose.style.BaseStyle
+import org.maplibre.compose.util.ClickResult
 import org.maplibre.spatialk.geojson.Position
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.roundToInt
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 private const val OPEN_FREE_MAP_STYLE =
     "https://tiles.openfreemap.org/styles/liberty"
+private const val DEFAULT_RADIUS_KM = 50f
+private const val EARTH_RADIUS_KM = 6371.0
 
+@SuppressLint("MissingPermission")
 @Composable
 fun OpportunityMapScreen(
     viewModel: MarketplaceViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onTaskSelected: (Int) -> Unit,
+    focusedTaskId: Int? = null
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val uiState = viewModel.uiState
     val locatedTasks = remember(uiState.tasks) {
         uiState.tasks.filter {
-            it.latitud != null &&
-                it.longitud != null &&
+            it.hasValidCoordinates() &&
                 !it.modalidad.equals("REMOTA", ignoreCase = true)
         }
     }
-    val taskGeoJson = remember(locatedTasks) {
-        locatedTasks.toGeoJson()
+    val focusedTask = remember(locatedTasks, focusedTaskId) {
+        locatedTasks.firstOrNull { it.idTarea == focusedTaskId }
     }
     var reloadKey by rememberSaveable { mutableIntStateOf(0) }
     var isMapLoading by remember { mutableStateOf(true) }
     var mapErrorMessage by remember { mutableStateOf<String?>(null) }
     var hasCenteredOnUser by rememberSaveable { mutableStateOf(false) }
+    var radiusKm by rememberSaveable { mutableStateOf(DEFAULT_RADIUS_KM) }
     var hasLocationPermission by remember {
         mutableStateOf(context.hasLocationPermission())
     }
@@ -130,9 +146,41 @@ fun OpportunityMapScreen(
         rememberNullLocationProvider()
     }
     val locationState = rememberUserLocationState(locationProvider)
+    val userPosition = locationState.location
+        ?.position
+        ?.value
+        ?.takeIf { it.isUsableLocation() }
+    val visibleTasks = remember(locatedTasks, userPosition, radiusKm, focusedTaskId) {
+        if (userPosition == null) {
+            locatedTasks
+        } else {
+            locatedTasks.filter { task ->
+                task.idTarea == focusedTaskId ||
+                    task.distanceTo(userPosition) <= radiusKm
+            }
+        }
+    }
+    val taskGeoJson = remember(visibleTasks) {
+        visibleTasks.toGeoJson()
+    }
 
-    LaunchedEffect(locatedTasks, hasLocationPermission) {
-        if (!hasLocationPermission && locatedTasks.isNotEmpty()) {
+    LaunchedEffect(focusedTask?.idTarea) {
+        focusedTask?.let { task ->
+            cameraState.animateTo(
+                CameraPosition(
+                    target = Position(
+                        latitude = task.latitud ?: return@let,
+                        longitude = task.longitud ?: return@let
+                    ),
+                    zoom = 15.0
+                )
+            )
+            hasCenteredOnUser = true
+        }
+    }
+
+    LaunchedEffect(locatedTasks, hasLocationPermission, focusedTaskId) {
+        if (focusedTaskId == null && !hasLocationPermission && locatedTasks.isNotEmpty()) {
             val firstTask = locatedTasks.first()
             cameraState.animateTo(
                 CameraPosition(
@@ -191,7 +239,21 @@ fun OpportunityMapScreen(
                         radius = const(9.dp),
                         color = const(T4Primary),
                         strokeColor = const(Color.White),
-                        strokeWidth = const(3.dp)
+                        strokeWidth = const(3.dp),
+                        onClick = { features ->
+                            val taskId = features
+                                .firstOrNull()
+                                ?.properties
+                                ?.get("idTarea")
+                                ?.jsonPrimitive
+                                ?.intOrNull
+                            if (taskId != null) {
+                                onTaskSelected(taskId)
+                                ClickResult.Consume
+                            } else {
+                                ClickResult.Pass
+                            }
+                        }
                     )
 
                     if (hasLocationPermission) {
@@ -213,11 +275,18 @@ fun OpportunityMapScreen(
                             locationState = locationState,
                             trackBearing = false
                         ) {
-                            val userPosition = currentLocation.location?.position?.value
-                            if (userPosition != null && !hasCenteredOnUser) {
+                            val trackedPosition = currentLocation.location
+                                ?.position
+                                ?.value
+                                ?.takeIf { it.isUsableLocation() }
+                            if (
+                                trackedPosition != null &&
+                                !hasCenteredOnUser &&
+                                focusedTaskId == null
+                            ) {
                                 cameraState.animateTo(
                                     CameraPosition(
-                                        target = userPosition,
+                                        target = trackedPosition,
                                         zoom = 15.0
                                     )
                                 )
@@ -233,41 +302,75 @@ fun OpportunityMapScreen(
                     .align(Alignment.TopCenter)
                     .padding(14.dp)
                     .widthIn(max = 360.dp),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(8.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = T4Surface.copy(alpha = 0.96f)
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
             ) {
-                Row(
+                Column(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.LocationOn,
-                        contentDescription = null,
-                        tint = T4Primary
-                    )
-                    Column {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.LocationOn,
+                            contentDescription = null,
+                            tint = T4Primary
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = when {
+                                    uiState.isLoading -> "Buscando oportunidades..."
+                                    visibleTasks.isEmpty() -> "Sin oportunidades en este radio"
+                                    visibleTasks.size == 1 -> "1 oportunidad en el mapa"
+                                    else -> "${visibleTasks.size} oportunidades en el mapa"
+                                },
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = T4Text
+                            )
+                            Text(
+                                text = when {
+                                    uiState.errorMessage != null -> uiState.errorMessage
+                                    userPosition == null ->
+                                        "Esperando una ubicacion valida del telefono."
+                                    focusedTask != null ->
+                                        "Mostrando la ubicacion de ${focusedTask.titulo}."
+                                    else ->
+                                        "Tareas presenciales o hibridas dentro del radio."
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = T4TextMuted
+                            )
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            text = when {
-                                uiState.isLoading -> "Buscando oportunidades..."
-                                locatedTasks.isEmpty() -> "Sin tareas ubicadas"
-                                locatedTasks.size == 1 -> "1 oportunidad en el mapa"
-                                else -> "${locatedTasks.size} oportunidades en el mapa"
-                            },
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
+                            text = "Radio de busqueda",
+                            style = MaterialTheme.typography.labelMedium,
                             color = T4Text
                         )
                         Text(
-                            text = uiState.errorMessage
-                                ?: "Los puntos morados representan tareas presenciales o híbridas.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = T4TextMuted
+                            text = "${radiusKm.roundToInt()} km",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = T4Primary
                         )
                     }
+                    Slider(
+                        value = radiusKm,
+                        onValueChange = { radiusKm = it },
+                        valueRange = 5f..50f,
+                        steps = 8
+                    )
                 }
             }
 
@@ -276,11 +379,11 @@ fun OpportunityMapScreen(
                     if (!hasLocationPermission) {
                         locationPermissionLauncher.launch(LOCATION_PERMISSIONS)
                     } else {
-                        locationState.location?.position?.value?.let { userPosition ->
+                        userPosition?.let { validPosition ->
                             coroutineScope.launch {
                                 cameraState.animateTo(
                                     CameraPosition(
-                                        target = userPosition,
+                                        target = validPosition,
                                         zoom = 15.0
                                     )
                                 )
@@ -296,14 +399,14 @@ fun OpportunityMapScreen(
             ) {
                 Icon(
                     imageVector = Icons.Filled.MyLocation,
-                    contentDescription = "Centrar en mi ubicación"
+                    contentDescription = "Centrar en mi ubicacion"
                 )
             }
 
             if (isMapLoading) {
                 Card(
                     modifier = Modifier.align(Alignment.Center),
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(8.dp),
                     colors = CardDefaults.cardColors(containerColor = T4Surface)
                 ) {
                     Column(
@@ -327,7 +430,7 @@ fun OpportunityMapScreen(
                         .align(Alignment.Center)
                         .padding(24.dp)
                         .widthIn(max = 340.dp),
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(8.dp),
                     colors = CardDefaults.cardColors(containerColor = T4Surface)
                 ) {
                     Column(
@@ -392,6 +495,32 @@ private fun List<TaskDto>.toGeoJson(): String {
         .put("type", "FeatureCollection")
         .put("features", features)
         .toString()
+}
+
+private fun TaskDto.hasValidCoordinates(): Boolean {
+    val latitude = latitud ?: return false
+    val longitude = longitud ?: return false
+    return Position(latitude = latitude, longitude = longitude).isUsableLocation()
+}
+
+private fun Position.isUsableLocation(): Boolean {
+    return latitude in -90.0..90.0 &&
+        longitude in -180.0..180.0 &&
+        !(latitude == 0.0 && longitude == 0.0)
+}
+
+private fun TaskDto.distanceTo(position: Position): Double {
+    val taskLatitude = latitud ?: return Double.POSITIVE_INFINITY
+    val taskLongitude = longitud ?: return Double.POSITIVE_INFINITY
+    val latitudeDelta = Math.toRadians(taskLatitude - position.latitude)
+    val longitudeDelta = Math.toRadians(taskLongitude - position.longitude)
+    val startLatitude = Math.toRadians(position.latitude)
+    val endLatitude = Math.toRadians(taskLatitude)
+    val haversine =
+        sin(latitudeDelta / 2) * sin(latitudeDelta / 2) +
+            cos(startLatitude) * cos(endLatitude) *
+            sin(longitudeDelta / 2) * sin(longitudeDelta / 2)
+    return EARTH_RADIUS_KM * 2 * atan2(sqrt(haversine), sqrt(1 - haversine))
 }
 
 private val LOCATION_PERMISSIONS = arrayOf(

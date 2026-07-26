@@ -67,7 +67,26 @@ fun NavGraph(
         composable(Routes.OPPORTUNITY_MAP) {
             OpportunityMapScreen(
                 viewModel = marketplaceViewModel,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onTaskSelected = { taskId ->
+                    navController.navigate(Routes.taskDetails(taskId))
+                }
+            )
+        }
+        composable(
+            route = Routes.OPPORTUNITY_MAP_TASK,
+            arguments = listOf(
+                navArgument(Routes.TASK_ID_ARG) { type = NavType.IntType }
+            )
+        ) { backStackEntry ->
+            val taskId = backStackEntry.arguments?.getInt(Routes.TASK_ID_ARG)
+            OpportunityMapScreen(
+                viewModel = marketplaceViewModel,
+                onBack = { navController.popBackStack() },
+                onTaskSelected = { selectedTaskId ->
+                    navController.navigate(Routes.taskDetails(selectedTaskId))
+                },
+                focusedTaskId = taskId
             )
         }
         composable(
@@ -81,7 +100,8 @@ fun NavGraph(
                 taskId = taskId,
                 viewModel = marketplaceViewModel,
                 onBack = { navController.popBackStack() },
-                onApply = { navController.navigate(Routes.APPLICATION_SENT) }
+                onApply = { navController.navigate(Routes.APPLICATION_SENT) },
+                onOpenMap = { navController.navigate(Routes.opportunityMap(taskId)) }
             )
         }
         composable(Routes.NETWORK) {

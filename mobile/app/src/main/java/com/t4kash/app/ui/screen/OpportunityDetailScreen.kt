@@ -2,6 +2,7 @@ package com.t4kash.app.ui.screen
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -17,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Event
@@ -60,7 +62,8 @@ fun OpportunityDetailScreen(
     taskId: Int,
     viewModel: MarketplaceViewModel,
     onBack: () -> Unit,
-    onApply: () -> Unit
+    onApply: () -> Unit,
+    onOpenMap: () -> Unit
 ) {
     val state = viewModel.uiState
     val task = state.tasks.firstOrNull { it.idTarea == taskId }
@@ -128,6 +131,7 @@ fun OpportunityDetailScreen(
             else -> {
                 OpportunityDetailContent(
                     task = task,
+                    onOpenMap = onOpenMap,
                     modifier = Modifier.padding(innerPadding)
                 )
             }
@@ -138,6 +142,7 @@ fun OpportunityDetailScreen(
 @Composable
 private fun OpportunityDetailContent(
     task: TaskDto,
+    onOpenMap: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -192,6 +197,14 @@ private fun OpportunityDetailContent(
                 SummaryRow("Modalidad", task.modalidad ?: "No definida", Icons.Filled.Place)
                 SummaryRow("Fecha limite", task.fechaLimite ?: "Por confirmar", Icons.Filled.Event)
                 SummaryRow("Visibilidad", task.visibilidad, Icons.Filled.Place)
+                if (task.hasMapLocation()) {
+                    SummaryRow(
+                        label = "Ubicacion",
+                        value = task.direccionReferencia ?: "Ver oportunidad en el mapa",
+                        icon = Icons.Filled.Place,
+                        onClick = onOpenMap
+                    )
+                }
             }
         }
     }
@@ -321,11 +334,19 @@ private fun DetailSection(
 private fun SummaryRow(
     label: String,
     value: String,
-    icon: ImageVector
+    icon: ImageVector,
+    onClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(onClick = onClick)
+                } else {
+                    Modifier
+                }
+            )
             .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top
@@ -335,7 +356,7 @@ private fun SummaryRow(
             contentDescription = null,
             tint = T4Primary
         )
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
@@ -348,7 +369,20 @@ private fun SummaryRow(
                 color = T4TextMuted
             )
         }
+        if (onClick != null) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = "Abrir en el mapa",
+                tint = T4Primary
+            )
+        }
     }
+}
+
+private fun TaskDto.hasMapLocation(): Boolean {
+    return latitud != null &&
+        longitud != null &&
+        !modalidad.equals("REMOTA", ignoreCase = true)
 }
 
 @Composable
