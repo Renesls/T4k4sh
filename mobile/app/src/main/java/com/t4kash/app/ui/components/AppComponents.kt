@@ -105,7 +105,11 @@ private val T4CategoryPalette = listOf(
     T4CategoryColors(Color(0xFFF0E7FF), Color(0xFF6531A8)),
     T4CategoryColors(Color(0xFFFFE5EA), Color(0xFF9F1239)),
     T4CategoryColors(Color(0xFFFFF4C2), Color(0xFF6F5B00)),
-    T4CategoryColors(Color(0xFFE7EDF1), Color(0xFF344054))
+    T4CategoryColors(Color(0xFFE7EDF1), Color(0xFF344054)),
+    T4CategoryColors(Color(0xFFE2F4D7), Color(0xFF315C1B)),
+    T4CategoryColors(Color(0xFFDFF1FF), Color(0xFF1D4E89)),
+    T4CategoryColors(Color(0xFFFBE8D9), Color(0xFF744018)),
+    T4CategoryColors(Color(0xFFF8E2F1), Color(0xFF84285E))
 )
 
 fun t4CategoryColors(categoryId: Int): T4CategoryColors {

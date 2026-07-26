@@ -707,7 +707,15 @@ INSERT INTO categorias_tarea (id_categoria, nombre_categoria, descripcion, estad
     (1, 'Tutoria', 'Apoyo academico por horas o sesiones.', true),
     (2, 'Desarrollo de software', 'Aplicaciones, sitios web, scripts y soporte tecnico.', true),
     (3, 'Diseno', 'Diseno grafico, UI, presentaciones y piezas digitales.', true),
-    (4, 'Eventos', 'Apoyo logistico, voluntariado y actividades universitarias.', true)
+    (4, 'Eventos', 'Apoyo logistico, voluntariado y actividades universitarias.', true),
+    (5, 'Redaccion y traduccion', 'Correccion, redaccion academica y traduccion de contenidos.', true),
+    (6, 'Fotografia y video', 'Cobertura de eventos, fotografia y edicion de imagen o video.', true),
+    (7, 'Marketing digital', 'Contenido para redes, campanas y comunicacion digital.', true),
+    (8, 'Soporte tecnologico', 'Instalacion, mantenimiento y ayuda con equipos o software.', true),
+    (9, 'Investigacion', 'Busqueda de fuentes, levantamiento de datos y apoyo academico.', true),
+    (10, 'Asistencia administrativa', 'Organizacion de documentos, digitacion y apoyo operativo.', true),
+    (11, 'Idiomas', 'Clases, practica conversacional y revision de textos.', true),
+    (12, 'Contabilidad', 'Registro de gastos, presupuestos y apoyo contable basico.', true)
 ON CONFLICT (id_categoria) DO NOTHING;
 
 INSERT INTO habilidades (id_habilidad, nombre_habilidad, descripcion, estado) VALUES
@@ -750,7 +758,7 @@ ON CONFLICT (id_usuario) DO NOTHING;
 ALTER TABLE roles ALTER COLUMN id_rol RESTART WITH 4;
 ALTER TABLE universidades ALTER COLUMN id_universidad RESTART WITH 2;
 ALTER TABLE carreras ALTER COLUMN id_carrera RESTART WITH 4;
-ALTER TABLE categorias_tarea ALTER COLUMN id_categoria RESTART WITH 5;
+ALTER TABLE categorias_tarea ALTER COLUMN id_categoria RESTART WITH 13;
 ALTER TABLE habilidades ALTER COLUMN id_habilidad RESTART WITH 6;
 ALTER TABLE usuarios ALTER COLUMN id_usuario RESTART WITH 3;
 
