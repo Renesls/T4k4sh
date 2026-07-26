@@ -149,7 +149,7 @@ fun MarketplaceScreen(
         }
     ) { innerPadding ->
         PullToRefreshBox(
-            isRefreshing = state.isLoading,
+            isRefreshing = state.isLoading && state.tasks.isNotEmpty(),
             onRefresh = viewModel::refresh,
             modifier = Modifier
                 .fillMaxSize()
