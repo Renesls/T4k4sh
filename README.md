@@ -36,14 +36,16 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 | Documentación Swagger/OpenAPI | Implementado |
 | Marketplace y detalle de oportunidades en Android | Implementado |
 | Publicación de tareas desde Android | Implementado |
+| Doce categorías de oportunidades | Implementado |
 | Ubicación para tareas presenciales e híbridas | Implementado |
-| Mapa con MapLibre y OpenFreeMap | Implementado |
+| Mapa con radio de búsqueda y marcadores interactivos | Implementado |
+| Postulación desde Android | Implementado |
 | Postulaciones, asignaciones y entregas en la API | Implementado |
 | Navegación, carga y manejo visual de errores | Implementado |
 | Autenticación y sesiones reales | Pendiente |
 | Mensajería, pagos y notificaciones push | Pendiente |
 
-La versión actual usa usuarios demo para validar el flujo. En particular, la publicación desde Android utiliza temporalmente `idCliente = 1` hasta integrar autenticación real.
+La versión actual usa usuarios demo para validar el flujo. La publicación desde Android utiliza temporalmente `idCliente = 1` y la postulación utiliza `idEstudiante = 1` hasta integrar autenticación real.
 
 ## Tecnologías
 
@@ -62,6 +64,19 @@ La versión actual usa usuarios demo para validar el flujo. En particular, la pu
 | Control de versiones | GitHub, Conventional Commits |
 
 Las versiones concretas de las dependencias Android están centralizadas en `mobile/gradle/libs.versions.toml`. Las dependencias del backend se administran desde `backend/pom.xml`.
+
+## Requisitos Técnicos
+
+Para ejecutar el proyecto se necesita:
+
+- Git para descargar y versionar el repositorio.
+- Android Studio con el SDK de Android configurado.
+- JDK 21 para compilar el backend.
+- Docker Desktop con Docker Compose para el entorno local.
+- Conexión a Internet para consumir Render, Supabase y OpenFreeMap.
+- Un emulador Android o un teléfono con depuración USB habilitada.
+
+No se necesita instalar PostgreSQL directamente cuando se utiliza Docker Compose. Para probar solamente la aplicación móvil contra la API publicada tampoco es necesario iniciar el backend local.
 
 ## Arquitectura
 
@@ -155,7 +170,7 @@ El esquema contiene 34 tablas e incluye:
 - Tareas, habilidades, postulaciones y trabajos.
 - Entregas, pagos, conversaciones y reportes.
 - Sesiones, verificaciones y auditoría.
-- Datos demo para roles, universidad, carreras y categorías.
+- Datos demo para roles, universidad, carreras y doce categorías de oportunidades.
 
 `database/sqlserver-original.sql` se conserva únicamente como referencia histórica y no debe utilizarse para Supabase.
 
@@ -221,6 +236,18 @@ Los endpoints de autenticación todavía no están implementados. El cliente y e
 
 Para una tarea remota se utiliza `"modalidad": "REMOTA"` y se omiten o envían como `null` los tres campos de ubicación.
 
+### Enviar una Postulación
+
+```json
+{
+  "idEstudiante": 1,
+  "mensaje": "Tengo experiencia en este tipo de trabajo y disponibilidad esta semana.",
+  "precioPropuesto": 25.00
+}
+```
+
+La solicitud se envía mediante `POST /api/tasks/{idTarea}/applications`. La API rechaza una segunda postulación del mismo estudiante para la misma tarea y devuelve un mensaje que Android muestra en el formulario.
+
 ## Aplicación Android
 
 La aplicación utiliza Retrofit para consumir la API. La URL base se obtiene de:
@@ -240,6 +267,28 @@ Flujo actual de publicación:
 7. La aplicación abre el mapa y dibuja el marcador mediante GeoJSON.
 
 Las tareas remotas se muestran en el marketplace, pero no generan marcadores.
+
+Flujo actual de exploración y postulación:
+
+1. Android consulta las oportunidades y categorías publicadas.
+2. Los filtros permiten explorar las doce categorías disponibles.
+3. El mapa solicita la ubicación del dispositivo y descarta coordenadas inválidas como `(0, 0)`.
+4. El usuario ajusta un radio de búsqueda entre `5 km` y `50 km`.
+5. Al tocar un marcador se abre el detalle de la oportunidad.
+6. Desde el detalle también se puede abrir el mapa centrado en la tarea.
+7. El estudiante completa un mensaje y un precio propuesto.
+8. Android envía la postulación al backend y muestra el resultado real.
+
+## Uso del MVP
+
+1. Abrir la aplicación y entrar con el acceso demo.
+2. Explorar oportunidades desde Inicio o aplicar filtros por categoría.
+3. Abrir una tarea para consultar presupuesto, modalidad, fechas y ubicación.
+4. En tareas presenciales o híbridas, utilizar el mapa para revisar la ubicación.
+5. Pulsar **Postularse**, completar la propuesta y enviarla.
+6. Utilizar la sección **Publicar** para crear una nueva oportunidad.
+
+Las funciones de identidad todavía utilizan IDs temporales. No deben interpretarse como autenticación o autorización definitiva.
 
 ## Ejecución Local
 
@@ -303,9 +352,10 @@ Android:
 ```powershell
 cd mobile
 .\gradlew.bat :app:assembleDebug
+.\gradlew.bat :app:testDebugUnitTest
 ```
 
-Las pruebas del backend cubren la normalización de modalidades, la eliminación de coordenadas en tareas remotas y la obligación de ubicación para tareas presenciales.
+Las pruebas del backend cubren la normalización de modalidades, la eliminación de coordenadas en tareas remotas y la obligación de ubicación para tareas presenciales. La compilación y las pruebas unitarias de Android se ejecutan antes de cerrar cada etapa funcional.
 
 ## Variables de Entorno
 
@@ -378,7 +428,7 @@ chore: ajustar configuración de render
 
 1. Implementar autenticación real y eliminar los IDs demo.
 2. Permitir seleccionar manualmente una ubicación en el mapa.
-3. Abrir el detalle de una tarea al tocar su marcador.
+3. Conectar en Android la aceptación y el rechazo de postulaciones.
 4. Integrar almacenamiento de archivos con Supabase Storage.
 5. Incorporar notificaciones push.
-6. Completar pagos, reputación y mensajería.
+6. Completar trabajos asignados, entregas, pagos, reputación y mensajería.
