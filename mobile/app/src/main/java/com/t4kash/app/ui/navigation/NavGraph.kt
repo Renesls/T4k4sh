@@ -25,6 +25,12 @@ fun NavGraph(
     navController: NavHostController = rememberNavController()
 ) {
     val marketplaceViewModel: MarketplaceViewModel = viewModel()
+    val onBottomNavigate: (String) -> Unit = { route ->
+        if (route == Routes.MARKETPLACE) {
+            marketplaceViewModel.refresh()
+        }
+        navController.navigateBottom(route)
+    }
 
     NavHost(
         navController = navController,
@@ -52,7 +58,7 @@ fun NavGraph(
             MarketplaceScreen(
                 viewModel = marketplaceViewModel,
                 currentRoute = Routes.MARKETPLACE,
-                onNavigate = { route -> navController.navigateBottom(route) },
+                onNavigate = onBottomNavigate,
                 onTaskSelected = { task -> navController.navigate(Routes.taskDetails(task.idTarea)) },
                 onCreateTask = { navController.navigateBottom(Routes.POST) },
                 onOpenMap = { navController.navigate(Routes.OPPORTUNITY_MAP) }
@@ -79,12 +85,12 @@ fun NavGraph(
             )
         }
         composable(Routes.NETWORK) {
-            NetworkScreen(onNavigate = { route -> navController.navigateBottom(route) })
+            NetworkScreen(onNavigate = onBottomNavigate)
         }
         composable(Routes.POST) {
             PostTaskScreen(
                 viewModel = marketplaceViewModel,
-                onNavigate = { route -> navController.navigateBottom(route) },
+                onNavigate = onBottomNavigate,
                 onTaskPublished = {
                     navController.navigate(Routes.OPPORTUNITY_MAP) {
                         popUpTo(Routes.POST) { inclusive = true }
@@ -93,10 +99,10 @@ fun NavGraph(
             )
         }
         composable(Routes.CHAT) {
-            ChatScreen(onNavigate = { route -> navController.navigateBottom(route) })
+            ChatScreen(onNavigate = onBottomNavigate)
         }
         composable(Routes.WALLET) {
-            WalletScreen(onNavigate = { route -> navController.navigateBottom(route) })
+            WalletScreen(onNavigate = onBottomNavigate)
         }
         composable(Routes.APPLICATION_SENT) {
             ApplicationSentScreen(

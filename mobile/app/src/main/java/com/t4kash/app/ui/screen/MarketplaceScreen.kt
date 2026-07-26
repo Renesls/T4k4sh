@@ -38,6 +38,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -125,7 +126,12 @@ fun MarketplaceScreen(
         bottomBar = {
             T4BottomBar(
                 currentRoute = currentRoute,
-                onNavigate = onNavigate
+                onNavigate = onNavigate,
+                onReselect = { route ->
+                    if (route == Routes.MARKETPLACE && !state.isLoading) {
+                        viewModel.refresh()
+                    }
+                }
             )
         },
         floatingActionButton = {
@@ -142,18 +148,24 @@ fun MarketplaceScreen(
             }
         }
     ) { innerPadding ->
-        LazyColumn(
+        PullToRefreshBox(
+            isRefreshing = state.isLoading,
+            onRefresh = viewModel::refresh,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(T4Background, Color(0xFFF2F2ED))
-                    )
-                ),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(T4Background, Color(0xFFF2F2ED))
+                        )
+                    ),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
             item {
                 Box(
                     modifier = Modifier
@@ -242,13 +254,13 @@ fun MarketplaceScreen(
             }
 
             when {
-                state.isLoading -> {
+                state.isLoading && state.tasks.isEmpty() -> {
                     item {
                         LoadingState()
                     }
                 }
 
-                state.errorMessage != null -> {
+                state.errorMessage != null && state.tasks.isEmpty() -> {
                     item {
                         ConnectionErrorState(
                             message = state.errorMessage,
@@ -278,6 +290,7 @@ fun MarketplaceScreen(
             }
         }
     }
+}
 }
 
 @Composable

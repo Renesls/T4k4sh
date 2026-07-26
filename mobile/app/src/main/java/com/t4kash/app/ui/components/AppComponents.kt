@@ -159,7 +159,8 @@ fun T4TopBar(
 @Composable
 fun T4BottomBar(
     currentRoute: String,
-    onNavigate: (String) -> Unit
+    onNavigate: (String) -> Unit,
+    onReselect: (String) -> Unit = {}
 ) {
     Surface(
         modifier = Modifier
@@ -183,7 +184,13 @@ fun T4BottomBar(
                         .fillMaxHeight()
                         .clip(RoundedCornerShape(999.dp))
                         .background(if (selected) T4Primary else Color.Transparent)
-                        .clickable { onNavigate(destination.route) }
+                        .clickable {
+                            if (selected) {
+                                onReselect(destination.route)
+                            } else {
+                                onNavigate(destination.route)
+                            }
+                        }
                         .padding(horizontal = 4.dp, vertical = 6.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
