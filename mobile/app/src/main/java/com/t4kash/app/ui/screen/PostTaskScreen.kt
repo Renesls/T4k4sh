@@ -8,7 +8,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -35,6 +34,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -60,14 +60,16 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4BottomBar
+import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.components.t4CategoryColors
 import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.navigation.Routes
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
+import com.t4kash.app.ui.theme.T4Mint
 import com.t4kash.app.ui.theme.T4MintDark
 import com.t4kash.app.ui.theme.T4Primary
-import com.t4kash.app.ui.theme.T4PrimarySoft
 import com.t4kash.app.ui.theme.T4Surface
 import com.t4kash.app.ui.theme.T4Text
 import com.t4kash.app.ui.theme.T4TextMuted
@@ -217,18 +219,13 @@ fun PostTaskScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(T4PrimarySoft, T4Primary)
-                            ),
-                            RoundedCornerShape(24.dp)
-                        )
-                        .padding(20.dp)
+                T4PatternSurface(
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             StatusChip(
                                 text = "Publicación",
@@ -262,9 +259,9 @@ fun PostTaskScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = T4Surface),
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, T4Border.copy(alpha = 0.60f)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(
                         modifier = Modifier.padding(20.dp),
@@ -337,13 +334,21 @@ fun PostTaskScreen(
                                 items = uiState.categories,
                                 key = { it.idCategoria }
                             ) { category ->
+                                val selected = selectedCategoryId == category.idCategoria
+                                val categoryColors = t4CategoryColors(category.idCategoria)
                                 FilterChip(
-                                    selected = selectedCategoryId == category.idCategoria,
+                                    selected = selected,
                                     onClick = {
                                         selectedCategoryId = category.idCategoria
                                         validationError = null
                                     },
-                                    label = { Text(category.nombreCategoria) }
+                                    label = { Text(category.nombreCategoria) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        containerColor = categoryColors.container,
+                                        labelColor = categoryColors.content,
+                                        selectedContainerColor = T4Mint,
+                                        selectedLabelColor = T4MintDark
+                                    )
                                 )
                             }
                         }

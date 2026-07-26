@@ -42,13 +42,14 @@ import androidx.compose.ui.unit.dp
 import com.t4kash.app.ui.components.ConnectionErrorState
 import com.t4kash.app.ui.components.EmptyState
 import com.t4kash.app.ui.components.StatusChip
+import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.components.t4CategoryColors
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
-import com.t4kash.app.ui.theme.T4MintDark
+import com.t4kash.app.ui.theme.T4Mint
 import com.t4kash.app.ui.theme.T4Primary
-import com.t4kash.app.ui.theme.T4PrimarySoft
 import com.t4kash.app.ui.theme.T4Surface
 import com.t4kash.app.ui.theme.T4Text
 import com.t4kash.app.ui.theme.T4TextMuted
@@ -198,21 +199,14 @@ private fun OpportunityDetailContent(
 
 @Composable
 private fun HeroCard(task: TaskDto) {
-    Card(
+    val categoryColors = t4CategoryColors(task.idCategoria)
+    T4PatternSurface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = T4Surface),
-        border = BorderStroke(1.dp, T4Border.copy(alpha = 0.55f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(20.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(T4PrimarySoft, T4Primary)
-                    )
-                )
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -223,9 +217,8 @@ private fun HeroCard(task: TaskDto) {
             ) {
                 StatusChip(
                     text = task.tipoOportunidad,
-                    selected = true,
-                    containerColor = Color.White.copy(alpha = 0.18f),
-                    contentColor = Color.White
+                    containerColor = categoryColors.container,
+                    contentColor = categoryColors.content
                 )
                 Text(
                     text = task.estadoTarea,
@@ -244,7 +237,7 @@ private fun HeroCard(task: TaskDto) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     text = "$${"%.2f".format(task.presupuesto)}",
-                    color = Color.White,
+                    color = T4Mint,
                     style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Black
                 )
@@ -292,7 +285,7 @@ private fun DetailSection(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = T4Surface),
         border = BorderStroke(1.dp, T4Border.copy(alpha = 0.55f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)

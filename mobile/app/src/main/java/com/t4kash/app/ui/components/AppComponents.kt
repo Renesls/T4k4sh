@@ -1,10 +1,18 @@
 package com.t4kash.app.ui.components
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -44,7 +52,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -52,6 +67,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.t4kash.app.ui.navigation.Routes
 import com.t4kash.app.ui.theme.T4Background
+import com.t4kash.app.ui.theme.T4BrandDark
 import com.t4kash.app.ui.theme.T4Border
 import com.t4kash.app.ui.theme.T4Mint
 import com.t4kash.app.ui.theme.T4MintDark
@@ -75,6 +91,27 @@ val T4BottomDestinations = listOf(
     BottomDestination(Routes.CHAT, "Chat", Icons.Filled.ChatBubble),
     BottomDestination(Routes.WALLET, "Wallet", Icons.Filled.AccountBalanceWallet)
 )
+
+data class T4CategoryColors(
+    val container: Color,
+    val content: Color
+)
+
+private val T4CategoryPalette = listOf(
+    T4CategoryColors(Color(0xFFE4E9FF), Color(0xFF263FA9)),
+    T4CategoryColors(Color(0xFFDDF6F3), Color(0xFF006B62)),
+    T4CategoryColors(Color(0xFFE5FFBE), Color(0xFF314600)),
+    T4CategoryColors(Color(0xFFFFE8D1), Color(0xFF874500)),
+    T4CategoryColors(Color(0xFFF0E7FF), Color(0xFF6531A8)),
+    T4CategoryColors(Color(0xFFFFE5EA), Color(0xFF9F1239)),
+    T4CategoryColors(Color(0xFFFFF4C2), Color(0xFF6F5B00)),
+    T4CategoryColors(Color(0xFFE7EDF1), Color(0xFF344054))
+)
+
+fun t4CategoryColors(categoryId: Int): T4CategoryColors {
+    val index = Math.floorMod(categoryId - 1, T4CategoryPalette.size)
+    return T4CategoryPalette[index]
+}
 
 @Composable
 fun T4BrandMark(
@@ -213,6 +250,206 @@ fun T4BottomBar(
             }
         }
     }
+}
+
+@Composable
+fun T4PatternSurface(
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(20.dp),
+    patternAlpha: Float = 0.72f,
+    overlayAlpha: Float = 0.58f,
+    animated: Boolean = false,
+    content: @Composable BoxScope.() -> Unit
+) {
+    val motion = if (animated) {
+        rememberInfiniteTransition(label = "T4PatternMotion")
+            .animateFloat(
+                initialValue = -1f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(
+                        durationMillis = 4200,
+                        easing = LinearEasing
+                    ),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "T4PatternOffset"
+            )
+            .value
+    } else {
+        0f
+    }
+    val overlay = if (animated) {
+        Brush.verticalGradient(
+            listOf(
+                T4BrandDark.copy(alpha = overlayAlpha),
+                T4BrandDark.copy(alpha = (overlayAlpha - 0.10f).coerceAtLeast(0f)),
+                T4BrandDark.copy(alpha = overlayAlpha)
+            )
+        )
+    } else {
+        Brush.horizontalGradient(
+            listOf(
+                T4BrandDark.copy(alpha = 0.92f),
+                T4BrandDark.copy(alpha = overlayAlpha),
+                T4BrandDark.copy(alpha = (overlayAlpha - 0.18f).coerceAtLeast(0f))
+            )
+        )
+    }
+
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(T4BrandDark)
+    ) {
+        Canvas(modifier = Modifier.matchParentSize()) {
+            val horizontalMotion = motion * size.width * 0.035f
+            val verticalMotion = motion * size.height * 0.025f
+            if (animated) {
+                drawExpandedT4Pattern(
+                    horizontalMotion = horizontalMotion,
+                    verticalMotion = verticalMotion,
+                    alpha = patternAlpha
+                )
+            } else {
+                drawCompactT4Pattern(alpha = patternAlpha)
+            }
+        }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(overlay)
+        )
+        content()
+    }
+}
+
+private fun DrawScope.drawCompactT4Pattern(alpha: Float) {
+    val purple = T4Primary.copy(alpha = alpha)
+    val mint = T4Mint.copy(alpha = alpha)
+    val navy = Color(0xFF20228F).copy(alpha = alpha)
+
+    drawRect(
+        color = navy,
+        topLeft = Offset(size.width * 0.58f, 0f),
+        size = Size(size.width * 0.25f, size.height * 0.48f)
+    )
+    drawRoundRect(
+        color = mint,
+        topLeft = Offset(size.width * 0.76f, -size.height * 0.24f),
+        size = Size(size.width * 0.18f, size.height * 0.92f),
+        cornerRadius = CornerRadius(size.width * 0.09f)
+    )
+    drawTriangle(
+        color = purple,
+        first = Offset(size.width * 0.70f, size.height),
+        second = Offset(size.width, size.height * 0.28f),
+        third = Offset(size.width, size.height)
+    )
+    drawCircle(
+        color = mint,
+        radius = size.minDimension * 0.16f,
+        center = Offset(size.width * 0.96f, size.height * 0.72f)
+    )
+    drawCircle(
+        color = purple.copy(alpha = alpha * 0.45f),
+        radius = size.minDimension * 0.25f,
+        center = Offset(size.width * 0.12f, -size.height * 0.08f)
+    )
+}
+
+private fun DrawScope.drawExpandedT4Pattern(
+    horizontalMotion: Float,
+    verticalMotion: Float,
+    alpha: Float
+) {
+    val purple = T4Primary.copy(alpha = alpha)
+    val mint = T4Mint.copy(alpha = alpha)
+    val navy = Color(0xFF20228F).copy(alpha = alpha)
+
+    drawRoundRect(
+        color = purple,
+        topLeft = Offset(
+            -size.width * 0.12f + horizontalMotion,
+            -size.height * 0.04f + verticalMotion
+        ),
+        size = Size(size.width * 0.42f, size.height * 0.20f),
+        cornerRadius = CornerRadius(size.width * 0.10f)
+    )
+    drawRect(
+        color = navy,
+        topLeft = Offset(size.width * 0.26f - horizontalMotion, 0f),
+        size = Size(size.width * 0.34f, size.height * 0.19f)
+    )
+    drawRoundRect(
+        color = mint,
+        topLeft = Offset(
+            size.width * 0.61f + horizontalMotion,
+            -size.height * 0.07f
+        ),
+        size = Size(size.width * 0.22f, size.height * 0.36f),
+        cornerRadius = CornerRadius(size.width * 0.11f)
+    )
+    drawRoundRect(
+        color = purple,
+        topLeft = Offset(
+            -size.width * 0.15f - horizontalMotion,
+            size.height * 0.31f
+        ),
+        size = Size(size.width * 0.45f, size.height * 0.27f),
+        cornerRadius = CornerRadius(size.width * 0.13f)
+    )
+    drawTriangle(
+        color = mint,
+        first = Offset(size.width * 0.42f, size.height * 0.35f + verticalMotion),
+        second = Offset(size.width * 0.66f, size.height * 0.59f + verticalMotion),
+        third = Offset(size.width * 0.42f, size.height * 0.59f + verticalMotion)
+    )
+    drawCircle(
+        color = navy,
+        radius = size.width * 0.16f,
+        center = Offset(
+            size.width * 0.34f + horizontalMotion,
+            size.height * 0.74f
+        )
+    )
+    drawTriangle(
+        color = purple,
+        first = Offset(size.width * 0.69f - horizontalMotion, size.height),
+        second = Offset(size.width, size.height * 0.73f),
+        third = Offset(size.width, size.height)
+    )
+    drawCircle(
+        color = mint,
+        radius = size.width * 0.08f,
+        center = Offset(
+            size.width * 0.95f - horizontalMotion,
+            size.height * 0.45f + verticalMotion
+        )
+    )
+    drawRect(
+        color = mint,
+        topLeft = Offset(
+            size.width * 0.08f,
+            size.height * 0.78f - verticalMotion
+        ),
+        size = Size(size.width * 0.13f, size.width * 0.13f)
+    )
+}
+
+private fun DrawScope.drawTriangle(
+    color: Color,
+    first: Offset,
+    second: Offset,
+    third: Offset
+) {
+    val path = Path().apply {
+        moveTo(first.x, first.y)
+        lineTo(second.x, second.y)
+        lineTo(third.x, third.y)
+        close()
+    }
+    drawPath(path = path, color = color)
 }
 
 @Composable

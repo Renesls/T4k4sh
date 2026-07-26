@@ -58,17 +58,17 @@ import com.t4kash.app.ui.components.ConnectionErrorState
 import com.t4kash.app.ui.components.EmptyState
 import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4BottomBar
+import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.components.t4CategoryColors
 import com.t4kash.app.ui.model.CategoryDto
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.navigation.Routes
-import com.t4kash.app.ui.theme.T4Amber
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
 import com.t4kash.app.ui.theme.T4Mint
 import com.t4kash.app.ui.theme.T4MintDark
 import com.t4kash.app.ui.theme.T4Primary
-import com.t4kash.app.ui.theme.T4PrimarySoft
 import com.t4kash.app.ui.theme.T4Surface
 import com.t4kash.app.ui.theme.T4Text
 import com.t4kash.app.ui.theme.T4TextMuted
@@ -167,18 +167,14 @@ fun MarketplaceScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
             item {
-                Box(
+                T4PatternSurface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(26.dp))
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(T4Primary, T4PrimarySoft)
-                            )
-                        )
-                        .padding(18.dp)
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
                         Text(
                             text = "Encuentra oportunidades a tu ritmo.",
                             style = MaterialTheme.typography.headlineSmall,
@@ -312,9 +308,13 @@ private fun CategoryChips(
             )
         }
         items(categories, key = { it.idCategoria }) { category ->
+            val selected = selectedCategoryId == category.idCategoria
+            val categoryColors = t4CategoryColors(category.idCategoria)
             StatusChip(
                 text = category.nombreCategoria,
-                selected = selectedCategoryId == category.idCategoria,
+                selected = selected,
+                containerColor = if (selected) T4Mint else categoryColors.container,
+                contentColor = if (selected) T4MintDark else categoryColors.content,
                 modifier = Modifier
                     .clip(CircleShape)
                     .clickable { onSelected(category.idCategoria) }
@@ -345,21 +345,15 @@ private fun TaskCard(
     onClick: () -> Unit
 ) {
     val tag = categoryLabel?.takeIf { it.isNotBlank() } ?: task.tipoOportunidad.ifBlank { "Task" }
-    val accentCard = tag.contains("tech", ignoreCase = true) ||
-        tag.contains("program", ignoreCase = true) ||
-        task.modalidad.equals("remota", ignoreCase = true)
-    val contentColor = if (accentCard) Color.White else T4Text
-    val mutedColor = if (accentCard) Color.White.copy(alpha = 0.78f) else T4TextMuted
+    val categoryColors = t4CategoryColors(task.idCategoria)
 
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (accentCard) T4Primary else T4Surface
-        ),
-        border = BorderStroke(1.dp, if (accentCard) T4Primary else T4Border),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = T4Surface),
+        border = BorderStroke(1.dp, T4Border),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier.padding(18.dp),
@@ -372,15 +366,14 @@ private fun TaskCard(
             ) {
                 StatusChip(
                     text = tag,
-                    selected = true,
-                    containerColor = if (accentCard) Color.White.copy(alpha = 0.18f) else T4Mint,
-                    contentColor = if (accentCard) Color.White else T4MintDark
+                    containerColor = categoryColors.container,
+                    contentColor = categoryColors.content
                 )
                 Text(
                     text = "$${"%.2f".format(task.presupuesto)}",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = if (accentCard) Color.White else T4Amber
+                    color = T4MintDark
                 )
             }
 
@@ -388,19 +381,17 @@ private fun TaskCard(
                 text = task.titulo,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = contentColor
+                color = T4Text
             )
             Text(
                 text = task.descripcion,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodyMedium,
-                color = mutedColor
+                color = T4TextMuted
             )
 
-            HorizontalDivider(
-                color = if (accentCard) Color.White.copy(alpha = 0.20f) else T4Border.copy(alpha = 0.45f)
-            )
+            HorizontalDivider(color = T4Border.copy(alpha = 0.55f))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -414,19 +405,19 @@ private fun TaskCard(
                     Icon(
                         imageVector = Icons.Filled.School,
                         contentDescription = null,
-                        tint = if (accentCard) Color.White else T4Primary,
+                        tint = T4Primary,
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
                         text = task.modalidad ?: "Campus",
                         style = MaterialTheme.typography.labelMedium,
-                        color = mutedColor
+                        color = T4TextMuted
                     )
                 }
                 Text(
                     text = task.estadoTarea,
                     style = MaterialTheme.typography.labelMedium,
-                    color = mutedColor
+                    color = T4TextMuted
                 )
             }
         }
