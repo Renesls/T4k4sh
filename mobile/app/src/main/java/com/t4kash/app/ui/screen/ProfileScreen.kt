@@ -1,0 +1,362 @@
+package com.t4kash.app.ui.screen
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Mail
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.t4kash.app.ui.components.T4BottomBar
+import com.t4kash.app.ui.components.T4PatternSurface
+import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.navigation.Routes
+import com.t4kash.app.ui.theme.T4Background
+import com.t4kash.app.ui.theme.T4Border
+import com.t4kash.app.ui.theme.T4Mint
+import com.t4kash.app.ui.theme.T4Primary
+import com.t4kash.app.ui.theme.T4Surface
+import com.t4kash.app.ui.theme.T4Text
+import com.t4kash.app.ui.theme.T4TextMuted
+import com.t4kash.app.ui.viewmodel.MarketplaceViewModel
+
+@Composable
+fun ProfileScreen(
+    viewModel: MarketplaceViewModel,
+    onNavigate: (String) -> Unit,
+    onOpenPublications: (String) -> Unit,
+    onOpenWallet: () -> Unit,
+    onLogout: () -> Unit
+) {
+    val ownTasks = viewModel.uiState.tasks.filter { it.idCliente == DEMO_PROFILE_USER_ID }
+    val activeTasks = ownTasks.count {
+        it.estadoTarea.equals("PUBLICADA", ignoreCase = true)
+    }
+    val assignedTasks = ownTasks.count {
+        it.estadoTarea.equals("ASIGNADA", ignoreCase = true)
+    }
+
+    Scaffold(
+        containerColor = T4Background,
+        topBar = {
+            T4TopBar(
+                title = "Perfil",
+                subtitle = "Cuenta y actividad"
+            )
+        },
+        bottomBar = {
+            T4BottomBar(
+                currentRoute = Routes.PROFILE,
+                onNavigate = onNavigate
+            )
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            item {
+                T4PatternSurface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .background(T4Mint, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "CD",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Black,
+                                color = T4Text
+                            )
+                        }
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "Cliente Demo",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "cliente.demo@unidemo.edu",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color.White.copy(alpha = 0.82f)
+                            )
+                            Text(
+                                text = "Usuario #$DEMO_PROFILE_USER_ID",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = T4Mint
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                ProfileStats(
+                    publications = ownTasks.size,
+                    active = activeTasks,
+                    assigned = assignedTasks,
+                    onOpenAll = { onOpenPublications("ALL") },
+                    onOpenActive = { onOpenPublications("PUBLICADA") },
+                    onOpenAssigned = { onOpenPublications("ASIGNADA") }
+                )
+            }
+
+            item {
+                Text(
+                    text = "Cuenta",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = T4Text
+                )
+            }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = T4Surface),
+                    border = BorderStroke(1.dp, T4Border.copy(alpha = 0.65f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Column {
+                        ProfileInfoRow(
+                            icon = Icons.Filled.School,
+                            label = "Universidad",
+                            value = "Universidad Demo"
+                        )
+                        ProfileInfoRow(
+                            icon = Icons.Filled.Mail,
+                            label = "Correo institucional",
+                            value = "cliente.demo@unidemo.edu"
+                        )
+                        ProfileInfoRow(
+                            icon = Icons.Filled.VerifiedUser,
+                            label = "Estado de cuenta",
+                            value = "Activa"
+                        )
+                    }
+                }
+            }
+
+            item {
+                Text(
+                    text = "Finanzas",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = T4Text
+                )
+            }
+
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onOpenWallet),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = T4Surface),
+                    border = BorderStroke(1.dp, T4Border.copy(alpha = 0.65f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(18.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.AccountBalanceWallet,
+                            contentDescription = null,
+                            tint = T4Primary,
+                            modifier = Modifier.size(26.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Wallet",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = T4Text
+                            )
+                            Text(
+                                text = "Balance, pagos y movimientos",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = T4TextMuted
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = "Abrir Wallet",
+                            tint = T4TextMuted
+                        )
+                    }
+                }
+            }
+
+            item {
+                OutlinedButton(
+                    onClick = onLogout,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Logout,
+                        contentDescription = null
+                    )
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text("Cerrar sesion")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileStats(
+    publications: Int,
+    active: Int,
+    assigned: Int,
+    onOpenAll: () -> Unit,
+    onOpenActive: () -> Unit,
+    onOpenAssigned: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = T4Surface),
+        border = BorderStroke(1.dp, T4Border.copy(alpha = 0.65f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            ProfileStat(
+                value = publications,
+                label = "Publicaciones",
+                onClick = onOpenAll,
+                modifier = Modifier.weight(1f)
+            )
+            ProfileStat(
+                value = active,
+                label = "Activas",
+                onClick = onOpenActive,
+                modifier = Modifier.weight(1f)
+            )
+            ProfileStat(
+                value = assigned,
+                label = "Asignadas",
+                onClick = onOpenAssigned,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfileStat(
+    value: Int,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .clickable(onClick = onClick)
+            .padding(vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = value.toString(),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Black,
+            color = T4Primary
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = T4TextMuted
+        )
+    }
+}
+
+@Composable
+private fun ProfileInfoRow(
+    icon: ImageVector,
+    label: String,
+    value: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 18.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = T4Primary
+        )
+        Column {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = T4TextMuted
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                color = T4Text
+            )
+        }
+    }
+}
+
+private const val DEMO_PROFILE_USER_ID = 1

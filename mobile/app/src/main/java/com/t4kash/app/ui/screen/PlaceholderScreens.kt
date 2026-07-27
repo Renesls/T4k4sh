@@ -86,47 +86,68 @@ fun ChatScreen(
 
 @Composable
 fun WalletScreen(
-    onNavigate: (String) -> Unit
+    onBack: () -> Unit
 ) {
-    FeatureScreen(
-        route = Routes.WALLET,
-        title = "Wallet",
-        subtitle = "Pagos y actividad",
-        heroTitle = "Seguimiento financiero simple.",
-        heroBody = "Más adelante esta vista mostrará pagos, movimientos confirmados y reportes de actividad.",
-        onNavigate = onNavigate
-    ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = T4Primary),
-            shape = MaterialTheme.shapes.large
+    Scaffold(
+        containerColor = T4Background,
+        topBar = {
+            T4TopBar(
+                title = "Wallet",
+                subtitle = "Pagos y actividad",
+                onBack = onBack
+            )
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(T4Background, Color(0xFFF2F2ED))
+                    )
+                ),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = "$0.00",
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = T4Primary),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "$0.00",
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Balance disponible",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.76f)
+                        )
+                    }
+                }
+            }
+            item {
+                InfoCard(
+                    title = "Actividad financiera",
+                    body = "Consulta pagos aprobados, entregas cerradas y movimientos de la cuenta.",
+                    chips = listOf("Balance", "Pagos", "Historial")
                 )
-                Text(
-                    text = "Balance disponible",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.76f)
+            }
+            item {
+                EmptyState(
+                    title = "Sin transacciones",
+                    message = "Los movimientos aparecerán cuando se aprueben trabajos y pagos."
                 )
             }
         }
-        InfoCard(
-            title = "Movimiento esperado",
-            body = "Pagos aprobados, entregas cerradas y reportes financieros.",
-            chips = listOf("Balance", "Pagos", "Historial")
-        )
-        EmptyState(
-            title = "Sin transacciones",
-            message = "Los movimientos aparecerán cuando conectemos el flujo de pagos."
-        )
     }
 }
 
