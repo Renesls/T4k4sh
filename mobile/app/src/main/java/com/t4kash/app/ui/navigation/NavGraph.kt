@@ -11,6 +11,7 @@ import androidx.navigation.navArgument
 import com.t4kash.app.ui.screen.ApplicationSentScreen
 import com.t4kash.app.ui.screen.ApplicationManagementScreen
 import com.t4kash.app.ui.screen.AssignedJobsScreen
+import com.t4kash.app.ui.screen.JobDetailScreen
 import com.t4kash.app.ui.screen.ChatScreen
 import com.t4kash.app.ui.screen.LoginScreen
 import com.t4kash.app.ui.screen.MarketplaceScreen
@@ -182,9 +183,22 @@ fun NavGraph(
             AssignedJobsScreen(
                 viewModel = marketplaceViewModel,
                 onBack = { navController.popBackStack() },
-                onTaskSelected = { taskId ->
-                    navController.navigate(Routes.taskDetails(taskId))
+                onJobSelected = { jobId ->
+                    navController.navigate(Routes.jobDetails(jobId))
                 }
+            )
+        }
+        composable(
+            route = Routes.JOB_DETAILS,
+            arguments = listOf(
+                navArgument(Routes.JOB_ID_ARG) { type = NavType.IntType }
+            )
+        ) { backStackEntry ->
+            val jobId = backStackEntry.arguments?.getInt(Routes.JOB_ID_ARG) ?: 0
+            JobDetailScreen(
+                jobId = jobId,
+                viewModel = marketplaceViewModel,
+                onBack = { navController.popBackStack() }
             )
         }
         composable(Routes.APPLICATION_SENT) {

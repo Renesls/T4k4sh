@@ -8,7 +8,9 @@ import androidx.lifecycle.viewModelScope
 import com.t4kash.app.ui.model.ApplicationDto
 import com.t4kash.app.ui.model.CategoryDto
 import com.t4kash.app.ui.model.CreateApplicationRequest
+import com.t4kash.app.ui.model.CreateDeliveryRequest
 import com.t4kash.app.ui.model.CreateTaskRequest
+import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.repository.MarketplaceRepository
@@ -34,7 +36,14 @@ data class MarketplaceUiState(
     val applicationActionMessage: String? = null,
     val jobs: List<JobDto> = emptyList(),
     val isLoadingJobs: Boolean = false,
-    val jobsError: String? = null
+    val jobsError: String? = null,
+    val managedJobId: Int? = null,
+    val deliveries: List<DeliveryDto> = emptyList(),
+    val isLoadingDeliveries: Boolean = false,
+    val deliveriesError: String? = null,
+    val isSendingDelivery: Boolean = false,
+    val approvingDeliveryId: Int? = null,
+    val deliveryActionMessage: String? = null
 )
 
 class MarketplaceViewModel(
@@ -268,5 +277,105 @@ class MarketplaceViewModel(
                 }
             }
         }
+    }
+
+    fun loadDeliveries(jobId: Int) {
+        viewModelScope.launch {
+            uiState = uiState.copy(
+                managedJobId = jobId,
+                deliveries = emptyList(),
+                isLoadingDeliveries = true,
+                deliveriesError = null,
+                deliveryActionMessage = null
+            )
+            when (val result = repository.loadDeliveries(jobId)) {
+                is ApiResult.Success -> {
+                    uiState = uiState.copy(
+                        deliveries = result.data,
+                        isLoadingDeliveries = false
+                    )
+                }
+
+                is ApiResult.Error -> {
+                    uiState = uiState.copy(
+                        isLoadingDeliveries = false,
+                        deliveriesError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun submitDelivery(jobId: Int, description: String) {
+        viewModelScope.launch {
+            uiState = uiState.copy(
+                isSendingDelivery = true,
+                deliveriesError = null,
+                deliveryActionMessage = null
+            )
+            when (
+                val result = repository.createDelivery(
+                    jobId,
+                    CreateDeliveryRequest(description.trim())
+                )
+            ) {
+                is ApiResult.Success -> {
+                    uiState = uiState.copy(
+                        isSendingDelivery = false,
+                        deliveries = listOf(result.data) + uiState.deliveries,
+                        deliveryActionMessage = "Entrega enviada correctamente."
+                    )
+                }
+
+                is ApiResult.Error -> {
+                    uiState = uiState.copy(
+                        isSendingDelivery = false,
+                        deliveriesError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun approveDelivery(delivery: DeliveryDto) {
+        viewModelScope.launch {
+            uiState = uiState.copy(
+                approvingDeliveryId = delivery.idEntrega,
+                deliveriesError = null,
+                deliveryActionMessage = null
+            )
+            when (val result = repository.approveDelivery(delivery.idEntrega)) {
+                is ApiResult.Success -> {
+                    uiState = uiState.copy(
+                        approvingDeliveryId = null,
+                        deliveries = uiState.deliveries.map {
+                            if (it.idEntrega == result.data.idEntrega) result.data else it
+                        },
+                        jobs = uiState.jobs.map {
+                            if (it.idTrabajo == result.data.idTrabajo) {
+                                it.copy(estadoTrabajo = "FINALIZADO")
+                            } else {
+                                it
+                            }
+                        },
+                        deliveryActionMessage = "Entrega aprobada. Trabajo finalizado."
+                    )
+                }
+
+                is ApiResult.Error -> {
+                    uiState = uiState.copy(
+                        approvingDeliveryId = null,
+                        deliveriesError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearDeliveryFeedback() {
+        uiState = uiState.copy(
+            deliveriesError = null,
+            deliveryActionMessage = null
+        )
     }
 }

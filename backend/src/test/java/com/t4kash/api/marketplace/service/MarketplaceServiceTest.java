@@ -2,9 +2,12 @@ package com.t4kash.api.marketplace.service;
 
 import com.t4kash.api.exception.ResourceConflictException;
 import com.t4kash.api.marketplace.dto.CreateApplicationRequest;
+import com.t4kash.api.marketplace.dto.CreateDeliveryRequest;
 import com.t4kash.api.marketplace.dto.CreateTaskRequest;
+import com.t4kash.api.marketplace.dto.DeliveryResponse;
 import com.t4kash.api.marketplace.dto.JobResponse;
 import com.t4kash.api.marketplace.dto.TaskResponse;
+import com.t4kash.api.marketplace.entity.Entrega;
 import com.t4kash.api.marketplace.entity.Postulacion;
 import com.t4kash.api.marketplace.entity.Tarea;
 import com.t4kash.api.marketplace.entity.TrabajoAsignado;
@@ -199,6 +202,42 @@ class MarketplaceServiceTest {
         verify(postulacionRepository).saveAll(List.of(remaining));
     }
 
+    @Test
+    void creatingDeliveryRegistersItAsSent() {
+        TrabajoAsignado job = job(50, "EN_PROCESO");
+        when(trabajoRepository.findById(50)).thenReturn(Optional.of(job));
+        when(entregaRepository.save(any(Entrega.class))).thenAnswer(invocation -> {
+            Entrega delivery = invocation.getArgument(0);
+            delivery.setIdEntrega(200);
+            return delivery;
+        });
+
+        DeliveryResponse response = service.createDelivery(
+                50,
+                new CreateDeliveryRequest("Entrega funcional del trabajo.")
+        );
+
+        assertEquals(200, response.idEntrega());
+        assertEquals(50, response.idTrabajo());
+        assertEquals("ENVIADA", response.estadoEntrega());
+        assertEquals("Entrega funcional del trabajo.", response.descripcionEntrega());
+    }
+
+    @Test
+    void approvingDeliveryFinalizesAssignedJob() {
+        TrabajoAsignado job = job(50, "EN_PROCESO");
+        Entrega delivery = delivery(200, 50, "ENVIADA");
+        when(entregaRepository.findById(200)).thenReturn(Optional.of(delivery));
+        when(trabajoRepository.findById(50)).thenReturn(Optional.of(job));
+        when(entregaRepository.save(delivery)).thenReturn(delivery);
+
+        DeliveryResponse response = service.approveDelivery(200);
+
+        assertEquals("APROBADA", response.estadoEntrega());
+        assertEquals("FINALIZADO", job.getEstadoTrabajo());
+        verify(trabajoRepository).save(job);
+    }
+
     private CreateTaskRequest request(
             String modalidad,
             String direccion,
@@ -266,5 +305,26 @@ class MarketplaceServiceTest {
         application.setFechaPostulacion(LocalDateTime.now().minusMinutes(10));
         application.setEstadoPostulacion("PENDIENTE");
         return application;
+    }
+
+    private TrabajoAsignado job(Integer id, String status) {
+        TrabajoAsignado job = new TrabajoAsignado();
+        job.setIdTrabajo(id);
+        job.setIdTarea(10);
+        job.setIdEstudiante(1);
+        job.setFechaInicio(LocalDateTime.now().minusHours(1));
+        job.setFechaEntregaEsperada(LocalDateTime.now().plusDays(2));
+        job.setEstadoTrabajo(status);
+        return job;
+    }
+
+    private Entrega delivery(Integer id, Integer jobId, String status) {
+        Entrega delivery = new Entrega();
+        delivery.setIdEntrega(id);
+        delivery.setIdTrabajo(jobId);
+        delivery.setDescripcionEntrega("Entrega funcional del trabajo.");
+        delivery.setFechaEntrega(LocalDateTime.now());
+        delivery.setEstadoEntrega(status);
+        return delivery;
     }
 }

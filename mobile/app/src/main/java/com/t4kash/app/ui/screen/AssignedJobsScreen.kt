@@ -70,7 +70,7 @@ import java.util.Locale
 fun AssignedJobsScreen(
     viewModel: MarketplaceViewModel,
     onBack: () -> Unit,
-    onTaskSelected: (Int) -> Unit
+    onJobSelected: (Int) -> Unit
 ) {
     val state = viewModel.uiState
     val tasksById = state.tasks.associateBy { it.idTarea }
@@ -226,7 +226,7 @@ fun AssignedJobsScreen(
                             AssignedJobCard(
                                 job = job,
                                 task = tasksById[job.idTarea],
-                                onClick = { onTaskSelected(job.idTarea) },
+                                onClick = { onJobSelected(job.idTrabajo) },
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )
                         }

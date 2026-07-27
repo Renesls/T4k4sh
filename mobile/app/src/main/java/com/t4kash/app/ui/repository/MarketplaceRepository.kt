@@ -2,7 +2,9 @@ package com.t4kash.app.ui.repository
 
 import com.t4kash.app.ui.model.ApplicationDto
 import com.t4kash.app.ui.model.CreateApplicationRequest
+import com.t4kash.app.ui.model.CreateDeliveryRequest
 import com.t4kash.app.ui.model.CreateTaskRequest
+import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.MarketplaceHomeData
 import com.t4kash.app.ui.model.TaskDto
@@ -76,6 +78,33 @@ class MarketplaceRepository(
             ApiResult.Success(api.getJobs())
         } catch (e: Exception) {
             ApiResult.Error(e.apiMessage("No se pudieron cargar los trabajos asignados."))
+        }
+    }
+
+    suspend fun loadDeliveries(jobId: Int): ApiResult<List<DeliveryDto>> {
+        return try {
+            ApiResult.Success(api.getDeliveries(jobId))
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudieron cargar las entregas."))
+        }
+    }
+
+    suspend fun createDelivery(
+        jobId: Int,
+        request: CreateDeliveryRequest
+    ): ApiResult<DeliveryDto> {
+        return try {
+            ApiResult.Success(api.createDelivery(jobId, request))
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudo enviar la entrega."))
+        }
+    }
+
+    suspend fun approveDelivery(deliveryId: Int): ApiResult<DeliveryDto> {
+        return try {
+            ApiResult.Success(api.approveDelivery(deliveryId))
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudo aprobar la entrega."))
         }
     }
 }

@@ -3,7 +3,9 @@ package com.t4kash.app.ui.service
 import com.t4kash.app.ui.model.ApplicationDto
 import com.t4kash.app.ui.model.CategoryDto
 import com.t4kash.app.ui.model.CreateApplicationRequest
+import com.t4kash.app.ui.model.CreateDeliveryRequest
 import com.t4kash.app.ui.model.CreateTaskRequest
+import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.TaskDto
 import retrofit2.http.Body
@@ -44,4 +46,20 @@ interface MarketplaceApiService {
 
     @GET("jobs")
     suspend fun getJobs(): List<JobDto>
+
+    @GET("jobs/{jobId}/deliveries")
+    suspend fun getDeliveries(
+        @Path("jobId") jobId: Int
+    ): List<DeliveryDto>
+
+    @POST("jobs/{jobId}/deliveries")
+    suspend fun createDelivery(
+        @Path("jobId") jobId: Int,
+        @Body request: CreateDeliveryRequest
+    ): DeliveryDto
+
+    @POST("deliveries/{deliveryId}/approve")
+    suspend fun approveDelivery(
+        @Path("deliveryId") deliveryId: Int
+    ): DeliveryDto
 }

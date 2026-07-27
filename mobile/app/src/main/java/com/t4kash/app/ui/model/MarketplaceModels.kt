@@ -67,6 +67,18 @@ data class JobDto(
     val estadoTrabajo: String
 )
 
+data class CreateDeliveryRequest(
+    val descripcionEntrega: String
+)
+
+data class DeliveryDto(
+    val idEntrega: Int,
+    val idTrabajo: Int,
+    val descripcionEntrega: String,
+    val fechaEntrega: String,
+    val estadoEntrega: String
+)
+
 data class MarketplaceHomeData(
     val categories: List<CategoryDto>,
     val tasks: List<TaskDto>
