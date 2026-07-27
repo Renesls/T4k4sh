@@ -9,6 +9,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.t4kash.app.ui.screen.ApplicationSentScreen
+import com.t4kash.app.ui.screen.ApplicationManagementScreen
 import com.t4kash.app.ui.screen.ChatScreen
 import com.t4kash.app.ui.screen.LoginScreen
 import com.t4kash.app.ui.screen.MarketplaceScreen
@@ -25,6 +26,12 @@ fun NavGraph(
     navController: NavHostController = rememberNavController()
 ) {
     val marketplaceViewModel: MarketplaceViewModel = viewModel()
+    val onBottomNavigate: (String) -> Unit = { route ->
+        if (route == Routes.MARKETPLACE) {
+            marketplaceViewModel.refresh()
+        }
+        navController.navigateBottom(route)
+    }
 
     NavHost(
         navController = navController,
@@ -52,7 +59,7 @@ fun NavGraph(
             MarketplaceScreen(
                 viewModel = marketplaceViewModel,
                 currentRoute = Routes.MARKETPLACE,
-                onNavigate = { route -> navController.navigateBottom(route) },
+                onNavigate = onBottomNavigate,
                 onTaskSelected = { task -> navController.navigate(Routes.taskDetails(task.idTarea)) },
                 onCreateTask = { navController.navigateBottom(Routes.POST) },
                 onOpenMap = { navController.navigate(Routes.OPPORTUNITY_MAP) }
@@ -61,7 +68,26 @@ fun NavGraph(
         composable(Routes.OPPORTUNITY_MAP) {
             OpportunityMapScreen(
                 viewModel = marketplaceViewModel,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onTaskSelected = { taskId ->
+                    navController.navigate(Routes.taskDetails(taskId))
+                }
+            )
+        }
+        composable(
+            route = Routes.OPPORTUNITY_MAP_TASK,
+            arguments = listOf(
+                navArgument(Routes.TASK_ID_ARG) { type = NavType.IntType }
+            )
+        ) { backStackEntry ->
+            val taskId = backStackEntry.arguments?.getInt(Routes.TASK_ID_ARG)
+            OpportunityMapScreen(
+                viewModel = marketplaceViewModel,
+                onBack = { navController.popBackStack() },
+                onTaskSelected = { selectedTaskId ->
+                    navController.navigate(Routes.taskDetails(selectedTaskId))
+                },
+                focusedTaskId = taskId
             )
         }
         composable(
@@ -75,16 +101,33 @@ fun NavGraph(
                 taskId = taskId,
                 viewModel = marketplaceViewModel,
                 onBack = { navController.popBackStack() },
-                onApply = { navController.navigate(Routes.APPLICATION_SENT) }
+                onApply = { navController.navigate(Routes.APPLICATION_SENT) },
+                onOpenMap = { navController.navigate(Routes.opportunityMap(taskId)) },
+                onManageApplications = {
+                    navController.navigate(Routes.taskApplications(taskId))
+                }
+            )
+        }
+        composable(
+            route = Routes.TASK_APPLICATIONS,
+            arguments = listOf(
+                navArgument(Routes.TASK_ID_ARG) { type = NavType.IntType }
+            )
+        ) { backStackEntry ->
+            val taskId = backStackEntry.arguments?.getInt(Routes.TASK_ID_ARG) ?: 0
+            ApplicationManagementScreen(
+                taskId = taskId,
+                viewModel = marketplaceViewModel,
+                onBack = { navController.popBackStack() }
             )
         }
         composable(Routes.NETWORK) {
-            NetworkScreen(onNavigate = { route -> navController.navigateBottom(route) })
+            NetworkScreen(onNavigate = onBottomNavigate)
         }
         composable(Routes.POST) {
             PostTaskScreen(
                 viewModel = marketplaceViewModel,
-                onNavigate = { route -> navController.navigateBottom(route) },
+                onNavigate = onBottomNavigate,
                 onTaskPublished = {
                     navController.navigate(Routes.OPPORTUNITY_MAP) {
                         popUpTo(Routes.POST) { inclusive = true }
@@ -93,10 +136,10 @@ fun NavGraph(
             )
         }
         composable(Routes.CHAT) {
-            ChatScreen(onNavigate = { route -> navController.navigateBottom(route) })
+            ChatScreen(onNavigate = onBottomNavigate)
         }
         composable(Routes.WALLET) {
-            WalletScreen(onNavigate = { route -> navController.navigateBottom(route) })
+            WalletScreen(onNavigate = onBottomNavigate)
         }
         composable(Routes.APPLICATION_SENT) {
             ApplicationSentScreen(

@@ -13,6 +13,10 @@ object Routes {
 
     const val TASK_ID_ARG = "taskId"
     const val TASK_DETAILS = "opportunity/{$TASK_ID_ARG}"
+    const val OPPORTUNITY_MAP_TASK = "opportunity-map/{$TASK_ID_ARG}"
+    const val TASK_APPLICATIONS = "opportunity/{$TASK_ID_ARG}/applications"
 
     fun taskDetails(taskId: Int): String = "opportunity/$taskId"
+    fun opportunityMap(taskId: Int): String = "opportunity-map/$taskId"
+    fun taskApplications(taskId: Int): String = "opportunity/$taskId/applications"
 }

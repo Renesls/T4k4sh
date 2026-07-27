@@ -138,8 +138,8 @@ fun ApplicationSentScreen(
         containerColor = T4Background,
         topBar = {
             T4TopBar(
-                title = "Aplicación enviada",
-                subtitle = "Estado de solicitud"
+                title = "Postulación enviada",
+                subtitle = "Estado de tu solicitud"
             )
         }
     ) { innerPadding ->
@@ -152,8 +152,8 @@ fun ApplicationSentScreen(
             verticalArrangement = Arrangement.Center
         ) {
             EmptyState(
-                title = "Solicitud preparada",
-                message = "La acción está lista en la interfaz. El siguiente paso será conectarla al endpoint de postulaciones.",
+                title = "Tu postulación fue enviada",
+                message = "La oportunidad recibió tu propuesta. Puedes volver al inicio y seguir explorando otras tareas.",
                 action = {
                     Button(onClick = onBackHome) {
                         Text("Volver al inicio")
