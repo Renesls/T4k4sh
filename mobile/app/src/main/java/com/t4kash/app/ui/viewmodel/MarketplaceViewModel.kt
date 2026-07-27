@@ -9,6 +9,7 @@ import com.t4kash.app.ui.model.ApplicationDto
 import com.t4kash.app.ui.model.CategoryDto
 import com.t4kash.app.ui.model.CreateApplicationRequest
 import com.t4kash.app.ui.model.CreateTaskRequest
+import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.repository.MarketplaceRepository
 import com.t4kash.app.ui.service.ApiResult
@@ -30,7 +31,10 @@ data class MarketplaceUiState(
     val isLoadingApplications: Boolean = false,
     val applicationsError: String? = null,
     val updatingApplicationId: Int? = null,
-    val applicationActionMessage: String? = null
+    val applicationActionMessage: String? = null,
+    val jobs: List<JobDto> = emptyList(),
+    val isLoadingJobs: Boolean = false,
+    val jobsError: String? = null
 )
 
 class MarketplaceViewModel(
@@ -169,10 +173,17 @@ class MarketplaceViewModel(
                     uiState = uiState.copy(
                         updatingApplicationId = null,
                         applications = uiState.applications.map {
-                            if (it.idPostulacion == application.idPostulacion) {
-                                it.copy(estadoPostulacion = "ACEPTADA")
-                            } else {
-                                it
+                            when {
+                                it.idPostulacion == application.idPostulacion ->
+                                    it.copy(estadoPostulacion = "ACEPTADA")
+
+                                it.idTarea == application.idTarea &&
+                                    it.estadoPostulacion.equals(
+                                        "PENDIENTE",
+                                        ignoreCase = true
+                                    ) -> it.copy(estadoPostulacion = "RECHAZADA")
+
+                                else -> it
                             }
                         },
                         tasks = uiState.tasks.map {
@@ -181,6 +192,9 @@ class MarketplaceViewModel(
                             } else {
                                 it
                             }
+                        },
+                        jobs = listOf(result.data) + uiState.jobs.filterNot {
+                            it.idTrabajo == result.data.idTrabajo
                         },
                         applicationActionMessage =
                             "Postulacion aceptada. Trabajo #${result.data.idTrabajo} creado."
@@ -233,5 +247,26 @@ class MarketplaceViewModel(
 
     fun clearApplicationActionMessage() {
         uiState = uiState.copy(applicationActionMessage = null)
+    }
+
+    fun refreshJobs() {
+        viewModelScope.launch {
+            uiState = uiState.copy(isLoadingJobs = true, jobsError = null)
+            when (val result = repository.loadJobs()) {
+                is ApiResult.Success -> {
+                    uiState = uiState.copy(
+                        jobs = result.data,
+                        isLoadingJobs = false
+                    )
+                }
+
+                is ApiResult.Error -> {
+                    uiState = uiState.copy(
+                        isLoadingJobs = false,
+                        jobsError = result.message
+                    )
+                }
+            }
+        }
     }
 }

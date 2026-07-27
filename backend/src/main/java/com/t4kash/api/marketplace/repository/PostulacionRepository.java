@@ -9,5 +9,11 @@ import java.util.Optional;
 public interface PostulacionRepository extends JpaRepository<Postulacion, Integer> {
     List<Postulacion> findByIdTareaOrderByFechaPostulacionDesc(Integer idTarea);
 
+    List<Postulacion> findByIdTareaAndEstadoPostulacionAndIdPostulacionNot(
+            Integer idTarea,
+            String estadoPostulacion,
+            Integer idPostulacion
+    );
+
     Optional<Postulacion> findByIdTareaAndIdEstudiante(Integer idTarea, Integer idEstudiante);
 }

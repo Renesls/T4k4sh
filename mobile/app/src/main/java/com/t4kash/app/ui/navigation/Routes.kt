@@ -10,6 +10,7 @@ object Routes {
     const val CHAT = "chat"
     const val PROFILE = "profile"
     const val WALLET = "wallet"
+    const val ASSIGNED_JOBS = "profile/jobs"
     const val APPLICATION_SENT = "application-sent"
 
     const val TASK_ID_ARG = "taskId"

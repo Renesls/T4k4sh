@@ -16,16 +16,16 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.EventAvailable
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.Place
-import androidx.compose.material.icons.filled.Work
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.WorkHistory
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -47,7 +47,7 @@ import com.t4kash.app.ui.components.EmptyState
 import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
-import com.t4kash.app.ui.model.CategoryDto
+import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.theme.T4AmberContainer
 import com.t4kash.app.ui.theme.T4Background
@@ -55,6 +55,7 @@ import com.t4kash.app.ui.theme.T4Border
 import com.t4kash.app.ui.theme.T4Danger
 import com.t4kash.app.ui.theme.T4Mint
 import com.t4kash.app.ui.theme.T4MintDark
+import com.t4kash.app.ui.theme.T4Primary
 import com.t4kash.app.ui.theme.T4PrimaryContainer
 import com.t4kash.app.ui.theme.T4PrimaryDark
 import com.t4kash.app.ui.theme.T4Surface
@@ -64,44 +65,53 @@ import com.t4kash.app.ui.viewmodel.MarketplaceViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 
 @Composable
-fun MyPublicationsScreen(
-    initialFilter: String,
+fun AssignedJobsScreen(
     viewModel: MarketplaceViewModel,
     onBack: () -> Unit,
     onTaskSelected: (Int) -> Unit
 ) {
     val state = viewModel.uiState
-    var selectedFilterName by rememberSaveable(initialFilter) {
-        mutableStateOf(PublicationFilter.fromRoute(initialFilter).name)
+    val tasksById = state.tasks.associateBy { it.idTarea }
+    var selectedRoleName by rememberSaveable {
+        mutableStateOf(JobRoleFilter.ALL.name)
     }
-    val selectedFilter = PublicationFilter.valueOf(selectedFilterName)
-    val ownTasks = state.tasks
-        .filter { it.idCliente == DEMO_CLIENT_ID }
-        .sortedByDescending { it.fechaPublicacion }
-    val filteredTasks = ownTasks.filter {
-        selectedFilter.status == null ||
-            it.estadoTarea.equals(selectedFilter.status, ignoreCase = true)
+    val selectedRole = JobRoleFilter.valueOf(selectedRoleName)
+    val relatedJobs = state.jobs.filter { job ->
+        job.belongsToDemoUser(tasksById[job.idTarea])
+    }
+    val visibleJobs = relatedJobs.filter { job ->
+        selectedRole.matches(job, tasksById[job.idTarea])
     }
 
     LaunchedEffect(Unit) {
-        viewModel.refresh()
+        viewModel.refreshJobs()
     }
 
     Scaffold(
         containerColor = T4Background,
         topBar = {
             T4TopBar(
-                title = "Mis publicaciones",
-                subtitle = "Historial de oportunidades",
-                onBack = onBack
+                title = "Trabajos asignados",
+                subtitle = "Seguimiento de tus acuerdos",
+                onBack = onBack,
+                actions = {
+                    IconButton(
+                        onClick = viewModel::refreshJobs,
+                        enabled = !state.isLoadingJobs
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Refresh,
+                            contentDescription = "Actualizar trabajos"
+                        )
+                    }
+                }
             )
         }
     ) { innerPadding ->
         when {
-            state.isLoading && state.tasks.isEmpty() -> {
+            state.isLoadingJobs && state.jobs.isEmpty() -> {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -111,11 +121,11 @@ fun MyPublicationsScreen(
                 ) {
                     CircularProgressIndicator()
                     Spacer(modifier = Modifier.size(12.dp))
-                    Text("Actualizando publicaciones...")
+                    Text("Actualizando trabajos...")
                 }
             }
 
-            state.errorMessage != null && state.tasks.isEmpty() -> {
+            state.jobsError != null && state.jobs.isEmpty() -> {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -124,8 +134,8 @@ fun MyPublicationsScreen(
                     verticalArrangement = Arrangement.Center
                 ) {
                     ConnectionErrorState(
-                        message = state.errorMessage,
-                        onRetry = viewModel::refresh
+                        message = state.jobsError,
+                        onRetry = viewModel::refreshJobs
                     )
                 }
             }
@@ -150,13 +160,13 @@ fun MyPublicationsScreen(
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Text(
-                                    text = "${ownTasks.size} oportunidades publicadas",
+                                    text = "${relatedJobs.size} trabajos vinculados",
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White
                                 )
                                 Text(
-                                    text = publicationSummary(ownTasks),
+                                    text = jobSummary(relatedJobs),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = Color.White.copy(alpha = 0.82f)
                                 )
@@ -169,19 +179,19 @@ fun MyPublicationsScreen(
                             contentPadding = PaddingValues(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            items(PublicationFilter.entries) { filter ->
+                            items(JobRoleFilter.entries) { filter ->
                                 StatusChip(
                                     text = filter.label,
-                                    selected = selectedFilter == filter,
+                                    selected = selectedRole == filter,
                                     modifier = Modifier.clickable {
-                                        selectedFilterName = filter.name
+                                        selectedRoleName = filter.name
                                     }
                                 )
                             }
                         }
                     }
 
-                    state.errorMessage?.let { error ->
+                    state.jobsError?.let { error ->
                         item {
                             Text(
                                 text = error,
@@ -192,33 +202,31 @@ fun MyPublicationsScreen(
                         }
                     }
 
-                    if (filteredTasks.isEmpty()) {
+                    if (visibleJobs.isEmpty()) {
                         item {
                             EmptyState(
-                                title = if (ownTasks.isEmpty()) {
-                                    "Aun no has publicado oportunidades"
+                                title = if (relatedJobs.isEmpty()) {
+                                    "Aun no tienes trabajos asignados"
                                 } else {
-                                    "No hay publicaciones en este estado"
+                                    "No hay trabajos para este filtro"
                                 },
-                                message = if (ownTasks.isEmpty()) {
-                                    "Las oportunidades creadas desde Post apareceran aqui."
+                                message = if (relatedJobs.isEmpty()) {
+                                    "Cuando una postulacion sea aceptada, el trabajo aparecera aqui."
                                 } else {
-                                    "Selecciona otro filtro para consultar el historial."
+                                    "Selecciona otro rol para consultar tu historial."
                                 },
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )
                         }
                     } else {
                         items(
-                            items = filteredTasks,
-                            key = { it.idTarea }
-                        ) { task ->
-                            PublicationCard(
-                                task = task,
-                                category = state.categories.firstOrNull {
-                                    it.idCategoria == task.idCategoria
-                                },
-                                onClick = { onTaskSelected(task.idTarea) },
+                            items = visibleJobs,
+                            key = { it.idTrabajo }
+                        ) { job ->
+                            AssignedJobCard(
+                                job = job,
+                                task = tasksById[job.idTarea],
+                                onClick = { onTaskSelected(job.idTarea) },
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )
                         }
@@ -230,20 +238,22 @@ fun MyPublicationsScreen(
 }
 
 @Composable
-private fun PublicationCard(
-    task: TaskDto,
-    category: CategoryDto?,
+private fun AssignedJobCard(
+    job: JobDto,
+    task: TaskDto?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val statusColors = publicationStatusColors(task.estadoTarea)
+    val progress = job.progress()
+    val statusColors = jobStatusColors(job)
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = T4Surface),
-        border = BorderStroke(1.dp, T4Border.copy(alpha = 0.65f)),
+        border = BorderStroke(1.dp, T4Border.copy(alpha = 0.7f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
@@ -252,15 +262,12 @@ private fun PublicationCard(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.Top
             ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = task.titulo,
+                        text = task?.titulo ?: "Trabajo #${job.idTrabajo}",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = T4Text,
@@ -268,14 +275,13 @@ private fun PublicationCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = category?.nombreCategoria ?: "Categoria #${task.idCategoria}",
+                        text = job.roleLabel(task),
                         style = MaterialTheme.typography.bodySmall,
                         color = T4TextMuted
                     )
                 }
                 StatusChip(
-                    text = task.estadoTarea.lowercase()
-                        .replaceFirstChar { it.uppercase() },
+                    text = job.displayStatus(),
                     containerColor = statusColors.first,
                     contentColor = statusColors.second
                 )
@@ -283,119 +289,80 @@ private fun PublicationCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                PublicationValue(
-                    icon = Icons.Filled.Payments,
-                    label = "Presupuesto",
-                    value = "C\$ ${"%.2f".format(task.presupuesto)}",
-                    modifier = Modifier.weight(1f)
+                Text(
+                    text = "Acuerdo #${job.idTrabajo}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = T4TextMuted
                 )
-                PublicationValue(
-                    icon = Icons.Filled.Place,
-                    label = "Modalidad",
-                    value = task.modalidad ?: "No definida",
-                    modifier = Modifier.weight(1f)
-                )
+                task?.let {
+                    Text(
+                        text = formatCordobas(it.presupuesto),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = T4MintDark
+                    )
+                }
             }
 
-            PublicationDateRow(
-                icon = Icons.Filled.CalendarMonth,
-                label = "Publicada",
-                value = task.fechaPublicacion.toDisplayDate()
-            )
-            PublicationDateRow(
-                icon = Icons.Filled.EventAvailable,
-                label = "Cierre de postulaciones",
-                value = task.fechaLimitePostulacion.toDisplayDate()
-            )
-            PublicationDateRow(
-                icon = Icons.Filled.Work,
-                label = "Fecha limite del trabajo",
-                value = task.fechaLimite.toDisplayDate()
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth(),
+                color = if (job.isOverdue()) T4Danger else T4Primary,
+                trackColor = T4PrimaryContainer
             )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = task.deadlineSummary(),
-                    style = MaterialTheme.typography.labelLarge,
+                    text = job.progressLabel(),
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = statusColors.second
+                    color = if (job.isOverdue()) T4Danger else T4Text
                 )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "Ver detalle",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = T4TextMuted
-                    )
-                    Spacer(modifier = Modifier.size(4.dp))
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = T4TextMuted,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
+                Text(
+                    text = "${(progress * 100).toInt()}%",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = T4TextMuted
+                )
             }
-        }
-    }
-}
 
-@Composable
-private fun PublicationValue(
-    icon: ImageVector,
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = T4TextMuted,
-            modifier = Modifier.size(20.dp)
-        )
-        Column {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = T4TextMuted
+            JobDateRow(
+                icon = Icons.Filled.WorkHistory,
+                label = "Inicio",
+                value = job.fechaInicio.toJobDate()
             )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = T4Text,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+            JobDateRow(
+                icon = Icons.Filled.CalendarMonth,
+                label = "Entrega esperada",
+                value = job.fechaEntregaEsperada.toJobDate()
+            )
+            JobDateRow(
+                icon = Icons.Filled.School,
+                label = "Estudiante",
+                value = "#${job.idEstudiante}"
             )
         }
     }
 }
 
 @Composable
-private fun PublicationDateRow(
+private fun JobDateRow(
     icon: ImageVector,
     label: String,
     value: String
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = T4TextMuted,
+            tint = T4Primary,
             modifier = Modifier.size(20.dp)
         )
         Text(
@@ -413,52 +380,88 @@ private fun PublicationDateRow(
     }
 }
 
-private fun publicationSummary(tasks: List<TaskDto>): String {
-    val active = tasks.count { it.estadoTarea.equals("PUBLICADA", ignoreCase = true) }
-    val assigned = tasks.count { it.estadoTarea.equals("ASIGNADA", ignoreCase = true) }
-    val closed = tasks.count { it.estadoTarea.equals("CERRADA", ignoreCase = true) }
-    return "$active activas · $assigned asignadas · $closed cerradas"
+private fun JobDto.belongsToDemoUser(task: TaskDto?): Boolean {
+    return idEstudiante == DEMO_JOB_USER_ID || task?.idCliente == DEMO_JOB_USER_ID
 }
 
-private fun publicationStatusColors(status: String): Pair<Color, Color> {
-    return when (status.uppercase()) {
-        "PUBLICADA" -> T4Mint to T4MintDark
-        "ASIGNADA" -> T4PrimaryContainer to T4PrimaryDark
-        "CERRADA" -> Color(0xFFFFE4E4) to T4Danger
-        else -> T4AmberContainer to T4Text
+private fun JobDto.roleLabel(task: TaskDto?): String {
+    val isClient = task?.idCliente == DEMO_JOB_USER_ID
+    val isStudent = idEstudiante == DEMO_JOB_USER_ID
+    return when {
+        isClient && isStudent -> "Participas como cliente y estudiante"
+        isClient -> "Participas como cliente"
+        isStudent -> "Participas como estudiante"
+        else -> "Trabajo vinculado"
     }
 }
 
-private fun String?.toDisplayDate(): String {
+private fun JobDto.displayStatus(): String {
+    return when {
+        estadoTrabajo.equals("FINALIZADO", ignoreCase = true) -> "FINALIZADO"
+        isOverdue() -> "PLAZO VENCIDO"
+        else -> estadoTrabajo.replace('_', ' ')
+    }
+}
+
+private fun JobDto.progressLabel(): String {
+    return when {
+        estadoTrabajo.equals("FINALIZADO", ignoreCase = true) -> "Trabajo finalizado"
+        isOverdue() -> "Entrega fuera de plazo"
+        fechaEntregaEsperada == null -> "En proceso"
+        else -> "Tiempo transcurrido"
+    }
+}
+
+private fun JobDto.progress(): Float {
+    if (estadoTrabajo.equals("FINALIZADO", ignoreCase = true)) {
+        return 1f
+    }
+    val start = parseJobDate(fechaInicio)?.time ?: return 0f
+    val end = parseJobDate(fechaEntregaEsperada)?.time ?: return 0f
+    if (end <= start) {
+        return 0f
+    }
+    return ((System.currentTimeMillis() - start).toFloat() / (end - start))
+        .coerceIn(0f, 1f)
+}
+
+private fun JobDto.isOverdue(): Boolean {
+    if (estadoTrabajo.equals("FINALIZADO", ignoreCase = true)) {
+        return false
+    }
+    val deadline = parseJobDate(fechaEntregaEsperada) ?: return false
+    return deadline.before(Date())
+}
+
+private fun jobStatusColors(job: JobDto): Pair<Color, Color> {
+    return when {
+        job.estadoTrabajo.equals("FINALIZADO", ignoreCase = true) ->
+            T4Mint to T4MintDark
+
+        job.isOverdue() -> Color(0xFFFFE4E4) to T4Danger
+        else -> T4AmberContainer to T4PrimaryDark
+    }
+}
+
+private fun jobSummary(jobs: List<JobDto>): String {
+    val active = jobs.count { it.estadoTrabajo.equals("EN_PROCESO", ignoreCase = true) }
+    val completed = jobs.count { it.estadoTrabajo.equals("FINALIZADO", ignoreCase = true) }
+    return "$active en proceso · $completed finalizados"
+}
+
+private fun formatCordobas(amount: Double): String {
+    return "C$ " + String.format(Locale.US, "%,.2f", amount)
+}
+
+private fun String?.toJobDate(): String {
     if (this.isNullOrBlank()) {
         return "Sin fecha definida"
     }
-    val parsed = parseApiDate(this) ?: return substringBefore('.').replace('T', ' ')
+    val parsed = parseJobDate(this) ?: return substringBefore('.').replace('T', ' ')
     return SimpleDateFormat("dd/MM/yyyy · HH:mm", Locale.getDefault()).format(parsed)
 }
 
-private fun TaskDto.deadlineSummary(): String {
-    if (estadoTarea.equals("ASIGNADA", ignoreCase = true)) {
-        return "Trabajo asignado"
-    }
-    if (estadoTarea.equals("CERRADA", ignoreCase = true)) {
-        return "Postulaciones cerradas"
-    }
-    val deadline = parseApiDate(fechaLimitePostulacion ?: fechaLimite)
-        ?: return "Sin cierre programado"
-    val remainingMillis = deadline.time - System.currentTimeMillis()
-    if (remainingMillis <= 0) {
-        return "Plazo finalizado"
-    }
-    val days = TimeUnit.MILLISECONDS.toDays(remainingMillis)
-    if (days > 0) {
-        return if (days == 1L) "Finaliza en 1 dia" else "Finaliza en $days dias"
-    }
-    val hours = TimeUnit.MILLISECONDS.toHours(remainingMillis).coerceAtLeast(1)
-    return if (hours == 1L) "Finaliza en 1 hora" else "Finaliza en $hours horas"
-}
-
-private fun parseApiDate(value: String?): Date? {
+private fun parseJobDate(value: String?): Date? {
     if (value.isNullOrBlank()) {
         return null
     }
@@ -470,23 +473,18 @@ private fun parseApiDate(value: String?): Date? {
     }.getOrNull()
 }
 
-private enum class PublicationFilter(
-    val label: String,
-    val status: String?
-) {
-    ALL("Todas", null),
-    ACTIVE("Activas", "PUBLICADA"),
-    ASSIGNED("Asignadas", "ASIGNADA"),
-    CLOSED("Cerradas", "CERRADA");
+private enum class JobRoleFilter(val label: String) {
+    ALL("Todos"),
+    CLIENT("Como cliente"),
+    STUDENT("Como estudiante");
 
-    companion object {
-        fun fromRoute(route: String): PublicationFilter {
-            return entries.firstOrNull {
-                it.status.equals(route, ignoreCase = true) ||
-                    it.name.equals(route, ignoreCase = true)
-            } ?: ALL
+    fun matches(job: JobDto, task: TaskDto?): Boolean {
+        return when (this) {
+            ALL -> true
+            CLIENT -> task?.idCliente == DEMO_JOB_USER_ID
+            STUDENT -> job.idEstudiante == DEMO_JOB_USER_ID
         }
     }
 }
 
-private const val DEMO_CLIENT_ID = 1
+private const val DEMO_JOB_USER_ID = 1

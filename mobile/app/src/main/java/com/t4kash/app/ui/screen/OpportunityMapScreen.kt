@@ -101,6 +101,7 @@ fun OpportunityMapScreen(
     val locatedTasks = remember(uiState.tasks) {
         uiState.tasks.filter {
             it.hasValidCoordinates() &&
+                it.estadoTarea.equals("PUBLICADA", ignoreCase = true) &&
                 !it.modalidad.equals("REMOTA", ignoreCase = true)
         }
     }

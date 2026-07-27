@@ -333,7 +333,7 @@ private fun ApplicationCard(
 
             Text(
                 text = application.precioPropuesto?.let {
-                    "$${"%.2f".format(it)} propuestos"
+                    "C\$ ${"%.2f".format(it)} propuestos"
                 } ?: "Sin precio propuesto",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,

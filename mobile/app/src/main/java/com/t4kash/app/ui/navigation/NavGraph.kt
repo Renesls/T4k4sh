@@ -10,6 +10,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.t4kash.app.ui.screen.ApplicationSentScreen
 import com.t4kash.app.ui.screen.ApplicationManagementScreen
+import com.t4kash.app.ui.screen.AssignedJobsScreen
 import com.t4kash.app.ui.screen.ChatScreen
 import com.t4kash.app.ui.screen.LoginScreen
 import com.t4kash.app.ui.screen.MarketplaceScreen
@@ -147,6 +148,7 @@ fun NavGraph(
                 onOpenPublications = { filter ->
                     navController.navigate(Routes.myPublications(filter))
                 },
+                onOpenJobs = { navController.navigate(Routes.ASSIGNED_JOBS) },
                 onOpenWallet = { navController.navigate(Routes.WALLET) },
                 onLogout = {
                     navController.navigate(Routes.LOGIN) {
@@ -175,6 +177,15 @@ fun NavGraph(
         }
         composable(Routes.WALLET) {
             WalletScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.ASSIGNED_JOBS) {
+            AssignedJobsScreen(
+                viewModel = marketplaceViewModel,
+                onBack = { navController.popBackStack() },
+                onTaskSelected = { taskId ->
+                    navController.navigate(Routes.taskDetails(taskId))
+                }
+            )
         }
         composable(Routes.APPLICATION_SENT) {
             ApplicationSentScreen(

@@ -70,6 +70,14 @@ class MarketplaceRepository(
             ApiResult.Error(e.apiMessage("No se pudo rechazar la postulacion."))
         }
     }
+
+    suspend fun loadJobs(): ApiResult<List<JobDto>> {
+        return try {
+            ApiResult.Success(api.getJobs())
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudieron cargar los trabajos asignados."))
+        }
+    }
 }
 
 private fun Exception.apiMessage(fallback: String): String {

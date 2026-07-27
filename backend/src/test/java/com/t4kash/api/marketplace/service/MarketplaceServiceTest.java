@@ -1,8 +1,13 @@
 package com.t4kash.api.marketplace.service;
 
+import com.t4kash.api.exception.ResourceConflictException;
+import com.t4kash.api.marketplace.dto.CreateApplicationRequest;
 import com.t4kash.api.marketplace.dto.CreateTaskRequest;
+import com.t4kash.api.marketplace.dto.JobResponse;
 import com.t4kash.api.marketplace.dto.TaskResponse;
+import com.t4kash.api.marketplace.entity.Postulacion;
 import com.t4kash.api.marketplace.entity.Tarea;
+import com.t4kash.api.marketplace.entity.TrabajoAsignado;
 import com.t4kash.api.marketplace.repository.CategoriaTareaRepository;
 import com.t4kash.api.marketplace.repository.EntregaRepository;
 import com.t4kash.api.marketplace.repository.PostulacionRepository;
@@ -17,11 +22,16 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -54,8 +64,8 @@ class MarketplaceServiceTest {
                 usuarioRepository,
                 estudianteRepository
         );
-        when(categoriaRepository.existsById(1)).thenReturn(true);
-        when(usuarioRepository.existsById(1)).thenReturn(true);
+        lenient().when(categoriaRepository.existsById(1)).thenReturn(true);
+        lenient().when(usuarioRepository.existsById(1)).thenReturn(true);
     }
 
     @Test
@@ -108,6 +118,87 @@ class MarketplaceServiceTest {
         );
     }
 
+    @Test
+    void listingTasksClosesExpiredPublications() {
+        Tarea expiredTask = task(
+                10,
+                "PUBLICADA",
+                LocalDateTime.now().minusMinutes(1)
+        );
+        when(tareaRepository.findAllByOrderByFechaPublicacionDesc())
+                .thenReturn(List.of(expiredTask));
+
+        List<TaskResponse> response = service.listTasks();
+
+        assertEquals("CERRADA", expiredTask.getEstadoTarea());
+        assertEquals("CERRADA", response.getFirst().estadoTarea());
+    }
+
+    @Test
+    void expiredTaskRejectsNewApplications() {
+        Tarea expiredTask = task(
+                10,
+                "PUBLICADA",
+                LocalDateTime.now().minusMinutes(1)
+        );
+        when(tareaRepository.findById(10)).thenReturn(Optional.of(expiredTask));
+
+        ResourceConflictException error = assertThrows(
+                ResourceConflictException.class,
+                () -> service.applyToTask(
+                        10,
+                        new CreateApplicationRequest(
+                                1,
+                                "Quiero participar.",
+                                new BigDecimal("20.00")
+                        )
+                )
+        );
+
+        assertEquals(
+                "El plazo de postulacion para esta tarea ya finalizo.",
+                error.getMessage()
+        );
+        assertEquals("CERRADA", expiredTask.getEstadoTarea());
+    }
+
+    @Test
+    void acceptingApplicationRejectsRemainingPendingApplications() {
+        Tarea task = task(
+                10,
+                "PUBLICADA",
+                LocalDateTime.now().plusDays(1)
+        );
+        Postulacion accepted = application(100, 10, 1);
+        Postulacion remaining = application(101, 10, 2);
+
+        when(postulacionRepository.findById(100)).thenReturn(Optional.of(accepted));
+        when(trabajoRepository.findByIdTarea(10)).thenReturn(Optional.empty());
+        when(tareaRepository.findById(10)).thenReturn(Optional.of(task));
+        when(
+                postulacionRepository
+                        .findByIdTareaAndEstadoPostulacionAndIdPostulacionNot(
+                                10,
+                                "PENDIENTE",
+                                100
+                        )
+        ).thenReturn(List.of(remaining));
+        when(trabajoRepository.save(any(TrabajoAsignado.class)))
+                .thenAnswer(invocation -> {
+                    TrabajoAsignado job = invocation.getArgument(0);
+                    job.setIdTrabajo(50);
+                    return job;
+                });
+
+        JobResponse response = service.acceptApplication(100);
+
+        assertEquals(50, response.idTrabajo());
+        assertEquals("ASIGNADA", task.getEstadoTarea());
+        assertEquals("ACEPTADA", accepted.getEstadoPostulacion());
+        assertEquals("RECHAZADA", remaining.getEstadoPostulacion());
+        verify(postulacionRepository).saveAll(List.of(remaining));
+    }
+
     private CreateTaskRequest request(
             String modalidad,
             String direccion,
@@ -137,5 +228,43 @@ class MarketplaceServiceTest {
             tarea.setIdTarea(10);
             return tarea;
         });
+    }
+
+    private Tarea task(
+            Integer id,
+            String status,
+            LocalDateTime applicationDeadline
+    ) {
+        Tarea task = new Tarea();
+        task.setIdTarea(id);
+        task.setTitulo("Oportunidad de prueba");
+        task.setDescripcion("Descripcion completa para la oportunidad de prueba.");
+        task.setPresupuesto(new BigDecimal("25.00"));
+        task.setFechaPublicacion(LocalDateTime.now().minusHours(1));
+        task.setFechaLimitePostulacion(applicationDeadline);
+        task.setFechaLimite(applicationDeadline.plusDays(2));
+        task.setEstadoTarea(status);
+        task.setIdCategoria(1);
+        task.setIdCliente(1);
+        task.setTipoOportunidad("TAREA");
+        task.setModalidad("REMOTA");
+        task.setVisibilidad("PUBLICA");
+        return task;
+    }
+
+    private Postulacion application(
+            Integer id,
+            Integer taskId,
+            Integer studentId
+    ) {
+        Postulacion application = new Postulacion();
+        application.setIdPostulacion(id);
+        application.setIdTarea(taskId);
+        application.setIdEstudiante(studentId);
+        application.setMensaje("Propuesta de prueba.");
+        application.setPrecioPropuesto(new BigDecimal("20.00"));
+        application.setFechaPostulacion(LocalDateTime.now().minusMinutes(10));
+        application.setEstadoPostulacion("PENDIENTE");
+        return application;
     }
 }

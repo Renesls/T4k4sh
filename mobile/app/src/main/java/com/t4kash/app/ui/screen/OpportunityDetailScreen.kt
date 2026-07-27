@@ -304,7 +304,7 @@ private fun HeroCard(task: TaskDto) {
 
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    text = "$${"%.2f".format(task.presupuesto)}",
+                    text = "C\$ ${"%.2f".format(task.presupuesto)}",
                     color = T4Mint,
                     style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Black
@@ -497,7 +497,7 @@ private fun ApplicationDialog(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Precio propuesto") },
-                    prefix = { Text("$") },
+                    prefix = { Text("C\$") },
                     singleLine = true,
                     enabled = !isSubmitting,
                     keyboardOptions = KeyboardOptions(

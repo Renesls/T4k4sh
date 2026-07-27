@@ -41,4 +41,7 @@ interface MarketplaceApiService {
     suspend fun rejectApplication(
         @Path("applicationId") applicationId: Int
     ): ApplicationDto
+
+    @GET("jobs")
+    suspend fun getJobs(): List<JobDto>
 }

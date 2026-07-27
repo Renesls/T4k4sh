@@ -90,11 +90,12 @@ fun MarketplaceScreen(
 
     val filteredTasks = remember(state.tasks, query, selectedCategoryId) {
         state.tasks.filter { task ->
+            val isAvailable = task.estadoTarea.equals("PUBLICADA", ignoreCase = true)
             val matchesQuery = query.isBlank() ||
                 task.titulo.contains(query, ignoreCase = true) ||
                 task.descripcion.contains(query, ignoreCase = true)
             val matchesCategory = selectedCategoryId == 0 || task.idCategoria == selectedCategoryId
-            matchesQuery && matchesCategory
+            isAvailable && matchesQuery && matchesCategory
         }
     }
     val categoriesById = remember(state.categories) {
@@ -370,7 +371,7 @@ private fun TaskCard(
                     contentColor = categoryColors.content
                 )
                 Text(
-                    text = "$${"%.2f".format(task.presupuesto)}",
+                    text = "C\$ ${"%.2f".format(task.presupuesto)}",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = T4MintDark

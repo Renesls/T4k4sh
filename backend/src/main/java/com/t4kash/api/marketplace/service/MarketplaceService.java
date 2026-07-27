@@ -33,6 +33,7 @@ import java.util.Set;
 public class MarketplaceService {
     private static final String ESTADO_TAREA_PUBLICADA = "PUBLICADA";
     private static final String ESTADO_TAREA_ASIGNADA = "ASIGNADA";
+    private static final String ESTADO_TAREA_CERRADA = "CERRADA";
     private static final String ESTADO_POSTULACION_PENDIENTE = "PENDIENTE";
     private static final String ESTADO_POSTULACION_ACEPTADA = "ACEPTADA";
     private static final String ESTADO_POSTULACION_RECHAZADA = "RECHAZADA";
@@ -78,17 +79,21 @@ public class MarketplaceService {
                 .toList();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<TaskResponse> listTasks() {
-        return tareaRepository.findAllByOrderByFechaPublicacionDesc()
+        List<Tarea> tareas = tareaRepository.findAllByOrderByFechaPublicacionDesc();
+        closeExpiredTasks(tareas, LocalDateTime.now());
+        return tareas
                 .stream()
                 .map(TaskResponse::fromEntity)
                 .toList();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public TaskResponse getTask(Integer idTarea) {
-        return TaskResponse.fromEntity(findTask(idTarea));
+        Tarea tarea = findTask(idTarea);
+        closeExpiredTask(tarea, LocalDateTime.now());
+        return TaskResponse.fromEntity(tarea);
     }
 
     @Transactional
@@ -99,6 +104,7 @@ public class MarketplaceService {
         if (!usuarioRepository.existsById(request.idCliente())) {
             throw new ResourceNotFoundException("El usuario cliente indicado no existe.");
         }
+        validateTaskDates(request, LocalDateTime.now());
 
         Tarea tarea = new Tarea();
         tarea.setTitulo(request.titulo().trim());
@@ -172,9 +178,14 @@ public class MarketplaceService {
                 .toList();
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = ResourceConflictException.class)
     public ApplicationResponse applyToTask(Integer idTarea, CreateApplicationRequest request) {
         Tarea tarea = findTask(idTarea);
+        if (closeExpiredTask(tarea, LocalDateTime.now())) {
+            throw new ResourceConflictException(
+                    "El plazo de postulacion para esta tarea ya finalizo."
+            );
+        }
         if (!ESTADO_TAREA_PUBLICADA.equals(tarea.getEstadoTarea())) {
             throw new ResourceConflictException("La tarea no esta disponible para nuevas postulaciones.");
         }
@@ -220,7 +231,72 @@ public class MarketplaceService {
 
         tareaRepository.save(tarea);
         postulacionRepository.save(postulacion);
+        rejectRemainingApplications(postulacion);
         return JobResponse.fromEntity(trabajoRepository.save(trabajo));
+    }
+
+    private void validateTaskDates(
+            CreateTaskRequest request,
+            LocalDateTime now
+    ) {
+        LocalDateTime applicationDeadline = request.fechaLimitePostulacion();
+        LocalDateTime taskDeadline = request.fechaLimite();
+        if ((applicationDeadline == null) != (taskDeadline == null)) {
+            throw new IllegalArgumentException(
+                    "El cierre de postulaciones y la fecha del trabajo deben enviarse juntos."
+            );
+        }
+        if (applicationDeadline != null && !applicationDeadline.isAfter(now)) {
+            throw new IllegalArgumentException(
+                    "La fecha limite de postulacion debe ser futura."
+            );
+        }
+        if (
+                applicationDeadline != null &&
+                taskDeadline != null &&
+                !taskDeadline.isAfter(applicationDeadline)
+        ) {
+            throw new IllegalArgumentException(
+                    "La fecha limite del trabajo debe ser posterior al cierre de postulaciones."
+            );
+        }
+    }
+
+    private void closeExpiredTasks(
+            List<Tarea> tareas,
+            LocalDateTime now
+    ) {
+        tareas.forEach(tarea -> closeExpiredTask(tarea, now));
+    }
+
+    private boolean closeExpiredTask(
+            Tarea tarea,
+            LocalDateTime now
+    ) {
+        LocalDateTime deadline = tarea.getFechaLimitePostulacion();
+        if (
+                ESTADO_TAREA_PUBLICADA.equals(tarea.getEstadoTarea()) &&
+                deadline != null &&
+                !deadline.isAfter(now)
+        ) {
+            tarea.setEstadoTarea(ESTADO_TAREA_CERRADA);
+            return true;
+        }
+        return false;
+    }
+
+    private void rejectRemainingApplications(Postulacion acceptedApplication) {
+        List<Postulacion> remainingApplications =
+                postulacionRepository
+                        .findByIdTareaAndEstadoPostulacionAndIdPostulacionNot(
+                                acceptedApplication.getIdTarea(),
+                                ESTADO_POSTULACION_PENDIENTE,
+                                acceptedApplication.getIdPostulacion()
+                        );
+        remainingApplications.forEach(application ->
+                application.setEstadoPostulacion(ESTADO_POSTULACION_RECHAZADA)
+        );
+        postulacionRepository.saveAll(remainingApplications);
     }
 
     @Transactional

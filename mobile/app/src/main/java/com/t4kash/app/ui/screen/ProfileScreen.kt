@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Mail
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.filled.WorkHistory
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -31,6 +32,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -55,6 +57,7 @@ fun ProfileScreen(
     viewModel: MarketplaceViewModel,
     onNavigate: (String) -> Unit,
     onOpenPublications: (String) -> Unit,
+    onOpenJobs: () -> Unit,
     onOpenWallet: () -> Unit,
     onLogout: () -> Unit
 ) {
@@ -64,6 +67,14 @@ fun ProfileScreen(
     }
     val assignedTasks = ownTasks.count {
         it.estadoTarea.equals("ASIGNADA", ignoreCase = true)
+    }
+    val relatedJobs = viewModel.uiState.jobs.count { job ->
+        job.idEstudiante == DEMO_PROFILE_USER_ID ||
+            ownTasks.any { it.idTarea == job.idTarea }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.refreshJobs()
     }
 
     Scaffold(
@@ -181,6 +192,58 @@ fun ProfileScreen(
                             icon = Icons.Filled.VerifiedUser,
                             label = "Estado de cuenta",
                             value = "Activa"
+                        )
+                    }
+                }
+            }
+
+            item {
+                Text(
+                    text = "Actividad",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = T4Text
+                )
+            }
+
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onOpenJobs),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = T4Surface),
+                    border = BorderStroke(1.dp, T4Border.copy(alpha = 0.65f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(18.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.WorkHistory,
+                            contentDescription = null,
+                            tint = T4Primary,
+                            modifier = Modifier.size(26.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Trabajos asignados",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = T4Text
+                            )
+                            Text(
+                                text = "$relatedJobs acuerdos como cliente o estudiante",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = T4TextMuted
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = "Abrir trabajos asignados",
+                            tint = T4TextMuted
                         )
                     }
                 }

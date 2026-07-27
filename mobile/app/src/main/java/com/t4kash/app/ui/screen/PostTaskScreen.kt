@@ -340,6 +340,7 @@ fun PostTaskScreen(
                             },
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text("Presupuesto") },
+                            prefix = { Text("C\$") },
                             singleLine = true,
                             shape = RoundedCornerShape(16.dp),
                             keyboardOptions = KeyboardOptions(
