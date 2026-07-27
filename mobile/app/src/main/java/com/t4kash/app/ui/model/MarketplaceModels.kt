@@ -79,6 +79,26 @@ data class DeliveryDto(
     val estadoEntrega: String
 )
 
+data class PendingAttachment(
+    val name: String,
+    val mimeType: String,
+    val content: ByteArray
+)
+
+data class AttachmentDto(
+    val idArchivo: Int,
+    val idTarea: Int?,
+    val idEntrega: Int?,
+    val idUsuarioSube: Int,
+    val nombreOriginal: String,
+    val tipoMime: String,
+    val extension: String?,
+    val tamanoBytes: Long,
+    val fechaSubida: String,
+    val estadoArchivo: String,
+    val rutaDescarga: String
+)
+
 data class MarketplaceHomeData(
     val categories: List<CategoryDto>,
     val tasks: List<TaskDto>

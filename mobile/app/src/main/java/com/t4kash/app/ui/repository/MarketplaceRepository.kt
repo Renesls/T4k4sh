@@ -1,17 +1,22 @@
 package com.t4kash.app.ui.repository
 
 import com.t4kash.app.ui.model.ApplicationDto
+import com.t4kash.app.ui.model.AttachmentDto
 import com.t4kash.app.ui.model.CreateApplicationRequest
 import com.t4kash.app.ui.model.CreateDeliveryRequest
 import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.MarketplaceHomeData
+import com.t4kash.app.ui.model.PendingAttachment
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.service.ApiResult
 import com.t4kash.app.ui.service.MarketplaceApiService
 import com.t4kash.app.ui.service.RetrofitClient
 import org.json.JSONObject
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.HttpException
 
 class MarketplaceRepository(
@@ -105,6 +110,59 @@ class MarketplaceRepository(
             ApiResult.Success(api.approveDelivery(deliveryId))
         } catch (e: Exception) {
             ApiResult.Error(e.apiMessage("No se pudo aprobar la entrega."))
+        }
+    }
+
+    suspend fun loadTaskAttachments(taskId: Int): ApiResult<List<AttachmentDto>> {
+        return try {
+            ApiResult.Success(api.getTaskAttachments(taskId))
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudieron cargar los archivos de la tarea."))
+        }
+    }
+
+    suspend fun loadJobAttachments(jobId: Int): ApiResult<List<AttachmentDto>> {
+        return try {
+            ApiResult.Success(api.getJobAttachments(jobId))
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudieron cargar los archivos del trabajo."))
+        }
+    }
+
+    suspend fun uploadTaskAttachment(
+        taskId: Int,
+        attachment: PendingAttachment
+    ): ApiResult<AttachmentDto> {
+        return uploadAttachment(attachment) { userId, file ->
+            api.uploadTaskAttachment(taskId, userId, file)
+        }
+    }
+
+    suspend fun uploadDeliveryAttachment(
+        deliveryId: Int,
+        attachment: PendingAttachment
+    ): ApiResult<AttachmentDto> {
+        return uploadAttachment(attachment) { userId, file ->
+            api.uploadDeliveryAttachment(deliveryId, userId, file)
+        }
+    }
+
+    private suspend fun uploadAttachment(
+        attachment: PendingAttachment,
+        upload: suspend (okhttp3.RequestBody, MultipartBody.Part) -> AttachmentDto
+    ): ApiResult<AttachmentDto> {
+        return try {
+            val mediaType = attachment.mimeType.toMediaType()
+            val fileBody = attachment.content.toRequestBody(mediaType)
+            val filePart = MultipartBody.Part.createFormData(
+                "file",
+                attachment.name,
+                fileBody
+            )
+            val userId = "1".toRequestBody("text/plain".toMediaType())
+            ApiResult.Success(upload(userId, filePart))
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudo subir ${attachment.name}."))
         }
     }
 }

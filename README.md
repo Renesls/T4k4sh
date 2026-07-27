@@ -33,6 +33,7 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 |---|---|
 | API Spring Boot desplegada en Render | Implementado |
 | PostgreSQL administrado en Supabase | Implementado |
+| Archivos privados en Supabase Storage | Implementado |
 | Documentación Swagger/OpenAPI | Implementado |
 | Marketplace y detalle de oportunidades en Android | Implementado |
 | Publicación de tareas desde Android | Implementado |
@@ -192,7 +193,7 @@ Reglas del sistema:
 - La base exige que ambas coordenadas estén presentes o que ambas sean nulas.
 - La ubicación actual del usuario no se almacena permanentemente.
 
-El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno desde cero. No debe ejecutarse nuevamente sobre la base remota con información importante. Los cambios posteriores deben aplicarse mediante migraciones SQL controladas.
+El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno desde cero. No debe ejecutarse nuevamente sobre la base remota con información importante. Los cambios en Supabase deben aplicarse de forma controlada desde SQL Editor y reflejarse después en este archivo.
 
 ## Endpoints Implementados
 
@@ -369,6 +370,9 @@ Las pruebas del backend cubren la normalización de modalidades, la eliminación
 | `SPRING_DATASOURCE_MAX_POOL_SIZE` | Máximo de conexiones | `5` |
 | `SPRING_DATASOURCE_MIN_IDLE` | Conexiones mínimas en reposo | `1` |
 | `APP_CORS_ALLOWED_ORIGINS` | Orígenes permitidos | `*` durante la demo |
+| `SUPABASE_URL` | URL del proyecto usada por Storage | `https://PROJECT_REF.supabase.co` |
+| `SUPABASE_SECRET_KEY` | Clave secreta usada solo por el backend | Configurada en Render |
+| `SUPABASE_STORAGE_BUCKET` | Bucket privado de adjuntos | `t4kash-attachments` |
 | `T4KASH_API_BASE_URL` | URL consumida por Android | URL de Render |
 
 Las contraseñas, cadenas de conexión y claves privadas no deben guardarse en Git. Render administra las variables del backend y Android solo recibe la URL pública de la API.
@@ -379,12 +383,24 @@ La guía ampliada se encuentra en `docs/deployment.md`.
 
 Orden correcto para publicar cambios:
 
-1. Aplicar primero cualquier migración necesaria en Supabase.
+1. Verificar que el esquema actualizado ya esté aplicado en Supabase.
 2. Subir el backend a GitHub.
 3. Esperar que Render finalice el despliegue y muestre el servicio como `Live`.
 4. Verificar `/api/health` y Swagger.
 5. Compilar o ejecutar Android apuntando a Render.
 6. Probar el flujo completo desde un dispositivo o emulador.
+
+### Archivos Adjuntos
+
+Los archivos de tareas y entregas se guardan en el bucket privado
+`t4kash-attachments`. PostgreSQL conserva solamente el nombre, tipo, tamaño,
+ruta y propietario del archivo.
+
+- Tamaño máximo: 10 MB por archivo.
+- Máximo desde Android: 3 archivos por publicación o entrega.
+- Tipos aceptados: PDF, PNG, JPG, WebP, TXT, DOC, DOCX y ZIP.
+- La clave secreta de Supabase se usa únicamente en el backend.
+- Las descargas pasan por la API; Android no recibe acceso directo al bucket.
 
 ## Diseño y Diagramas
 
@@ -410,6 +426,25 @@ Los diagramas deben reflejar las coordenadas de `tareas` y diferenciar el flujo 
 | Social y Comunicación | mensajes, conversaciones, notificaciones, calificaciones, recomendaciones | Dev 1 |
 | Finanzas y Sistema | pagos, transacciones, reportes, auditoría, archivos | Dev 2 |
 
+## Convenciones de Código
+
+Para evitar mezclar estilos entre módulos, el proyecto seguirá estas reglas:
+
+| Elemento | Convención | Ejemplo |
+|---|---|---|
+| Clases, interfaces y archivos de código | Inglés y `PascalCase` | `AttachmentService`, `JobDetailScreen` |
+| Funciones, propiedades y variables internas | Inglés y `lowerCamelCase` | `loadAttachments`, `selectedFiles` |
+| Constantes | Inglés y `UPPER_SNAKE_CASE` | `MAX_FILE_SIZE` |
+| Paquetes y rutas técnicas | Inglés, minúsculas y nombres breves | `service`, `repository`, `attachments` |
+| Tablas y columnas de PostgreSQL | Español y `snake_case` | `archivos_adjuntos`, `id_tarea` |
+| Campos existentes de la API | Mantener el contrato actual | `idTarea`, `fechaLimite` |
+| Textos visibles, documentación y comentarios | Español claro | `Cargando oportunidades...` |
+
+Los comentarios deben explicar decisiones, límites o motivos que no sean evidentes en el
+código. No deben repetir literalmente lo que hace una instrucción. Los nombres heredados
+de la base de datos o de la API solo se cambiarán mediante una modificación coordinada
+entre PostgreSQL, backend y Android.
+
 ## Control de Versiones
 
 El proyecto utiliza ramas organizadas, Pull Requests y Conventional Commits.
@@ -424,11 +459,28 @@ test: agregar pruebas del flujo marketplace
 chore: ajustar configuración de render
 ```
 
-## Próximos Pasos
+## Etapas Pendientes
 
-1. Implementar autenticación real y eliminar los IDs demo.
-2. Permitir seleccionar manualmente una ubicación en el mapa.
-3. Conectar en Android la aceptación y el rechazo de postulaciones.
-4. Integrar almacenamiento de archivos con Supabase Storage.
-5. Incorporar notificaciones push.
-6. Completar trabajos asignados, entregas, pagos, reputación y mensajería.
+1. **Optimización y estandarización**
+   - Aplicar las convenciones de nombres en el código interno nuevo.
+   - Centralizar formatos repetidos de fechas, córdobas y tamaños de archivo.
+   - Reducir recargas y solicitudes duplicadas al backend.
+   - Dividir componentes o `ViewModel` que acumulen demasiadas responsabilidades.
+   - Eliminar comentarios redundantes y mantener solo los que aporten contexto.
+2. **Integración de identidad**
+   - Conectar el módulo de autenticación y roles desarrollado por Dev 1.
+   - Sustituir el usuario demo con ID `1` por el usuario de la sesión.
+   - Aplicar permisos según el rol y la propiedad de cada recurso.
+3. **Ubicación y mapa**
+   - Permitir elegir o ajustar manualmente la ubicación de una tarea.
+   - Completar el flujo de distancia, rango y navegación hacia la oportunidad.
+4. **Comunicación**
+   - Implementar conversaciones y mensajes.
+   - Incorporar notificaciones push con Firebase Cloud Messaging.
+5. **Finanzas y reputación**
+   - Completar wallet, pagos y movimientos.
+   - Agregar calificaciones y reputación al finalizar trabajos.
+6. **Cierre técnico**
+   - Ejecutar pruebas integrales de Android, backend y PostgreSQL.
+   - Revisar validaciones, permisos, manejo de errores y estados de sesión.
+   - Actualizar diagramas, documentación y guía de despliegue final.

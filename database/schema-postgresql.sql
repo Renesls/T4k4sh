@@ -285,11 +285,17 @@ CREATE TABLE archivos_adjuntos (
     tipo_mime varchar(100) NOT NULL,
     extension varchar(20),
     tamano_bytes bigint NOT NULL,
-    contenido_archivo bytea NOT NULL,
+    bucket_storage varchar(100) NOT NULL,
+    ruta_storage varchar(500) NOT NULL,
     fecha_subida timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     estado_archivo varchar(30) NOT NULL DEFAULT 'ACTIVO',
     CONSTRAINT pk_archivos_adjuntos PRIMARY KEY (id_archivo),
-    CONSTRAINT ck_archivos_adjuntos_tamano CHECK (tamano_bytes >= 0)
+    CONSTRAINT ck_archivos_adjuntos_tamano CHECK (
+        tamano_bytes BETWEEN 0 AND 10485760
+    ),
+    CONSTRAINT ck_archivos_adjuntos_destino CHECK (
+        num_nonnulls(id_tarea, id_entrega, id_mensaje) = 1
+    )
 );
 
 CREATE TABLE notificaciones (

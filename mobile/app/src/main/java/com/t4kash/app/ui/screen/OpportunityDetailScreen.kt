@@ -82,6 +82,10 @@ fun OpportunityDetailScreen(
     val task = state.tasks.firstOrNull { it.idTarea == taskId }
     var showApplicationDialog by rememberSaveable { mutableStateOf(false) }
 
+    LaunchedEffect(taskId) {
+        viewModel.loadTaskAttachments(taskId)
+    }
+
     LaunchedEffect(state.sentApplication?.idPostulacion) {
         if (state.sentApplication != null) {
             showApplicationDialog = false
@@ -186,6 +190,9 @@ fun OpportunityDetailScreen(
             else -> {
                 OpportunityDetailContent(
                     task = task,
+                    attachments = state.taskAttachments,
+                    isLoadingAttachments = state.isLoadingAttachments,
+                    attachmentsError = state.attachmentsError,
                     onOpenMap = onOpenMap,
                     modifier = Modifier.padding(innerPadding)
                 )
@@ -197,6 +204,9 @@ fun OpportunityDetailScreen(
 @Composable
 private fun OpportunityDetailContent(
     task: TaskDto,
+    attachments: List<com.t4kash.app.ui.model.AttachmentDto>,
+    isLoadingAttachments: Boolean,
+    attachmentsError: String?,
     onOpenMap: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -228,6 +238,37 @@ private fun OpportunityDetailContent(
                     color = T4TextMuted,
                     style = MaterialTheme.typography.bodyMedium
                 )
+            }
+        }
+        if (attachments.isNotEmpty() || isLoadingAttachments || attachmentsError != null) {
+            item {
+                DetailSection(
+                    title = "Archivos adjuntos",
+                    icon = Icons.Filled.Description
+                ) {
+                    if (isLoadingAttachments) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                            Text(
+                                text = "Cargando archivos...",
+                                color = T4TextMuted
+                            )
+                        }
+                    }
+                    attachments.forEach { attachment ->
+                        StoredAttachmentRow(attachment = attachment)
+                    }
+                    attachmentsError?.let { error ->
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
             }
         }
         item {

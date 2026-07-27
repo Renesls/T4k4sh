@@ -1,6 +1,7 @@
 package com.t4kash.app.ui.service
 
 import com.t4kash.app.ui.model.ApplicationDto
+import com.t4kash.app.ui.model.AttachmentDto
 import com.t4kash.app.ui.model.CategoryDto
 import com.t4kash.app.ui.model.CreateApplicationRequest
 import com.t4kash.app.ui.model.CreateDeliveryRequest
@@ -10,8 +11,12 @@ import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.TaskDto
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Path
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 
 interface MarketplaceApiService {
     @GET("categories")
@@ -62,4 +67,30 @@ interface MarketplaceApiService {
     suspend fun approveDelivery(
         @Path("deliveryId") deliveryId: Int
     ): DeliveryDto
+
+    @GET("tasks/{taskId}/attachments")
+    suspend fun getTaskAttachments(
+        @Path("taskId") taskId: Int
+    ): List<AttachmentDto>
+
+    @Multipart
+    @POST("tasks/{taskId}/attachments")
+    suspend fun uploadTaskAttachment(
+        @Path("taskId") taskId: Int,
+        @Part("userId") userId: RequestBody,
+        @Part file: MultipartBody.Part
+    ): AttachmentDto
+
+    @GET("jobs/{jobId}/attachments")
+    suspend fun getJobAttachments(
+        @Path("jobId") jobId: Int
+    ): List<AttachmentDto>
+
+    @Multipart
+    @POST("deliveries/{deliveryId}/attachments")
+    suspend fun uploadDeliveryAttachment(
+        @Path("deliveryId") deliveryId: Int,
+        @Part("userId") userId: RequestBody,
+        @Part file: MultipartBody.Part
+    ): AttachmentDto
 }

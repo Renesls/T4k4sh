@@ -58,6 +58,7 @@ import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
 import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.JobDto
+import com.t4kash.app.ui.model.PendingAttachment
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
@@ -87,6 +88,9 @@ fun JobDetailScreen(
     val focusManager = LocalFocusManager.current
     var description by remember(jobId) { mutableStateOf("") }
     var validationError by remember(jobId) { mutableStateOf<String?>(null) }
+    var pendingAttachments by remember(jobId) {
+        mutableStateOf<List<PendingAttachment>>(emptyList())
+    }
     var pendingApproval by remember { mutableStateOf<DeliveryDto?>(null) }
 
     LaunchedEffect(jobId) {
@@ -95,11 +99,13 @@ fun JobDetailScreen(
             viewModel.refreshJobs()
         }
         viewModel.loadDeliveries(jobId)
+        viewModel.loadJobAttachments(jobId)
     }
 
     LaunchedEffect(state.deliveryActionMessage) {
-        if (state.deliveryActionMessage == "Entrega enviada correctamente.") {
+        if (state.deliveryActionMessage?.startsWith("Entrega") == true) {
             description = ""
+            pendingAttachments = emptyList()
             validationError = null
             focusManager.clearFocus()
         }
@@ -114,7 +120,10 @@ fun JobDetailScreen(
                 onBack = onBack,
                 actions = {
                     IconButton(
-                        onClick = { viewModel.loadDeliveries(jobId) },
+                        onClick = {
+                            viewModel.loadDeliveries(jobId)
+                            viewModel.loadJobAttachments(jobId)
+                        },
                         enabled = !state.isLoadingDeliveries
                     ) {
                         Icon(
@@ -170,6 +179,19 @@ fun JobDetailScreen(
 
                     if (canSend) {
                         item {
+                            AttachmentPickerSection(
+                                attachments = pendingAttachments,
+                                onAttachmentsChange = {
+                                    pendingAttachments = it
+                                    validationError = null
+                                },
+                                onError = { validationError = it },
+                                enabled = !state.isSendingDelivery,
+                                title = "Archivos de la entrega",
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
+                        }
+                        item {
                             DeliveryForm(
                                 description = description,
                                 validationError = validationError,
@@ -194,7 +216,8 @@ fun JobDetailScreen(
 
                                         else -> viewModel.submitDelivery(
                                             job.idTrabajo,
-                                            description
+                                            description,
+                                            pendingAttachments
                                         )
                                     }
                                 },
@@ -216,6 +239,17 @@ fun JobDetailScreen(
                     }
 
                     state.deliveriesError?.let { error ->
+                        item {
+                            Text(
+                                text = error,
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = T4Danger
+                            )
+                        }
+                    }
+
+                    state.attachmentsError?.let { error ->
                         item {
                             Text(
                                 text = error,
@@ -283,6 +317,9 @@ fun JobDetailScreen(
                                     ),
                                 isApproving =
                                     state.approvingDeliveryId == delivery.idEntrega,
+                                attachments = state.jobAttachments.filter {
+                                    it.idEntrega == delivery.idEntrega
+                                },
                                 onApprove = { pendingApproval = delivery },
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )
@@ -528,6 +565,7 @@ private fun DeliveryCard(
     delivery: DeliveryDto,
     canApprove: Boolean,
     isApproving: Boolean,
+    attachments: List<com.t4kash.app.ui.model.AttachmentDto>,
     onApprove: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -574,6 +612,10 @@ private fun DeliveryCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = T4Text
             )
+
+            attachments.forEach { attachment ->
+                StoredAttachmentRow(attachment = attachment)
+            }
 
             if (canApprove) {
                 OutlinedButton(

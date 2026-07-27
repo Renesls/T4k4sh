@@ -71,6 +71,7 @@ import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
 import com.t4kash.app.ui.components.t4CategoryColors
 import com.t4kash.app.ui.model.CreateTaskRequest
+import com.t4kash.app.ui.model.PendingAttachment
 import com.t4kash.app.ui.navigation.Routes
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
@@ -116,6 +117,7 @@ fun PostTaskScreen(
     }
     var selectedCategoryId by remember { mutableStateOf<Int?>(null) }
     var validationError by remember { mutableStateOf<String?>(null) }
+    var pendingAttachments by remember { mutableStateOf<List<PendingAttachment>>(emptyList()) }
     var captureLocationRequested by remember { mutableStateOf(false) }
     var hasLocationPermission by remember {
         mutableStateOf(context.hasTaskLocationPermission())
@@ -162,11 +164,33 @@ fun PostTaskScreen(
         }
     }
 
-    LaunchedEffect(uiState.publishedTask?.idTarea) {
-        if (uiState.publishedTask != null) {
-            onTaskPublished()
-            viewModel.clearPublishFeedback()
+    fun finishPublication() {
+        viewModel.clearAttachmentFeedback()
+        viewModel.clearPublishFeedback()
+        onTaskPublished()
+    }
+
+    LaunchedEffect(
+        uiState.publishedTask?.idTarea,
+        uiState.isUploadingAttachments,
+        uiState.attachmentsUploadedTaskId,
+        uiState.attachmentsError
+    ) {
+        val publishedTask = uiState.publishedTask ?: return@LaunchedEffect
+        when {
+            pendingAttachments.isEmpty() -> finishPublication()
+            uiState.attachmentsUploadedTaskId == publishedTask.idTarea ->
+                finishPublication()
+            !uiState.isUploadingAttachments && uiState.attachmentsError == null ->
+                viewModel.uploadTaskAttachments(
+                    publishedTask.idTarea,
+                    pendingAttachments
+                )
         }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.clearAttachmentFeedback()
     }
 
     fun publish() {
@@ -546,28 +570,102 @@ fun PostTaskScreen(
                             )
                         }
 
-                        Button(
-                            onClick = ::publish,
-                            enabled = !uiState.isPublishing,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp)
+                    }
+                }
+            }
+
+            item {
+                AttachmentPickerSection(
+                    attachments = pendingAttachments,
+                    onAttachmentsChange = {
+                        pendingAttachments = it
+                        validationError = null
+                    },
+                    onError = { validationError = it },
+                    enabled = !uiState.isPublishing &&
+                        !uiState.isUploadingAttachments &&
+                        uiState.publishedTask == null
+                )
+            }
+
+            uiState.attachmentsError?.let { error ->
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = T4Surface),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.error.copy(alpha = 0.35f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            if (uiState.isPublishing) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.height(22.dp),
-                                    color = Color.White,
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Filled.CheckCircle,
-                                    contentDescription = null
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Publicar oportunidad")
+                            Text(
+                                text = error,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(
+                                    onClick = {
+                                        uiState.publishedTask?.let { task ->
+                                            viewModel.clearAttachmentFeedback()
+                                            viewModel.uploadTaskAttachments(
+                                                task.idTarea,
+                                                pendingAttachments
+                                            )
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Reintentar")
+                                }
+                                Button(
+                                    onClick = ::finishPublication,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Continuar")
+                                }
                             }
                         }
+                    }
+                }
+            }
+
+            item {
+                Button(
+                    onClick = ::publish,
+                    enabled = !uiState.isPublishing &&
+                        !uiState.isUploadingAttachments &&
+                        uiState.publishedTask == null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                ) {
+                    if (uiState.isPublishing || uiState.isUploadingAttachments) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.height(22.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            if (uiState.isUploadingAttachments) {
+                                "Subiendo archivos..."
+                            } else {
+                                "Publicando..."
+                            }
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Filled.CheckCircle,
+                            contentDescription = null
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Publicar oportunidad")
                     }
                 }
             }

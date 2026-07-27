@@ -6,12 +6,14 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.t4kash.app.ui.model.ApplicationDto
+import com.t4kash.app.ui.model.AttachmentDto
 import com.t4kash.app.ui.model.CategoryDto
 import com.t4kash.app.ui.model.CreateApplicationRequest
 import com.t4kash.app.ui.model.CreateDeliveryRequest
 import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.JobDto
+import com.t4kash.app.ui.model.PendingAttachment
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.repository.MarketplaceRepository
 import com.t4kash.app.ui.service.ApiResult
@@ -43,7 +45,13 @@ data class MarketplaceUiState(
     val deliveriesError: String? = null,
     val isSendingDelivery: Boolean = false,
     val approvingDeliveryId: Int? = null,
-    val deliveryActionMessage: String? = null
+    val deliveryActionMessage: String? = null,
+    val taskAttachments: List<AttachmentDto> = emptyList(),
+    val jobAttachments: List<AttachmentDto> = emptyList(),
+    val isLoadingAttachments: Boolean = false,
+    val isUploadingAttachments: Boolean = false,
+    val attachmentsError: String? = null,
+    val attachmentsUploadedTaskId: Int? = null
 )
 
 class MarketplaceViewModel(
@@ -306,7 +314,11 @@ class MarketplaceViewModel(
         }
     }
 
-    fun submitDelivery(jobId: Int, description: String) {
+    fun submitDelivery(
+        jobId: Int,
+        description: String,
+        attachments: List<PendingAttachment> = emptyList()
+    ) {
         viewModelScope.launch {
             uiState = uiState.copy(
                 isSendingDelivery = true,
@@ -321,9 +333,36 @@ class MarketplaceViewModel(
             ) {
                 is ApiResult.Success -> {
                     uiState = uiState.copy(
+                        deliveries = listOf(result.data) + uiState.deliveries
+                    )
+                    val uploaded = mutableListOf<AttachmentDto>()
+                    for (attachment in attachments) {
+                        when (
+                            val uploadResult = repository.uploadDeliveryAttachment(
+                                result.data.idEntrega,
+                                attachment
+                            )
+                        ) {
+                            is ApiResult.Success -> uploaded += uploadResult.data
+                            is ApiResult.Error -> {
+                                uiState = uiState.copy(
+                                    isSendingDelivery = false,
+                                    jobAttachments = uploaded + uiState.jobAttachments,
+                                    deliveriesError =
+                                        "La entrega se registro, pero ${uploadResult.message}"
+                                )
+                                return@launch
+                            }
+                        }
+                    }
+                    uiState = uiState.copy(
                         isSendingDelivery = false,
-                        deliveries = listOf(result.data) + uiState.deliveries,
-                        deliveryActionMessage = "Entrega enviada correctamente."
+                        jobAttachments = uploaded + uiState.jobAttachments,
+                        deliveryActionMessage = if (attachments.isEmpty()) {
+                            "Entrega enviada correctamente."
+                        } else {
+                            "Entrega y archivos enviados correctamente."
+                        }
                     )
                 }
 
@@ -376,6 +415,95 @@ class MarketplaceViewModel(
         uiState = uiState.copy(
             deliveriesError = null,
             deliveryActionMessage = null
+        )
+    }
+
+    fun loadTaskAttachments(taskId: Int) {
+        viewModelScope.launch {
+            uiState = uiState.copy(
+                isLoadingAttachments = true,
+                attachmentsError = null
+            )
+            when (val result = repository.loadTaskAttachments(taskId)) {
+                is ApiResult.Success -> {
+                    uiState = uiState.copy(
+                        taskAttachments = result.data,
+                        isLoadingAttachments = false
+                    )
+                }
+
+                is ApiResult.Error -> {
+                    uiState = uiState.copy(
+                        isLoadingAttachments = false,
+                        attachmentsError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun loadJobAttachments(jobId: Int) {
+        viewModelScope.launch {
+            uiState = uiState.copy(
+                isLoadingAttachments = true,
+                attachmentsError = null
+            )
+            when (val result = repository.loadJobAttachments(jobId)) {
+                is ApiResult.Success -> {
+                    uiState = uiState.copy(
+                        jobAttachments = result.data,
+                        isLoadingAttachments = false
+                    )
+                }
+
+                is ApiResult.Error -> {
+                    uiState = uiState.copy(
+                        isLoadingAttachments = false,
+                        attachmentsError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun uploadTaskAttachments(
+        taskId: Int,
+        attachments: List<PendingAttachment>
+    ) {
+        viewModelScope.launch {
+            uiState = uiState.copy(
+                isUploadingAttachments = true,
+                attachmentsError = null,
+                attachmentsUploadedTaskId = null
+            )
+            val uploaded = mutableListOf<AttachmentDto>()
+            for (attachment in attachments) {
+                when (
+                    val result = repository.uploadTaskAttachment(taskId, attachment)
+                ) {
+                    is ApiResult.Success -> uploaded += result.data
+                    is ApiResult.Error -> {
+                        uiState = uiState.copy(
+                            isUploadingAttachments = false,
+                            taskAttachments = uploaded + uiState.taskAttachments,
+                            attachmentsError = result.message
+                        )
+                        return@launch
+                    }
+                }
+            }
+            uiState = uiState.copy(
+                isUploadingAttachments = false,
+                taskAttachments = uploaded + uiState.taskAttachments,
+                attachmentsUploadedTaskId = taskId
+            )
+        }
+    }
+
+    fun clearAttachmentFeedback() {
+        uiState = uiState.copy(
+            attachmentsError = null,
+            attachmentsUploadedTaskId = null
         )
     }
 }

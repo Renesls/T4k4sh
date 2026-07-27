@@ -6,7 +6,8 @@ Este documento deja preparado el camino para publicar el MVP con servicios gratu
 Android -> Render API -> Supabase PostgreSQL
 ```
 
-Supabase se usa como base de datos PostgreSQL. Render se usa para ejecutar la API Spring Boot en un contenedor Docker.
+Supabase se usa como base de datos PostgreSQL y almacenamiento privado.
+Render se usa para ejecutar la API Spring Boot en un contenedor Docker.
 
 ## 1. Preparar Supabase
 
@@ -28,6 +29,18 @@ SPRING_DATASOURCE_PASSWORD=password-de-la-base
 
 Evitar Transaction Pooler para esta API salvo que se ajuste la configuracion de JPA, porque puede dar problemas con prepared statements.
 
+### Preparar Storage
+
+1. Confirmar que `archivos_adjuntos` coincide con `database/schema-postgresql.sql`.
+2. Abrir Storage y crear un bucket llamado `t4kash-attachments`.
+3. Mantener desactivada la opcion de bucket publico.
+4. Establecer un limite de 10 MB por archivo.
+5. Permitir PDF, PNG, JPG, WebP, TXT, DOC, DOCX y ZIP.
+
+La API usa la clave secreta desde Render. No se deben crear politicas de
+escritura publicas ni agregar la clave a Android, GitHub o archivos `.env`
+versionados.
+
 ## 2. Preparar Render
 
 El archivo `render.yaml` vive en la raiz del repositorio y le indica a Render que debe construir el backend desde `backend/`.
@@ -45,6 +58,9 @@ Pasos:
 | `SPRING_DATASOURCE_URL` | URL JDBC de Supabase con `sslmode=require` |
 | `SPRING_DATASOURCE_USERNAME` | Usuario de Supabase |
 | `SPRING_DATASOURCE_PASSWORD` | Password de Supabase |
+| `SUPABASE_URL` | URL HTTPS del proyecto Supabase |
+| `SUPABASE_SECRET_KEY` | Secret key del proyecto |
+| `SUPABASE_STORAGE_BUCKET` | `t4kash-attachments` |
 
 Las demas variables ya tienen valores definidos en `render.yaml`.
 
