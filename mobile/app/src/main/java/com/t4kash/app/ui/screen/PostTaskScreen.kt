@@ -8,7 +8,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,12 +15,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -33,6 +34,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -46,23 +48,28 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4BottomBar
+import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.components.t4CategoryColors
 import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.navigation.Routes
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
+import com.t4kash.app.ui.theme.T4Mint
 import com.t4kash.app.ui.theme.T4MintDark
 import com.t4kash.app.ui.theme.T4Primary
-import com.t4kash.app.ui.theme.T4PrimarySoft
 import com.t4kash.app.ui.theme.T4Surface
 import com.t4kash.app.ui.theme.T4Text
 import com.t4kash.app.ui.theme.T4TextMuted
@@ -83,6 +90,7 @@ fun PostTaskScreen(
     onTaskPublished: () -> Unit
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     val uiState = viewModel.uiState
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -164,6 +172,7 @@ fun PostTaskScreen(
             return
         }
 
+        focusManager.clearFocus()
         viewModel.publishTask(
             CreateTaskRequest(
                 titulo = title.trim(),
@@ -200,6 +209,7 @@ fun PostTaskScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .imePadding()
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(T4Background, Color(0xFFF2F2ED))
@@ -209,18 +219,13 @@ fun PostTaskScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(T4PrimarySoft, T4Primary)
-                            ),
-                            RoundedCornerShape(24.dp)
-                        )
-                        .padding(20.dp)
+                T4PatternSurface(
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             StatusChip(
                                 text = "Publicación",
@@ -254,9 +259,9 @@ fun PostTaskScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = T4Surface),
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, T4Border.copy(alpha = 0.60f)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(
                         modifier = Modifier.padding(20.dp),
@@ -278,7 +283,15 @@ fun PostTaskScreen(
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text("Título") },
                             singleLine = true,
-                            shape = RoundedCornerShape(16.dp)
+                            shape = RoundedCornerShape(16.dp),
+                            keyboardOptions = KeyboardOptions(
+                                imeAction = ImeAction.Next
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onNext = {
+                                    focusManager.moveFocus(FocusDirection.Down)
+                                }
+                            )
                         )
                         OutlinedTextField(
                             value = description,
@@ -302,7 +315,11 @@ fun PostTaskScreen(
                             singleLine = true,
                             shape = RoundedCornerShape(16.dp),
                             keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Decimal
+                                keyboardType = KeyboardType.Decimal,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = { focusManager.clearFocus() }
                             )
                         )
 
@@ -317,13 +334,21 @@ fun PostTaskScreen(
                                 items = uiState.categories,
                                 key = { it.idCategoria }
                             ) { category ->
+                                val selected = selectedCategoryId == category.idCategoria
+                                val categoryColors = t4CategoryColors(category.idCategoria)
                                 FilterChip(
-                                    selected = selectedCategoryId == category.idCategoria,
+                                    selected = selected,
                                     onClick = {
                                         selectedCategoryId = category.idCategoria
                                         validationError = null
                                     },
-                                    label = { Text(category.nombreCategoria) }
+                                    label = { Text(category.nombreCategoria) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        containerColor = categoryColors.container,
+                                        labelColor = categoryColors.content,
+                                        selectedContainerColor = T4Mint,
+                                        selectedLabelColor = T4MintDark
+                                    )
                                 )
                             }
                         }
@@ -366,6 +391,12 @@ fun PostTaskScreen(
                                 label = { Text("Referencia del lugar") },
                                 singleLine = true,
                                 shape = RoundedCornerShape(16.dp),
+                                keyboardOptions = KeyboardOptions(
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onDone = { focusManager.clearFocus() }
+                                ),
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Filled.LocationOn,
