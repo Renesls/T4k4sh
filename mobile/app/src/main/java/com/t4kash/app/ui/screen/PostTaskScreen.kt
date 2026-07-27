@@ -1,8 +1,11 @@
 package com.t4kash.app.ui.screen
 
 import android.Manifest
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.content.Context
 import android.content.pm.PackageManager
+import android.text.format.DateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -26,8 +29,10 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.TipsAndUpdates
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -37,6 +42,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -45,6 +51,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -77,6 +84,8 @@ import com.t4kash.app.ui.viewmodel.MarketplaceViewModel
 import org.maplibre.compose.location.rememberDefaultLocationProvider
 import org.maplibre.compose.location.rememberNullLocationProvider
 import org.maplibre.compose.location.rememberUserLocationState
+import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Locale
 
 private const val MODALIDAD_REMOTA = "REMOTA"
@@ -99,6 +108,12 @@ fun PostTaskScreen(
     var addressReference by remember { mutableStateOf("") }
     var latitude by remember { mutableStateOf<Double?>(null) }
     var longitude by remember { mutableStateOf<Double?>(null) }
+    var applicationDeadlineMillis by rememberSaveable {
+        mutableStateOf<Long?>(null)
+    }
+    var taskDeadlineMillis by rememberSaveable {
+        mutableStateOf<Long?>(null)
+    }
     var selectedCategoryId by remember { mutableStateOf<Int?>(null) }
     var validationError by remember { mutableStateOf<String?>(null) }
     var captureLocationRequested by remember { mutableStateOf(false) }
@@ -156,6 +171,9 @@ fun PostTaskScreen(
 
     fun publish() {
         val numericBudget = budget.toDoubleOrNull()
+        val applicationDeadline = applicationDeadlineMillis
+        val taskDeadline = taskDeadlineMillis
+        val now = System.currentTimeMillis()
         validationError = when {
             title.isBlank() -> "Escribe un título para la oportunidad."
             description.trim().length < 20 ->
@@ -163,6 +181,14 @@ fun PostTaskScreen(
             numericBudget == null || numericBudget < 0 ->
                 "Ingresa un presupuesto numérico válido."
             selectedCategoryId == null -> "Selecciona una categoría."
+            applicationDeadline == null ->
+                "Selecciona el cierre de postulaciones."
+            applicationDeadline <= now ->
+                "El cierre de postulaciones debe ser futuro."
+            taskDeadline == null ->
+                "Selecciona la fecha de entrega del trabajo."
+            taskDeadline <= applicationDeadline ->
+                "La entrega debe ocurrir después del cierre de postulaciones."
             modality != MODALIDAD_REMOTA && (latitude == null || longitude == null) ->
                 "Captura la ubicación para esta modalidad."
             else -> null
@@ -178,6 +204,8 @@ fun PostTaskScreen(
                 titulo = title.trim(),
                 descripcion = description.trim(),
                 presupuesto = numericBudget,
+                fechaLimitePostulacion = applicationDeadline.toApiDateTime(),
+                fechaLimite = taskDeadline.toApiDateTime(),
                 idCategoria = selectedCategoryId ?: return,
                 idCliente = 1,
                 modalidad = modality,
@@ -321,6 +349,64 @@ fun PostTaskScreen(
                             keyboardActions = KeyboardActions(
                                 onDone = { focusManager.clearFocus() }
                             )
+                        )
+
+                        Text(
+                            text = "Fechas",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = T4Text
+                        )
+                        DateTimeSelector(
+                            label = "Cierre de postulaciones",
+                            selectedMillis = applicationDeadlineMillis,
+                            onClick = {
+                                val minimumDeadline =
+                                    System.currentTimeMillis() + ONE_MINUTE_MILLIS
+                                showDateTimePicker(
+                                    context = context,
+                                    initialMillis = applicationDeadlineMillis,
+                                    minimumMillis = minimumDeadline
+                                ) { selectedMillis ->
+                                    if (selectedMillis < minimumDeadline) {
+                                        validationError =
+                                            "El cierre de postulaciones debe ser futuro."
+                                    } else {
+                                        applicationDeadlineMillis = selectedMillis
+                                        val currentTaskDeadline = taskDeadlineMillis
+                                        if (
+                                            currentTaskDeadline != null &&
+                                            currentTaskDeadline <= selectedMillis
+                                        ) {
+                                            taskDeadlineMillis = null
+                                        }
+                                        validationError = null
+                                    }
+                                }
+                            }
+                        )
+                        DateTimeSelector(
+                            label = "Entrega del trabajo",
+                            selectedMillis = taskDeadlineMillis,
+                            onClick = {
+                                val minimumTaskDeadline = (
+                                    applicationDeadlineMillis
+                                        ?: System.currentTimeMillis()
+                                    ) + ONE_MINUTE_MILLIS
+                                showDateTimePicker(
+                                    context = context,
+                                    initialMillis = taskDeadlineMillis,
+                                    minimumMillis = minimumTaskDeadline
+                                ) { selectedMillis ->
+                                    if (selectedMillis < minimumTaskDeadline) {
+                                        validationError =
+                                            "La entrega debe ocurrir después del cierre."
+                                    } else {
+                                        taskDeadlineMillis = selectedMillis
+                                        validationError = null
+                                    }
+                                }
+                            }
                         )
 
                         Text(
@@ -513,6 +599,110 @@ fun PostTaskScreen(
         }
     }
 }
+
+@Composable
+private fun DateTimeSelector(
+    label: String,
+    selectedMillis: Long?,
+    onClick: () -> Unit
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Filled.CalendarMonth,
+            contentDescription = null
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = T4TextMuted
+            )
+            Text(
+                text = selectedMillis.toDisplayDateTime(),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = T4Text
+            )
+        }
+        Icon(
+            imageVector = Icons.Filled.Schedule,
+            contentDescription = "Seleccionar fecha y hora"
+        )
+    }
+}
+
+private fun showDateTimePicker(
+    context: Context,
+    initialMillis: Long?,
+    minimumMillis: Long,
+    onSelected: (Long) -> Unit
+) {
+    val initialCalendar = Calendar.getInstance().apply {
+        timeInMillis = initialMillis?.takeIf { it >= minimumMillis }
+            ?: minimumMillis + ONE_HOUR_MILLIS
+    }
+    val datePicker = DatePickerDialog(
+        context,
+        { _, year, month, dayOfMonth ->
+            val selectedCalendar = Calendar.getInstance().apply {
+                set(
+                    year,
+                    month,
+                    dayOfMonth,
+                    initialCalendar.get(Calendar.HOUR_OF_DAY),
+                    initialCalendar.get(Calendar.MINUTE),
+                    0
+                )
+                set(Calendar.MILLISECOND, 0)
+            }
+            TimePickerDialog(
+                context,
+                { _, hourOfDay, minute ->
+                    selectedCalendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
+                    selectedCalendar.set(Calendar.MINUTE, minute)
+                    onSelected(selectedCalendar.timeInMillis)
+                },
+                initialCalendar.get(Calendar.HOUR_OF_DAY),
+                initialCalendar.get(Calendar.MINUTE),
+                DateFormat.is24HourFormat(context)
+            ).show()
+        },
+        initialCalendar.get(Calendar.YEAR),
+        initialCalendar.get(Calendar.MONTH),
+        initialCalendar.get(Calendar.DAY_OF_MONTH)
+    )
+    datePicker.datePicker.minDate = minimumMillis
+    datePicker.show()
+}
+
+private fun Long?.toDisplayDateTime(): String {
+    if (this == null) {
+        return "Seleccionar fecha y hora"
+    }
+    return SimpleDateFormat(
+        "dd/MM/yyyy · HH:mm",
+        Locale.getDefault()
+    ).format(this)
+}
+
+private fun Long?.toApiDateTime(): String? {
+    if (this == null) {
+        return null
+    }
+    return SimpleDateFormat(
+        "yyyy-MM-dd'T'HH:mm:ss",
+        Locale.US
+    ).format(this)
+}
+
+private const val ONE_MINUTE_MILLIS = 60_000L
+private const val ONE_HOUR_MILLIS = 3_600_000L
 
 private val TASK_LOCATION_PERMISSIONS = arrayOf(
     Manifest.permission.ACCESS_FINE_LOCATION,
