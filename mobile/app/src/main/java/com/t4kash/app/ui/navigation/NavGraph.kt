@@ -9,6 +9,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.t4kash.app.ui.screen.ApplicationSentScreen
+import com.t4kash.app.ui.screen.ApplicationManagementScreen
 import com.t4kash.app.ui.screen.ChatScreen
 import com.t4kash.app.ui.screen.LoginScreen
 import com.t4kash.app.ui.screen.MarketplaceScreen
@@ -101,7 +102,23 @@ fun NavGraph(
                 viewModel = marketplaceViewModel,
                 onBack = { navController.popBackStack() },
                 onApply = { navController.navigate(Routes.APPLICATION_SENT) },
-                onOpenMap = { navController.navigate(Routes.opportunityMap(taskId)) }
+                onOpenMap = { navController.navigate(Routes.opportunityMap(taskId)) },
+                onManageApplications = {
+                    navController.navigate(Routes.taskApplications(taskId))
+                }
+            )
+        }
+        composable(
+            route = Routes.TASK_APPLICATIONS,
+            arguments = listOf(
+                navArgument(Routes.TASK_ID_ARG) { type = NavType.IntType }
+            )
+        ) { backStackEntry ->
+            val taskId = backStackEntry.arguments?.getInt(Routes.TASK_ID_ARG) ?: 0
+            ApplicationManagementScreen(
+                taskId = taskId,
+                viewModel = marketplaceViewModel,
+                onBack = { navController.popBackStack() }
             )
         }
         composable(Routes.NETWORK) {

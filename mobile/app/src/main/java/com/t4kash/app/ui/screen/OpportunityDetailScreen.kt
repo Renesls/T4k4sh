@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.AlertDialog
@@ -74,7 +75,8 @@ fun OpportunityDetailScreen(
     viewModel: MarketplaceViewModel,
     onBack: () -> Unit,
     onApply: () -> Unit,
-    onOpenMap: () -> Unit
+    onOpenMap: () -> Unit,
+    onManageApplications: () -> Unit
 ) {
     val state = viewModel.uiState
     val task = state.tasks.firstOrNull { it.idTarea == taskId }
@@ -128,8 +130,10 @@ fun OpportunityDetailScreen(
                         viewModel.clearApplicationFeedback()
                         showApplicationDialog = true
                     },
+                    onManageApplications = onManageApplications,
                     isApplying = state.isApplying,
-                    canApply = task.estadoTarea.equals("PUBLICADA", ignoreCase = true)
+                    canApply = task.estadoTarea.equals("PUBLICADA", ignoreCase = true),
+                    isOwnedTask = task.idCliente == DEMO_CLIENT_ID
                 )
             }
         }
@@ -553,8 +557,10 @@ private fun ApplicationDialog(
 @Composable
 private fun DetailActionBar(
     onApply: () -> Unit,
+    onManageApplications: () -> Unit,
     isApplying: Boolean,
-    canApply: Boolean
+    canApply: Boolean,
+    isOwnedTask: Boolean
 ) {
     Row(
         modifier = Modifier
@@ -564,15 +570,22 @@ private fun DetailActionBar(
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Button(
-            onClick = onApply,
+            onClick = if (isOwnedTask) onManageApplications else onApply,
             modifier = Modifier.fillMaxWidth(),
-            enabled = canApply && !isApplying
+            enabled = isOwnedTask || (canApply && !isApplying)
         ) {
-            if (isApplying) {
+            if (isApplying && !isOwnedTask) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(18.dp),
                     strokeWidth = 2.dp
                 )
+            } else if (isOwnedTask) {
+                Icon(
+                    imageVector = Icons.Filled.Group,
+                    contentDescription = null
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Gestionar postulaciones")
             } else {
                 Text(if (canApply) "Postularse" else "Postulaciones cerradas")
                 Spacer(modifier = Modifier.width(4.dp))
@@ -586,3 +599,4 @@ private fun DetailActionBar(
 }
 
 private const val DEMO_STUDENT_ID = 1
+private const val DEMO_CLIENT_ID = 1

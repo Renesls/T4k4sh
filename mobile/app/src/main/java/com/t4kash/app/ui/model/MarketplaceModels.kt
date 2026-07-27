@@ -58,6 +58,15 @@ data class ApplicationDto(
     val estadoPostulacion: String
 )
 
+data class JobDto(
+    val idTrabajo: Int,
+    val idTarea: Int,
+    val idEstudiante: Int,
+    val fechaInicio: String,
+    val fechaEntregaEsperada: String?,
+    val estadoTrabajo: String
+)
+
 data class MarketplaceHomeData(
     val categories: List<CategoryDto>,
     val tasks: List<TaskDto>
