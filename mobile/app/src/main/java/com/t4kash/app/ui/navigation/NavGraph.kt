@@ -1,6 +1,9 @@
 package com.t4kash.app.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -21,15 +24,28 @@ import com.t4kash.app.ui.screen.OpportunityDetailScreen
 import com.t4kash.app.ui.screen.OpportunityMapScreen
 import com.t4kash.app.ui.screen.PostTaskScreen
 import com.t4kash.app.ui.screen.ProfileScreen
+import com.t4kash.app.ui.screen.RegisterScreen
 import com.t4kash.app.ui.screen.SplashScreen
 import com.t4kash.app.ui.screen.WalletScreen
 import com.t4kash.app.ui.viewmodel.MarketplaceViewModel
+import com.t4kash.app.ui.viewmodel.AuthViewModel
+import com.t4kash.app.ui.session.UserSession
 
 @Composable
 fun NavGraph(
     navController: NavHostController = rememberNavController()
 ) {
+    val authViewModel: AuthViewModel = viewModel()
     val marketplaceViewModel: MarketplaceViewModel = viewModel()
+    val session by UserSession.session.collectAsState()
+
+    LaunchedEffect(Unit) {
+        authViewModel.validateStoredSession {
+            navController.navigate(Routes.LOGIN) {
+                popUpTo(navController.graph.id) { inclusive = true }
+            }
+        }
+    }
     val onBottomNavigate: (String) -> Unit = { route ->
         if (route == Routes.MARKETPLACE) {
             marketplaceViewModel.refresh(force = true)
@@ -44,7 +60,12 @@ fun NavGraph(
         composable(Routes.SPLASH) {
             SplashScreen(
                 onFinished = {
-                    navController.navigate(Routes.LOGIN) {
+                    val destination = if (session == null) {
+                        Routes.LOGIN
+                    } else {
+                        Routes.MARKETPLACE
+                    }
+                    navController.navigate(destination) {
                         popUpTo(Routes.SPLASH) { inclusive = true }
                     }
                 }
@@ -52,7 +73,20 @@ fun NavGraph(
         }
         composable(Routes.LOGIN) {
             LoginScreen(
+                viewModel = authViewModel,
                 onLoginSuccess = {
+                    navController.navigate(Routes.MARKETPLACE) {
+                        popUpTo(Routes.LOGIN) { inclusive = true }
+                    }
+                },
+                onRegister = { navController.navigate(Routes.REGISTER) }
+            )
+        }
+        composable(Routes.REGISTER) {
+            RegisterScreen(
+                viewModel = authViewModel,
+                onBack = { navController.popBackStack() },
+                onRegisterSuccess = {
                     navController.navigate(Routes.MARKETPLACE) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
@@ -143,8 +177,18 @@ fun NavGraph(
             ChatScreen(onNavigate = onBottomNavigate)
         }
         composable(Routes.PROFILE) {
+            val currentUser = session?.user
+            if (currentUser == null) {
+                LaunchedEffect(Unit) {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(navController.graph.id) { inclusive = true }
+                    }
+                }
+                return@composable
+            }
             ProfileScreen(
                 viewModel = marketplaceViewModel,
+                user = currentUser,
                 onNavigate = onBottomNavigate,
                 onOpenPublications = { filter ->
                     navController.navigate(Routes.myPublications(filter))
@@ -152,8 +196,10 @@ fun NavGraph(
                 onOpenJobs = { navController.navigate(Routes.ASSIGNED_JOBS) },
                 onOpenWallet = { navController.navigate(Routes.WALLET) },
                 onLogout = {
-                    navController.navigate(Routes.LOGIN) {
-                        popUpTo(Routes.MARKETPLACE) { inclusive = true }
+                    authViewModel.logout {
+                        navController.navigate(Routes.LOGIN) {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                        }
                     }
                 }
             )

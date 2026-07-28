@@ -1,6 +1,5 @@
 package com.t4kash.app.ui.repository
 
-import com.t4kash.app.ui.DemoSession
 import com.t4kash.app.ui.model.ApplicationDto
 import com.t4kash.app.ui.model.AttachmentDto
 import com.t4kash.app.ui.model.CreateApplicationRequest
@@ -14,6 +13,7 @@ import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.service.ApiResult
 import com.t4kash.app.ui.service.MarketplaceApiService
 import com.t4kash.app.ui.service.RetrofitClient
+import com.t4kash.app.ui.session.UserSession
 import org.json.JSONObject
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -160,7 +160,7 @@ class MarketplaceRepository(
                 attachment.name,
                 fileBody
             )
-            val userId = DemoSession.USER_ID.toString()
+            val userId = UserSession.requireUserId().toString()
                 .toRequestBody("text/plain".toMediaType())
             ApiResult.Success(upload(userId, filePart))
         } catch (e: Exception) {

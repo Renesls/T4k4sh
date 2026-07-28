@@ -58,7 +58,7 @@ import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
 import com.t4kash.app.ui.components.t4CategoryColors
-import com.t4kash.app.ui.DemoSession
+import com.t4kash.app.ui.session.UserSession
 import com.t4kash.app.ui.formatApiDateTime
 import com.t4kash.app.ui.formatNioCurrency
 import com.t4kash.app.ui.model.CreateApplicationRequest
@@ -112,7 +112,7 @@ fun OpportunityDetailScreen(
                 viewModel.applyToTask(
                     taskId = task.idTarea,
                     request = CreateApplicationRequest(
-                        idEstudiante = DemoSession.USER_ID,
+                        idEstudiante = UserSession.requireUserId(),
                         mensaje = message,
                         precioPropuesto = proposedPrice
                     )
@@ -140,7 +140,7 @@ fun OpportunityDetailScreen(
                     onManageApplications = onManageApplications,
                     isApplying = state.isApplying,
                     canApply = task.estadoTarea.equals("PUBLICADA", ignoreCase = true),
-                    isOwnedTask = task.idCliente == DemoSession.USER_ID
+                    isOwnedTask = task.idCliente == UserSession.requireUserId()
                 )
             }
         }

@@ -47,7 +47,7 @@ import com.t4kash.app.ui.components.EmptyState
 import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
-import com.t4kash.app.ui.DemoSession
+import com.t4kash.app.ui.session.UserSession
 import com.t4kash.app.ui.formatApiDateTime
 import com.t4kash.app.ui.formatNioCurrency
 import com.t4kash.app.ui.model.JobDto
@@ -383,12 +383,13 @@ private fun JobDateRow(
 }
 
 private fun JobDto.belongsToDemoUser(task: TaskDto?): Boolean {
-    return idEstudiante == DemoSession.USER_ID || task?.idCliente == DemoSession.USER_ID
+    return idEstudiante == UserSession.requireUserId() ||
+        task?.idCliente == UserSession.requireUserId()
 }
 
 private fun JobDto.roleLabel(task: TaskDto?): String {
-    val isClient = task?.idCliente == DemoSession.USER_ID
-    val isStudent = idEstudiante == DemoSession.USER_ID
+    val isClient = task?.idCliente == UserSession.requireUserId()
+    val isStudent = idEstudiante == UserSession.requireUserId()
     return when {
         isClient && isStudent -> "Participas como cliente y estudiante"
         isClient -> "Participas como cliente"
@@ -459,8 +460,8 @@ private enum class JobRoleFilter(val label: String) {
     fun matches(job: JobDto, task: TaskDto?): Boolean {
         return when (this) {
             ALL -> true
-            CLIENT -> task?.idCliente == DemoSession.USER_ID
-            STUDENT -> job.idEstudiante == DemoSession.USER_ID
+            CLIENT -> task?.idCliente == UserSession.requireUserId()
+            STUDENT -> job.idEstudiante == UserSession.requireUserId()
         }
     }
 }

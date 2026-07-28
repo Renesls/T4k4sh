@@ -56,7 +56,7 @@ import com.t4kash.app.ui.components.EmptyState
 import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
-import com.t4kash.app.ui.DemoSession
+import com.t4kash.app.ui.session.UserSession
 import com.t4kash.app.ui.formatApiDateTime
 import com.t4kash.app.ui.formatNioCurrency
 import com.t4kash.app.ui.model.DeliveryDto
@@ -156,8 +156,8 @@ fun JobDetailScreen(
             }
 
             else -> {
-                val isStudent = job.idEstudiante == DemoSession.USER_ID
-                val isClient = task?.idCliente == DemoSession.USER_ID
+                val isStudent = job.idEstudiante == UserSession.requireUserId()
+                val isClient = task?.idCliente == UserSession.requireUserId()
                 val canSend = isStudent &&
                     job.estadoTrabajo.equals("EN_PROCESO", ignoreCase = true)
 

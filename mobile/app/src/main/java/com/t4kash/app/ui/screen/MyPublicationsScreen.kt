@@ -47,7 +47,7 @@ import com.t4kash.app.ui.components.EmptyState
 import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
-import com.t4kash.app.ui.DemoSession
+import com.t4kash.app.ui.session.UserSession
 import com.t4kash.app.ui.formatApiDateTime
 import com.t4kash.app.ui.formatNioCurrency
 import com.t4kash.app.ui.model.CategoryDto
@@ -80,7 +80,7 @@ fun MyPublicationsScreen(
     }
     val selectedFilter = PublicationFilter.valueOf(selectedFilterName)
     val ownTasks = state.tasks
-        .filter { it.idCliente == DemoSession.USER_ID }
+        .filter { it.idCliente == UserSession.requireUserId() }
         .sortedByDescending { it.fechaPublicacion }
     val filteredTasks = ownTasks.filter {
         selectedFilter.status == null ||

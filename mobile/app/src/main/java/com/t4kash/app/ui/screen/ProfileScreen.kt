@@ -21,7 +21,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Mail
-import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.WorkHistory
 import androidx.compose.material3.Card
@@ -42,7 +41,7 @@ import androidx.compose.ui.unit.dp
 import com.t4kash.app.ui.components.T4BottomBar
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
-import com.t4kash.app.ui.DemoSession
+import com.t4kash.app.ui.session.SessionUser
 import com.t4kash.app.ui.navigation.Routes
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
@@ -56,13 +55,14 @@ import com.t4kash.app.ui.viewmodel.MarketplaceViewModel
 @Composable
 fun ProfileScreen(
     viewModel: MarketplaceViewModel,
+    user: SessionUser,
     onNavigate: (String) -> Unit,
     onOpenPublications: (String) -> Unit,
     onOpenJobs: () -> Unit,
     onOpenWallet: () -> Unit,
     onLogout: () -> Unit
 ) {
-    val ownTasks = viewModel.uiState.tasks.filter { it.idCliente == DemoSession.USER_ID }
+    val ownTasks = viewModel.uiState.tasks.filter { it.idCliente == user.id }
     val activeTasks = ownTasks.count {
         it.estadoTarea.equals("PUBLICADA", ignoreCase = true)
     }
@@ -70,7 +70,7 @@ fun ProfileScreen(
         it.estadoTarea.equals("ASIGNADA", ignoreCase = true)
     }
     val relatedJobs = viewModel.uiState.jobs.count { job ->
-        job.idEstudiante == DemoSession.USER_ID ||
+        job.idEstudiante == user.id ||
             ownTasks.any { it.idTarea == job.idTarea }
     }
 
@@ -119,7 +119,7 @@ fun ProfileScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "CD",
+                                text = user.initials,
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Black,
                                 color = T4Text
@@ -130,18 +130,18 @@ fun ProfileScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = "Cliente Demo",
+                                text = user.fullName,
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
                             Text(
-                                text = "cliente.demo@unidemo.edu",
+                                text = user.email,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = Color.White.copy(alpha = 0.82f)
                             )
                             Text(
-                                text = "Usuario #${DemoSession.USER_ID}",
+                                text = "Usuario #${user.id}",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = T4Mint
                             )
@@ -180,19 +180,23 @@ fun ProfileScreen(
                 ) {
                     Column {
                         ProfileInfoRow(
-                            icon = Icons.Filled.School,
-                            label = "Universidad",
-                            value = "Universidad Demo"
+                            icon = Icons.Filled.VerifiedUser,
+                            label = "Roles",
+                            value = user.roles
+                                .sorted()
+                                .joinToString(" · ")
+                                .ifBlank { "Usuario" }
                         )
                         ProfileInfoRow(
                             icon = Icons.Filled.Mail,
                             label = "Correo institucional",
-                            value = "cliente.demo@unidemo.edu"
+                            value = user.email
                         )
                         ProfileInfoRow(
                             icon = Icons.Filled.VerifiedUser,
                             label = "Estado de cuenta",
-                            value = "Activa"
+                            value = user.accountStatus.lowercase()
+                                .replaceFirstChar { it.uppercase() }
                         )
                     }
                 }
@@ -312,7 +316,7 @@ fun ProfileScreen(
                         contentDescription = null
                     )
                     Spacer(modifier = Modifier.size(8.dp))
-                    Text("Cerrar sesion")
+                    Text("Cerrar sesión")
                 }
             }
         }

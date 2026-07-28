@@ -3,6 +3,7 @@ package com.t4kash.app.ui.navigation
 object Routes {
     const val SPLASH = "splash"
     const val LOGIN = "login"
+    const val REGISTER = "register"
     const val MARKETPLACE = "marketplace"
     const val OPPORTUNITY_MAP = "opportunity-map"
     const val NETWORK = "network"
