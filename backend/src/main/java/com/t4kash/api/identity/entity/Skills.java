@@ -1,4 +1,4 @@
-package com.t4kash.api.identity;
+package com.t4kash.api.identity.entity;
 
 import jakarta.persistence.*;
 import jakarta.persistence.GenerationType;
