@@ -36,6 +36,14 @@ public class GlobalExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, ex.getMessage());
     }
 
+    @ExceptionHandler(TooManyAttemptsException.class)
+    public ProblemDetail handleTooManyAttempts(TooManyAttemptsException ex) {
+        return ProblemDetail.forStatusAndDetail(
+                HttpStatus.TOO_MANY_REQUESTS,
+                ex.getMessage()
+        );
+    }
+
     @ExceptionHandler(EmailDeliveryException.class)
     public ProblemDetail handleEmailDelivery(EmailDeliveryException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, ex.getMessage());

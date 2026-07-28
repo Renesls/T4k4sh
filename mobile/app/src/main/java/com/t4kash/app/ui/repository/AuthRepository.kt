@@ -3,12 +3,17 @@ package com.t4kash.app.ui.repository
 import com.t4kash.app.ui.model.AuthResponse
 import com.t4kash.app.ui.model.AuthenticatedUserDto
 import com.t4kash.app.ui.model.CareerDto
+import com.t4kash.app.ui.model.ForgotPasswordRequest
+import com.t4kash.app.ui.model.LoginChallengeResponse
 import com.t4kash.app.ui.model.LoginRequest
+import com.t4kash.app.ui.model.MessageResponse
 import com.t4kash.app.ui.model.RegisterRequest
 import com.t4kash.app.ui.model.RegistrationResponse
 import com.t4kash.app.ui.model.ResendVerificationRequest
+import com.t4kash.app.ui.model.ResetPasswordRequest
 import com.t4kash.app.ui.model.UniversityDto
 import com.t4kash.app.ui.model.VerifyEmailRequest
+import com.t4kash.app.ui.model.VerifyLoginRequest
 import com.t4kash.app.ui.service.ApiResult
 import com.t4kash.app.ui.service.AuthApiService
 import com.t4kash.app.ui.service.RetrofitClient
@@ -19,8 +24,22 @@ import retrofit2.HttpException
 class AuthRepository(
     private val api: AuthApiService = RetrofitClient.authApiService
 ) {
-    suspend fun login(request: LoginRequest): ApiResult<AuthResponse> = execute {
+    suspend fun login(
+        request: LoginRequest
+    ): ApiResult<LoginChallengeResponse> = execute {
         api.login(request)
+    }
+
+    suspend fun verifyLogin(
+        request: VerifyLoginRequest
+    ): ApiResult<AuthResponse> = execute {
+        api.verifyLogin(request)
+    }
+
+    suspend fun resendLoginVerification(
+        email: String
+    ): ApiResult<LoginChallengeResponse> = execute {
+        api.resendLoginVerification(ResendVerificationRequest(email))
     }
 
     suspend fun register(
@@ -39,6 +58,16 @@ class AuthRepository(
         email: String
     ): ApiResult<RegistrationResponse> = execute {
         api.resendVerification(ResendVerificationRequest(email))
+    }
+
+    suspend fun forgotPassword(email: String): ApiResult<MessageResponse> = execute {
+        api.forgotPassword(ForgotPasswordRequest(email))
+    }
+
+    suspend fun resetPassword(
+        request: ResetPasswordRequest
+    ): ApiResult<MessageResponse> = execute {
+        api.resetPassword(request)
     }
 
     suspend fun getUniversities(): ApiResult<List<UniversityDto>> = execute {

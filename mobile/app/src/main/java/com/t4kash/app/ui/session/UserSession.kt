@@ -47,6 +47,7 @@ object UserSession {
     private const val KEY_ROLES = "roles"
 
     private var preferences: SharedPreferences? = null
+    private var secureTokenStore: SecureTokenStore? = null
     private val mutableSession = MutableStateFlow<AuthSession?>(null)
 
     val session: StateFlow<AuthSession?> = mutableSession.asStateFlow()
@@ -61,12 +62,15 @@ object UserSession {
             PREFERENCES_NAME,
             Context.MODE_PRIVATE
         )
+        secureTokenStore = SecureTokenStore(requirePreferences())
+        migrateLegacyToken()
         mutableSession.value = readSession()
     }
 
     fun save(session: AuthSession) {
+        requireTokenStore().save(session.token)
         requirePreferences().edit()
-            .putString(KEY_TOKEN, session.token)
+            .remove(KEY_TOKEN)
             .putString(KEY_EXPIRES_AT, session.expiresAt)
             .putInt(KEY_USER_ID, session.user.id)
             .putString(KEY_FIRST_NAME, session.user.firstName)
@@ -96,7 +100,7 @@ object UserSession {
 
     private fun readSession(): AuthSession? {
         val prefs = requirePreferences()
-        val token = prefs.getString(KEY_TOKEN, null)?.takeIf { it.isNotBlank() }
+        val token = requireTokenStore().read()?.takeIf { it.isNotBlank() }
             ?: return null
         val userId = prefs.getInt(KEY_USER_ID, -1).takeIf { it > 0 }
             ?: return null
@@ -121,5 +125,25 @@ object UserSession {
         return checkNotNull(preferences) {
             "UserSession debe inicializarse antes de utilizarse."
         }
+    }
+
+    private fun requireTokenStore(): SecureTokenStore {
+        return checkNotNull(secureTokenStore) {
+            "UserSession debe inicializarse antes de utilizarse."
+        }
+    }
+
+    private fun migrateLegacyToken() {
+        val prefs = requirePreferences()
+        val store = requireTokenStore()
+        if (store.hasEncryptedToken()) {
+            prefs.edit().remove(KEY_TOKEN).apply()
+            return
+        }
+        val legacyToken = prefs.getString(KEY_TOKEN, null)
+            ?.takeIf { it.isNotBlank() }
+            ?: return
+        store.save(legacyToken)
+        prefs.edit().remove(KEY_TOKEN).apply()
     }
 }

@@ -27,10 +27,13 @@ public interface UsuarioRolRepository extends Repository<Usuario, Integer> {
                     INSERT INTO usuario_roles (id_usuario, id_rol)
                     SELECT :idUsuario, id_rol
                     FROM roles
-                    WHERE nombre_rol IN ('CLIENTE', 'ESTUDIANTE')
+                    WHERE nombre_rol = :nombreRol
                     ON CONFLICT (id_usuario, id_rol) DO NOTHING
                     """,
             nativeQuery = true
     )
-    int assignMarketplaceRoles(@Param("idUsuario") Integer idUsuario);
+    int assignRole(
+            @Param("idUsuario") Integer idUsuario,
+            @Param("nombreRol") String nombreRol
+    );
 }

@@ -17,6 +17,7 @@ import com.t4kash.app.ui.screen.AssignedJobsScreen
 import com.t4kash.app.ui.screen.JobDetailScreen
 import com.t4kash.app.ui.screen.ChatScreen
 import com.t4kash.app.ui.screen.LoginScreen
+import com.t4kash.app.ui.screen.LoginVerificationScreen
 import com.t4kash.app.ui.screen.MarketplaceScreen
 import com.t4kash.app.ui.screen.MyPublicationsScreen
 import com.t4kash.app.ui.screen.NetworkScreen
@@ -25,6 +26,8 @@ import com.t4kash.app.ui.screen.OpportunityMapScreen
 import com.t4kash.app.ui.screen.PostTaskScreen
 import com.t4kash.app.ui.screen.ProfileScreen
 import com.t4kash.app.ui.screen.RegisterScreen
+import com.t4kash.app.ui.screen.ForgotPasswordScreen
+import com.t4kash.app.ui.screen.ResetPasswordScreen
 import com.t4kash.app.ui.screen.SplashScreen
 import com.t4kash.app.ui.screen.WalletScreen
 import com.t4kash.app.ui.screen.VerifyEmailScreen
@@ -75,14 +78,69 @@ fun NavGraph(
         composable(Routes.LOGIN) {
             LoginScreen(
                 viewModel = authViewModel,
-                onLoginSuccess = {
-                    navController.navigate(Routes.MARKETPLACE) {
-                        popUpTo(Routes.LOGIN) { inclusive = true }
-                    }
+                onLoginVerification = { email ->
+                    navController.navigate(Routes.loginVerification(email))
                 },
                 onRegister = { navController.navigate(Routes.REGISTER) },
                 onVerifyEmail = {
                     navController.navigate(Routes.verifyEmail())
+                },
+                onForgotPassword = {
+                    navController.navigate(Routes.FORGOT_PASSWORD)
+                }
+            )
+        }
+        composable(
+            route = Routes.LOGIN_VERIFICATION,
+            arguments = listOf(
+                navArgument(Routes.LOGIN_VERIFICATION_ARG) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                }
+            )
+        ) { backStackEntry ->
+            LoginVerificationScreen(
+                initialEmail = backStackEntry.arguments
+                    ?.getString(Routes.LOGIN_VERIFICATION_ARG)
+                    .orEmpty(),
+                viewModel = authViewModel,
+                onBack = { navController.popBackStack() },
+                onVerified = {
+                    navController.navigate(Routes.MARKETPLACE) {
+                        popUpTo(navController.graph.id) { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable(Routes.FORGOT_PASSWORD) {
+            ForgotPasswordScreen(
+                viewModel = authViewModel,
+                onBack = { navController.popBackStack() },
+                onCodeRequested = { email ->
+                    navController.navigate(Routes.resetPassword(email))
+                }
+            )
+        }
+        composable(
+            route = Routes.RESET_PASSWORD,
+            arguments = listOf(
+                navArgument(Routes.RESET_PASSWORD_ARG) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                }
+            )
+        ) { backStackEntry ->
+            ResetPasswordScreen(
+                initialEmail = backStackEntry.arguments
+                    ?.getString(Routes.RESET_PASSWORD_ARG)
+                    .orEmpty(),
+                viewModel = authViewModel,
+                onBack = { navController.popBackStack() },
+                onSuccess = {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(Routes.LOGIN) { inclusive = false }
+                        launchSingleTop = true
+                    }
                 }
             )
         }

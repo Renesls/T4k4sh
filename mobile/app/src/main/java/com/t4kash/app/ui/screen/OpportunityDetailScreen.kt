@@ -139,7 +139,9 @@ fun OpportunityDetailScreen(
                     onManageApplications = onManageApplications,
                     isApplying = state.isApplying,
                     canApply = task.estadoTarea.equals("PUBLICADA", ignoreCase = true),
-                    isOwnedTask = task.idCliente == UserSession.requireUserId()
+                    isOwnedTask = task.idCliente == UserSession.requireUserId(),
+                    hasStudentRole = UserSession.current?.user?.roles
+                        ?.contains("ESTUDIANTE") == true
                 )
             }
         }
@@ -606,7 +608,8 @@ private fun DetailActionBar(
     onManageApplications: () -> Unit,
     isApplying: Boolean,
     canApply: Boolean,
-    isOwnedTask: Boolean
+    isOwnedTask: Boolean,
+    hasStudentRole: Boolean
 ) {
     Row(
         modifier = Modifier
@@ -618,7 +621,7 @@ private fun DetailActionBar(
         Button(
             onClick = if (isOwnedTask) onManageApplications else onApply,
             modifier = Modifier.fillMaxWidth(),
-            enabled = isOwnedTask || (canApply && !isApplying)
+            enabled = isOwnedTask || (canApply && hasStudentRole && !isApplying)
         ) {
             if (isApplying && !isOwnedTask) {
                 CircularProgressIndicator(
@@ -633,7 +636,13 @@ private fun DetailActionBar(
                 Spacer(modifier = Modifier.width(6.dp))
                 Text("Gestionar postulaciones")
             } else {
-                Text(if (canApply) "Postularse" else "Postulaciones cerradas")
+                Text(
+                    when {
+                        !hasStudentRole -> "Requiere perfil estudiantil"
+                        canApply -> "Postularse"
+                        else -> "Postulaciones cerradas"
+                    }
+                )
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,

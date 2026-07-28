@@ -10,11 +10,16 @@ data class RegisterRequest(
     val apellido: String,
     val correo: String,
     val password: String,
-    val idUniversidad: Int,
-    val idCarrera: Int
+    val idUniversidad: Int?,
+    val idCarrera: Int?
 )
 
 data class VerifyEmailRequest(
+    val correo: String,
+    val codigo: String
+)
+
+data class VerifyLoginRequest(
     val correo: String,
     val codigo: String
 )
@@ -23,9 +28,29 @@ data class ResendVerificationRequest(
     val correo: String
 )
 
+data class ForgotPasswordRequest(
+    val correo: String
+)
+
+data class ResetPasswordRequest(
+    val correo: String,
+    val codigo: String,
+    val nuevaPassword: String
+)
+
 data class RegistrationResponse(
     val correo: String,
     val fechaExpiracion: String,
+    val mensaje: String
+)
+
+data class LoginChallengeResponse(
+    val correo: String,
+    val fechaExpiracion: String,
+    val mensaje: String
+)
+
+data class MessageResponse(
     val mensaje: String
 )
 

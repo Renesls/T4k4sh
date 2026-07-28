@@ -79,6 +79,15 @@ fun RegisterScreen(
     val selectedCareer = uiState.careers.firstOrNull {
         it.idCarrera == selectedCareerId
     }
+    val universitySelectionText = when (selectedUniversityId) {
+        null -> if (uiState.isLoadingOptions) {
+            "Cargando universidades..."
+        } else {
+            "Seleccionar una opcion"
+        }
+        NO_INSTITUTION_ID -> NO_INSTITUTION_LABEL
+        else -> selectedUniversity?.nombreUniversidad ?: "Seleccionar universidad"
+    }
 
     LaunchedEffect(Unit) {
         viewModel.loadUniversities()
@@ -91,9 +100,9 @@ fun RegisterScreen(
                 "Completa todos los campos."
 
             selectedUniversityId == null ->
-                "Selecciona tu universidad."
+                "Indica si tienes correo institucional."
 
-            selectedCareerId == null ->
+            selectedUniversityId != NO_INSTITUTION_ID && selectedCareerId == null ->
                 "Selecciona tu carrera."
 
             !email.contains("@") ->
@@ -114,8 +123,12 @@ fun RegisterScreen(
                 lastName = lastName,
                 email = email,
                 password = password,
-                universityId = checkNotNull(selectedUniversityId),
-                careerId = checkNotNull(selectedCareerId),
+                universityId = selectedUniversityId.takeUnless {
+                    it == NO_INSTITUTION_ID
+                },
+                careerId = selectedCareerId.takeIf {
+                    selectedUniversityId != NO_INSTITUTION_ID
+                },
                 onVerificationRequired = onVerificationRequired
             )
         }
@@ -149,13 +162,13 @@ fun RegisterScreen(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
-                            text = "Una cuenta, dos formas de participar",
+                            text = "Una cuenta para participar a tu manera",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
                         Text(
-                            text = "Publica oportunidades y postúlate con el mismo perfil.",
+                            text = "Con correo personal puedes publicar. Con correo universitario tambien puedes postularte.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color.White.copy(alpha = 0.84f)
                         )
@@ -221,47 +234,47 @@ fun RegisterScreen(
                             )
                         )
                         SelectionMenu(
-                            label = "Universidad",
-                            value = selectedUniversity?.nombreUniversidad
-                                ?: if (uiState.isLoadingOptions) {
-                                    "Cargando universidades..."
-                                } else {
-                                    "Seleccionar universidad"
-                                },
-                            options = uiState.universities.map {
+                            label = "Correo institucional",
+                            value = universitySelectionText,
+                            options = listOf(
+                                NO_INSTITUTION_ID to NO_INSTITUTION_LABEL
+                            ) + uiState.universities.map {
                                 it.idUniversidad to it.nombreUniversidad
                             },
-                            enabled = !uiState.isLoadingOptions,
+                            enabled = true,
                             onSelected = { universityId ->
                                 selectedUniversityId = universityId
                                 selectedCareerId = null
                                 validationError = null
                                 viewModel.clearError()
-                                viewModel.loadCareers(universityId)
+                                if (universityId != NO_INSTITUTION_ID) {
+                                    viewModel.loadCareers(universityId)
+                                }
                             }
                         )
-                        SelectionMenu(
-                            label = "Carrera",
-                            value = selectedCareer?.nombreCarrera
-                                ?: if (
-                                    uiState.isLoadingOptions &&
-                                    selectedUniversityId != null
-                                ) {
-                                    "Cargando carreras..."
-                                } else {
-                                    "Seleccionar carrera"
+                        if (
+                            selectedUniversityId != null &&
+                            selectedUniversityId != NO_INSTITUTION_ID
+                        ) {
+                            SelectionMenu(
+                                label = "Carrera",
+                                value = selectedCareer?.nombreCarrera
+                                    ?: if (uiState.isLoadingOptions) {
+                                        "Cargando carreras..."
+                                    } else {
+                                        "Seleccionar carrera"
+                                    },
+                                options = uiState.careers.map {
+                                    it.idCarrera to it.nombreCarrera
                                 },
-                            options = uiState.careers.map {
-                                it.idCarrera to it.nombreCarrera
-                            },
-                            enabled = selectedUniversityId != null &&
-                                !uiState.isLoadingOptions,
-                            onSelected = { careerId ->
-                                selectedCareerId = careerId
-                                validationError = null
-                                viewModel.clearError()
-                            }
-                        )
+                                enabled = !uiState.isLoadingOptions,
+                                onSelected = { careerId ->
+                                    selectedCareerId = careerId
+                                    validationError = null
+                                    viewModel.clearError()
+                                }
+                            )
+                        }
                         OutlinedTextField(
                             value = password,
                             onValueChange = {
@@ -357,6 +370,9 @@ fun RegisterScreen(
         }
     }
 }
+
+private const val NO_INSTITUTION_ID = 0
+private const val NO_INSTITUTION_LABEL = "No tengo correo institucional"
 
 @Composable
 private fun SelectionMenu(

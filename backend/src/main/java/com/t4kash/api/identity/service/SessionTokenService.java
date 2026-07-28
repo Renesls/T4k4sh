@@ -29,4 +29,14 @@ public class SessionTokenService {
             throw new IllegalStateException("SHA-256 no esta disponible.", ex);
         }
     }
+
+    public boolean matches(String rawValue, String expectedHash) {
+        if (rawValue == null || expectedHash == null) {
+            return false;
+        }
+        return MessageDigest.isEqual(
+                hash(rawValue).getBytes(StandardCharsets.UTF_8),
+                expectedHash.getBytes(StandardCharsets.UTF_8)
+        );
+    }
 }

@@ -30,40 +30,87 @@ public class VerificationEmailService {
     }
 
     public void sendCode(String recipient, String code, int expirationMinutes) {
-        if (!enabled || from == null || from.isBlank()) {
-            throw new EmailDeliveryException(
-                    "El envio de correos de verificacion no esta configurado."
-            );
-        }
-
-        if ("brevo".equals(provider)) {
-            brevoEmailClient.sendCode(recipient, code, expirationMinutes);
-            return;
-        }
-        if (!"smtp".equals(provider)) {
-            throw new EmailDeliveryException(
-                    "El proveedor de correo configurado no es compatible."
-            );
-        }
-
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(from);
-        message.setTo(recipient);
-        message.setSubject("Codigo de verificacion de T4KASH");
-        message.setText("""
+        requireConfigured();
+        String content = """
                 Tu codigo de verificacion es:
 
                 %s
 
                 El codigo vence en %d minutos. Si no solicitaste esta cuenta, ignora este mensaje.
-                """.formatted(code, expirationMinutes));
+                """.formatted(code, expirationMinutes);
+        if ("brevo".equals(provider)) {
+            brevoEmailClient.sendCode(recipient, code, expirationMinutes);
+            return;
+        }
+        sendSmtp(recipient, "Codigo de verificacion de T4KASH", content);
+    }
 
+    public void sendLoginCode(String recipient, String code, int expirationMinutes) {
+        sendMessage(
+                recipient,
+                "Confirma tu inicio de sesion en T4KASH",
+                """
+                        Usa este codigo para completar tu inicio de sesion:
+
+                        %s
+
+                        El codigo vence en %d minutos. Si no intentaste ingresar, cambia tu contrasena.
+                        """.formatted(code, expirationMinutes)
+        );
+    }
+
+    public void sendPasswordResetCode(
+            String recipient,
+            String code,
+            int expirationMinutes
+    ) {
+        sendMessage(
+                recipient,
+                "Recupera tu cuenta de T4KASH",
+                """
+                        Usa este codigo para crear una nueva contrasena:
+
+                        %s
+
+                        El codigo vence en %d minutos. Si no solicitaste el cambio, ignora este mensaje.
+                        """.formatted(code, expirationMinutes)
+        );
+    }
+
+    private void sendMessage(String recipient, String subject, String content) {
+        requireConfigured();
+        if ("brevo".equals(provider)) {
+            brevoEmailClient.sendMessage(recipient, subject, content);
+            return;
+        }
+        sendSmtp(recipient, subject, content);
+    }
+
+    private void sendSmtp(String recipient, String subject, String content) {
+        if (!"smtp".equals(provider)) {
+            throw new EmailDeliveryException(
+                    "El proveedor de correo configurado no es compatible."
+            );
+        }
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(from);
+        message.setTo(recipient);
+        message.setSubject(subject);
+        message.setText(content);
         try {
             mailSender.send(message);
         } catch (MailException ex) {
             throw new EmailDeliveryException(
-                    "No se pudo enviar el codigo de verificacion.",
+                    "No se pudo enviar el correo.",
                     ex
+            );
+        }
+    }
+
+    private void requireConfigured() {
+        if (!enabled || from == null || from.isBlank()) {
+            throw new EmailDeliveryException(
+                    "El envio de correos no esta configurado."
             );
         }
     }

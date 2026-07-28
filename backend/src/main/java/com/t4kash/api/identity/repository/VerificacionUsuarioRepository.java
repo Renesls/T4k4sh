@@ -9,4 +9,10 @@ public interface VerificacionUsuarioRepository
         extends JpaRepository<VerificacionUsuario, Integer> {
     Optional<VerificacionUsuario>
     findFirstByCorreoInstitucionalIgnoreCaseOrderByFechaSolicitudDesc(String correo);
+
+    Optional<VerificacionUsuario>
+    findFirstByCorreoInstitucionalIgnoreCaseAndTipoVerificacionOrderByFechaSolicitudDesc(
+            String correo,
+            String tipoVerificacion
+    );
 }

@@ -7,14 +7,20 @@ import com.t4kash.api.exception.ResourceNotFoundException;
 import com.t4kash.api.identity.dto.AuthResponse;
 import com.t4kash.api.identity.dto.AuthenticatedUserResponse;
 import com.t4kash.api.identity.dto.LoginRequest;
+import com.t4kash.api.identity.dto.LoginChallengeResponse;
+import com.t4kash.api.identity.dto.MessageResponse;
 import com.t4kash.api.identity.dto.RegisterRequest;
 import com.t4kash.api.identity.dto.RegistrationResponse;
+import com.t4kash.api.identity.dto.ResetPasswordRequest;
 import com.t4kash.api.identity.dto.VerifyEmailRequest;
+import com.t4kash.api.identity.dto.VerifyLoginRequest;
 import com.t4kash.api.identity.entity.SesionUsuario;
+import com.t4kash.api.identity.entity.TokenRecuperacionPassword;
 import com.t4kash.api.identity.entity.Universidad;
 import com.t4kash.api.identity.entity.VerificacionUsuario;
 import com.t4kash.api.identity.repository.CarreraRepository;
 import com.t4kash.api.identity.repository.SesionUsuarioRepository;
+import com.t4kash.api.identity.repository.TokenRecuperacionPasswordRepository;
 import com.t4kash.api.identity.repository.UniversidadRepository;
 import com.t4kash.api.identity.repository.UsuarioRolRepository;
 import com.t4kash.api.identity.repository.VerificacionUsuarioRepository;
@@ -30,10 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.Arrays;
 import java.util.Locale;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 public class AuthService {
@@ -41,6 +44,10 @@ public class AuthService {
     private static final String PENDING_USER = "PENDIENTE_VERIFICACION";
     private static final String ACTIVE_SESSION = "ACTIVA";
     private static final String PENDING_VERIFICATION = "PENDIENTE";
+    private static final String REPLACED_VERIFICATION = "REEMPLAZADA";
+    private static final String VERIFIED = "VERIFICADO";
+    private static final String REGISTRATION_VERIFICATION = "CORREO_INSTITUCIONAL";
+    private static final String LOGIN_VERIFICATION = "INICIO_SESION_2FA";
     private static final int SESSION_DAYS = 7;
 
     private final UsuarioRepository usuarioRepository;
@@ -50,13 +57,17 @@ public class AuthService {
     private final UniversidadRepository universidadRepository;
     private final CarreraRepository carreraRepository;
     private final VerificacionUsuarioRepository verificacionRepository;
+    private final TokenRecuperacionPasswordRepository recoveryTokenRepository;
     private final SessionTokenService tokenService;
     private final VerificationCodeService codeService;
     private final VerificationEmailService emailService;
+    private final LoginSecurityService loginSecurityService;
+    private final RegistrationPolicyService registrationPolicyService;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(12);
-    private final Set<String> evaluatorEmails;
     private final int verificationMinutes;
     private final int resendSeconds;
+    private final int twoFactorMinutes;
+    private final int passwordResetMinutes;
 
     public AuthService(
             UsuarioRepository usuarioRepository,
@@ -66,12 +77,16 @@ public class AuthService {
             UniversidadRepository universidadRepository,
             CarreraRepository carreraRepository,
             VerificacionUsuarioRepository verificacionRepository,
+            TokenRecuperacionPasswordRepository recoveryTokenRepository,
             SessionTokenService tokenService,
             VerificationCodeService codeService,
             VerificationEmailService emailService,
-            @Value("${app.auth.evaluator-emails:}") String evaluatorEmails,
+            LoginSecurityService loginSecurityService,
+            RegistrationPolicyService registrationPolicyService,
             @Value("${app.auth.verification-minutes:15}") int verificationMinutes,
-            @Value("${app.auth.verification-resend-seconds:60}") int resendSeconds
+            @Value("${app.auth.verification-resend-seconds:60}") int resendSeconds,
+            @Value("${app.auth.two-factor-minutes:10}") int twoFactorMinutes,
+            @Value("${app.auth.password-reset-minutes:15}") int passwordResetMinutes
     ) {
         this.usuarioRepository = usuarioRepository;
         this.estudianteRepository = estudianteRepository;
@@ -80,12 +95,16 @@ public class AuthService {
         this.universidadRepository = universidadRepository;
         this.carreraRepository = carreraRepository;
         this.verificacionRepository = verificacionRepository;
+        this.recoveryTokenRepository = recoveryTokenRepository;
         this.tokenService = tokenService;
         this.codeService = codeService;
         this.emailService = emailService;
-        this.evaluatorEmails = parseEmails(evaluatorEmails);
+        this.loginSecurityService = loginSecurityService;
+        this.registrationPolicyService = registrationPolicyService;
         this.verificationMinutes = verificationMinutes;
         this.resendSeconds = resendSeconds;
+        this.twoFactorMinutes = twoFactorMinutes;
+        this.passwordResetMinutes = passwordResetMinutes;
     }
 
     @Transactional
@@ -95,18 +114,11 @@ public class AuthService {
             throw new ResourceConflictException("Ya existe una cuenta con ese correo.");
         }
 
-        Universidad universidad = universidadRepository
-                .findByIdUniversidadAndEstadoTrue(request.idUniversidad())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "La universidad seleccionada no existe o esta inactiva."
-                ));
-        carreraRepository.findByIdCarreraAndIdUniversidad(
-                request.idCarrera(),
-                universidad.getIdUniversidad()
-        ).orElseThrow(() -> new IllegalArgumentException(
-                "La carrera no pertenece a la universidad seleccionada."
-        ));
-        validateInstitutionalEmail(correo, universidad);
+        RegistrationProfile profile = registrationPolicyService.resolve(
+                correo,
+                request.idUniversidad(),
+                request.idCarrera()
+        );
 
         LocalDateTime now = now();
         Usuario usuario = new Usuario();
@@ -116,22 +128,43 @@ public class AuthService {
         usuario.setPasswordHash(passwordEncoder.encode(request.password()));
         usuario.setFechaRegistro(now);
         usuario.setEstadoUsuario(PENDING_USER);
-        usuario.setIdUniversidad(universidad.getIdUniversidad());
+        usuario.setIdUniversidad(
+                profile.university() == null
+                        ? null
+                        : profile.university().getIdUniversidad()
+        );
         usuario = usuarioRepository.save(usuario);
 
-        int assignedRoles = usuarioRolRepository.assignMarketplaceRoles(usuario.getIdUsuario());
-        if (assignedRoles == 0) {
-            throw new IllegalStateException("No se encontraron los roles base del marketplace.");
+        int assignedClientRole = usuarioRolRepository.assignRole(
+                usuario.getIdUsuario(),
+                "CLIENTE"
+        );
+        if (assignedClientRole == 0) {
+            throw new IllegalStateException("No se encontro el rol CLIENTE.");
         }
 
-        UsuarioEstudiante estudiante = new UsuarioEstudiante();
-        estudiante.setIdUsuario(usuario.getIdUsuario());
-        estudiante.setIdCarrera(request.idCarrera());
-        estudiante.setEstadoPerfilEstudiante(PENDING_VERIFICATION);
-        estudiante.setFechaCreacion(now);
-        estudianteRepository.save(estudiante);
+        if (profile.student()) {
+            int assignedStudentRole = usuarioRolRepository.assignRole(
+                    usuario.getIdUsuario(),
+                    "ESTUDIANTE"
+            );
+            if (assignedStudentRole == 0) {
+                throw new IllegalStateException("No se encontro el rol ESTUDIANTE.");
+            }
+            UsuarioEstudiante estudiante = new UsuarioEstudiante();
+            estudiante.setIdUsuario(usuario.getIdUsuario());
+            estudiante.setIdCarrera(profile.careerId());
+            estudiante.setEstadoPerfilEstudiante(PENDING_VERIFICATION);
+            estudiante.setFechaCreacion(now);
+            estudianteRepository.save(estudiante);
+        }
 
-        VerificacionUsuario verification = createVerification(usuario, now);
+        VerificacionUsuario verification = createVerification(
+                usuario,
+                now,
+                REGISTRATION_VERIFICATION,
+                verificationMinutes
+        );
         emailService.sendCode(correo, verification.getCodigoVerificacion(), verificationMinutes);
         return registrationResponse(verification);
     }
@@ -144,7 +177,10 @@ public class AuthService {
     ) {
         String correo = normalizeEmail(request.correo());
         VerificacionUsuario verification = verificacionRepository
-                .findFirstByCorreoInstitucionalIgnoreCaseOrderByFechaSolicitudDesc(correo)
+                .findFirstByCorreoInstitucionalIgnoreCaseAndTipoVerificacionOrderByFechaSolicitudDesc(
+                        correo,
+                        REGISTRATION_VERIFICATION
+                )
                 .filter(item -> PENDING_VERIFICATION.equals(item.getEstadoVerificacion()))
                 .orElseThrow(() -> new IllegalArgumentException(
                         "No existe una verificacion pendiente para ese correo."
@@ -166,14 +202,13 @@ public class AuthService {
         usuario.setEstadoUsuario(ACTIVE_USER);
         usuarioRepository.save(usuario);
 
-        UsuarioEstudiante estudiante = estudianteRepository.findById(usuario.getIdUsuario())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "El perfil estudiantil asociado ya no existe."
-                ));
-        estudiante.setEstadoPerfilEstudiante(ACTIVE_USER);
-        estudianteRepository.save(estudiante);
+        estudianteRepository.findById(usuario.getIdUsuario())
+                .ifPresent(estudiante -> {
+                    estudiante.setEstadoPerfilEstudiante(ACTIVE_USER);
+                    estudianteRepository.save(estudiante);
+                });
 
-        verification.setEstadoVerificacion("VERIFICADO");
+        verification.setEstadoVerificacion(VERIFIED);
         verification.setFechaVerificacion(now);
         verification.setUltimaRevalidacion(now);
         verificacionRepository.save(verification);
@@ -194,7 +229,10 @@ public class AuthService {
 
         LocalDateTime now = now();
         verificacionRepository
-                .findFirstByCorreoInstitucionalIgnoreCaseOrderByFechaSolicitudDesc(correo)
+                .findFirstByCorreoInstitucionalIgnoreCaseAndTipoVerificacionOrderByFechaSolicitudDesc(
+                        correo,
+                        REGISTRATION_VERIFICATION
+                )
                 .ifPresent(previous -> {
                     if (previous.getFechaSolicitud().plusSeconds(resendSeconds).isAfter(now)) {
                         throw new ResourceConflictException(
@@ -202,40 +240,288 @@ public class AuthService {
                         );
                     }
                     if (PENDING_VERIFICATION.equals(previous.getEstadoVerificacion())) {
-                        previous.setEstadoVerificacion("REEMPLAZADA");
+                        previous.setEstadoVerificacion(REPLACED_VERIFICATION);
                         verificacionRepository.save(previous);
                     }
                 });
 
-        VerificacionUsuario verification = createVerification(usuario, now);
+        VerificacionUsuario verification = createVerification(
+                usuario,
+                now,
+                REGISTRATION_VERIFICATION,
+                verificationMinutes
+        );
         emailService.sendCode(correo, verification.getCodigoVerificacion(), verificationMinutes);
         return registrationResponse(verification);
     }
 
     @Transactional
-    public AuthResponse login(
+    public LoginChallengeResponse login(
             LoginRequest request,
             String ipOrigen,
             String userAgent
     ) {
-        Usuario usuario = usuarioRepository.findByCorreoIgnoreCase(normalizeEmail(request.correo()))
-                .orElseThrow(() -> new InvalidCredentialsException(
-                        "Correo o contrasena incorrectos."
-                ));
+        String correo = normalizeEmail(request.correo());
+        loginSecurityService.requireAvailable(correo);
+        Usuario usuario = usuarioRepository.findByCorreoIgnoreCase(correo).orElse(null);
 
-        if (!passwordEncoder.matches(request.password(), usuario.getPasswordHash())) {
+        if (usuario == null
+                || !passwordEncoder.matches(request.password(), usuario.getPasswordHash())) {
+            loginSecurityService.recordFailure(
+                    usuario == null ? null : usuario.getIdUsuario(),
+                    correo,
+                    "CREDENCIALES_INVALIDAS",
+                    ipOrigen,
+                    userAgent
+            );
             throw new InvalidCredentialsException("Correo o contrasena incorrectos.");
         }
         if (PENDING_USER.equalsIgnoreCase(usuario.getEstadoUsuario())) {
+            loginSecurityService.recordFailure(
+                    usuario.getIdUsuario(),
+                    correo,
+                    "CUENTA_NO_VERIFICADA",
+                    ipOrigen,
+                    userAgent
+            );
             throw new AccountNotVerifiedException(
                     "Debes verificar tu correo antes de iniciar sesion."
             );
         }
         if (!ACTIVE_USER.equalsIgnoreCase(usuario.getEstadoUsuario())) {
+            loginSecurityService.recordFailure(
+                    usuario.getIdUsuario(),
+                    correo,
+                    "CUENTA_INACTIVA",
+                    ipOrigen,
+                    userAgent
+            );
             throw new InvalidCredentialsException("La cuenta no se encuentra activa.");
         }
 
-        return createSession(usuario, ipOrigen, userAgent);
+        LocalDateTime now = now();
+        VerificacionUsuario previous = verificacionRepository
+                .findFirstByCorreoInstitucionalIgnoreCaseAndTipoVerificacionOrderByFechaSolicitudDesc(
+                        correo,
+                        LOGIN_VERIFICATION
+                )
+                .orElse(null);
+        if (previous != null
+                && PENDING_VERIFICATION.equals(previous.getEstadoVerificacion())
+                && previous.getFechaSolicitud().plusSeconds(resendSeconds).isAfter(now)) {
+            return loginChallengeResponse(previous);
+        }
+        if (previous != null
+                && PENDING_VERIFICATION.equals(previous.getEstadoVerificacion())) {
+            previous.setEstadoVerificacion(REPLACED_VERIFICATION);
+            verificacionRepository.save(previous);
+        }
+        VerificacionUsuario verification = createVerification(
+                usuario,
+                now,
+                LOGIN_VERIFICATION,
+                twoFactorMinutes
+        );
+        emailService.sendLoginCode(
+                correo,
+                verification.getCodigoVerificacion(),
+                twoFactorMinutes
+        );
+        return loginChallengeResponse(verification);
+    }
+
+    @Transactional
+    public AuthResponse verifyLogin(
+            VerifyLoginRequest request,
+            String ipOrigen,
+            String userAgent
+    ) {
+        String correo = normalizeEmail(request.correo());
+        loginSecurityService.requireAvailable(correo);
+        Usuario usuario = usuarioRepository.findByCorreoIgnoreCase(correo)
+                .orElseThrow(() -> new InvalidCredentialsException(
+                        "El codigo no es valido o ha expirado."
+                ));
+        VerificacionUsuario verification = verificacionRepository
+                .findFirstByCorreoInstitucionalIgnoreCaseAndTipoVerificacionOrderByFechaSolicitudDesc(
+                        correo,
+                        LOGIN_VERIFICATION
+                )
+                .filter(item -> PENDING_VERIFICATION.equals(item.getEstadoVerificacion()))
+                .orElseThrow(() -> new InvalidCredentialsException(
+                        "El codigo no es valido o ha expirado."
+                ));
+
+        if (verification.getFechaExpiracion() == null
+                || !verification.getFechaExpiracion().isAfter(now())) {
+            loginSecurityService.recordFailure(
+                    usuario.getIdUsuario(),
+                    correo,
+                    "CODIGO_2FA_EXPIRADO",
+                    ipOrigen,
+                    userAgent
+            );
+            throw new InvalidCredentialsException("El codigo no es valido o ha expirado.");
+        }
+        if (!verification.getCodigoVerificacion().equals(request.codigo())) {
+            loginSecurityService.recordFailure(
+                    usuario.getIdUsuario(),
+                    correo,
+                    "CODIGO_2FA_INVALIDO",
+                    ipOrigen,
+                    userAgent
+            );
+            throw new InvalidCredentialsException("El codigo no es valido o ha expirado.");
+        }
+
+        LocalDateTime now = now();
+        verification.setEstadoVerificacion(VERIFIED);
+        verification.setFechaVerificacion(now);
+        verification.setUltimaRevalidacion(now);
+        verificacionRepository.save(verification);
+        AuthResponse response = createSession(usuario, ipOrigen, userAgent);
+        loginSecurityService.recordSuccess(
+                usuario.getIdUsuario(),
+                correo,
+                ipOrigen,
+                userAgent
+        );
+        return response;
+    }
+
+    @Transactional
+    public LoginChallengeResponse resendLoginVerification(String requestedEmail) {
+        String correo = normalizeEmail(requestedEmail);
+        Usuario usuario = usuarioRepository.findByCorreoIgnoreCase(correo)
+                .filter(item -> ACTIVE_USER.equalsIgnoreCase(item.getEstadoUsuario()))
+                .orElseThrow(() -> new InvalidCredentialsException(
+                        "No se puede reenviar el codigo."
+                ));
+        LocalDateTime now = now();
+        VerificacionUsuario previous = verificacionRepository
+                .findFirstByCorreoInstitucionalIgnoreCaseAndTipoVerificacionOrderByFechaSolicitudDesc(
+                        correo,
+                        LOGIN_VERIFICATION
+                )
+                .orElseThrow(() -> new InvalidCredentialsException(
+                        "Primero ingresa tu correo y contrasena."
+                ));
+        if (previous.getFechaSolicitud().plusSeconds(resendSeconds).isAfter(now)) {
+            throw new ResourceConflictException(
+                    "Espera un momento antes de solicitar otro codigo."
+            );
+        }
+        if (PENDING_VERIFICATION.equals(previous.getEstadoVerificacion())) {
+            previous.setEstadoVerificacion(REPLACED_VERIFICATION);
+            verificacionRepository.save(previous);
+        }
+
+        VerificacionUsuario verification = createVerification(
+                usuario,
+                now,
+                LOGIN_VERIFICATION,
+                twoFactorMinutes
+        );
+        emailService.sendLoginCode(
+                correo,
+                verification.getCodigoVerificacion(),
+                twoFactorMinutes
+        );
+        return loginChallengeResponse(verification);
+    }
+
+    @Transactional
+    public MessageResponse requestPasswordReset(String requestedEmail) {
+        String correo = normalizeEmail(requestedEmail);
+        MessageResponse genericResponse = new MessageResponse(
+                "Si la cuenta existe, enviaremos un codigo de recuperacion."
+        );
+        Usuario usuario = usuarioRepository.findByCorreoIgnoreCase(correo)
+                .filter(item -> ACTIVE_USER.equalsIgnoreCase(item.getEstadoUsuario()))
+                .orElse(null);
+        if (usuario == null) {
+            return genericResponse;
+        }
+
+        LocalDateTime now = now();
+        TokenRecuperacionPassword latest = recoveryTokenRepository
+                .findFirstByIdUsuarioAndUsadoFalseOrderByFechaCreacionDesc(
+                        usuario.getIdUsuario()
+                )
+                .orElse(null);
+        if (latest != null
+                && latest.getFechaCreacion().plusSeconds(resendSeconds).isAfter(now)) {
+            return genericResponse;
+        }
+        recoveryTokenRepository.findAllByIdUsuarioAndUsadoFalse(usuario.getIdUsuario())
+                .forEach(previous -> {
+                    previous.setUsado(true);
+                    previous.setFechaUso(now);
+                    recoveryTokenRepository.save(previous);
+                });
+
+        String code = codeService.generate();
+        TokenRecuperacionPassword recovery = new TokenRecuperacionPassword();
+        recovery.setIdUsuario(usuario.getIdUsuario());
+        recovery.setTokenHash(tokenService.hash(code));
+        recovery.setFechaCreacion(now);
+        recovery.setFechaExpiracion(now.plusMinutes(passwordResetMinutes));
+        recovery.setUsado(false);
+        recoveryTokenRepository.save(recovery);
+        emailService.sendPasswordResetCode(correo, code, passwordResetMinutes);
+        return genericResponse;
+    }
+
+    @Transactional
+    public MessageResponse resetPassword(
+            ResetPasswordRequest request,
+            String ipOrigen,
+            String userAgent
+    ) {
+        String correo = normalizeEmail(request.correo());
+        loginSecurityService.requireAvailable(correo);
+        Usuario usuario = usuarioRepository.findByCorreoIgnoreCase(correo)
+                .orElseThrow(() -> new InvalidCredentialsException(
+                        "El codigo no es valido o ha expirado."
+                ));
+        TokenRecuperacionPassword recovery = recoveryTokenRepository
+                .findFirstByIdUsuarioAndUsadoFalseOrderByFechaCreacionDesc(
+                        usuario.getIdUsuario()
+                )
+                .orElseThrow(() -> new InvalidCredentialsException(
+                        "El codigo no es valido o ha expirado."
+                ));
+
+        if (!recovery.getFechaExpiracion().isAfter(now())
+                || !tokenService.matches(request.codigo(), recovery.getTokenHash())) {
+            loginSecurityService.recordFailure(
+                    usuario.getIdUsuario(),
+                    correo,
+                    "CODIGO_RECUPERACION_INVALIDO",
+                    ipOrigen,
+                    userAgent
+            );
+            throw new InvalidCredentialsException(
+                    "El codigo no es valido o ha expirado."
+            );
+        }
+
+        LocalDateTime now = now();
+        usuario.setPasswordHash(passwordEncoder.encode(request.nuevaPassword()));
+        usuarioRepository.save(usuario);
+        recovery.setUsado(true);
+        recovery.setFechaUso(now);
+        recoveryTokenRepository.save(recovery);
+        closeActiveSessions(usuario.getIdUsuario(), now);
+        loginSecurityService.recordSuccess(
+                usuario.getIdUsuario(),
+                correo,
+                ipOrigen,
+                userAgent
+        );
+        return new MessageResponse(
+                "Contrasena actualizada. Ya puedes iniciar sesion."
+        );
     }
 
     @Transactional
@@ -261,7 +547,9 @@ public class AuthService {
 
     private VerificacionUsuario createVerification(
             Usuario usuario,
-            LocalDateTime now
+            LocalDateTime now,
+            String verificationType,
+            int expirationMinutes
     ) {
         VerificacionUsuario verification = new VerificacionUsuario();
         verification.setIdUsuario(usuario.getIdUsuario());
@@ -269,9 +557,28 @@ public class AuthService {
         verification.setCodigoVerificacion(codeService.generate());
         verification.setEstadoVerificacion(PENDING_VERIFICATION);
         verification.setFechaSolicitud(now);
-        verification.setFechaExpiracion(now.plusMinutes(verificationMinutes));
-        verification.setTipoVerificacion("CORREO_INSTITUCIONAL");
+        verification.setFechaExpiracion(now.plusMinutes(expirationMinutes));
+        verification.setTipoVerificacion(verificationType);
         return verificacionRepository.save(verification);
+    }
+
+    private LoginChallengeResponse loginChallengeResponse(
+            VerificacionUsuario verification
+    ) {
+        return new LoginChallengeResponse(
+                verification.getCorreoInstitucional(),
+                verification.getFechaExpiracion(),
+                "Enviamos un codigo para confirmar tu inicio de sesion."
+        );
+    }
+
+    private void closeActiveSessions(Integer userId, LocalDateTime now) {
+        sesionRepository.findAllByIdUsuarioAndEstadoSesion(userId, ACTIVE_SESSION)
+                .forEach(session -> {
+                    session.setEstadoSesion("CERRADA");
+                    session.setFechaCierre(now);
+                    sesionRepository.save(session);
+                });
     }
 
     private RegistrationResponse registrationResponse(
@@ -356,32 +663,6 @@ public class AuthService {
                 usuario.getEstadoUsuario(),
                 usuarioRolRepository.findRoleNames(usuario.getIdUsuario())
         );
-    }
-
-    private void validateInstitutionalEmail(
-            String correo,
-            Universidad universidad
-    ) {
-        if (evaluatorEmails.contains(correo)) {
-            return;
-        }
-        String emailDomain = correo.substring(correo.lastIndexOf('@') + 1);
-        String universityDomain = universidad.getDominioCorreo()
-                .trim()
-                .toLowerCase(Locale.ROOT)
-                .replaceFirst("^@", "");
-        if (!emailDomain.equals(universityDomain)) {
-            throw new IllegalArgumentException(
-                    "El correo no pertenece al dominio de la universidad seleccionada."
-            );
-        }
-    }
-
-    private Set<String> parseEmails(String configuredEmails) {
-        return Arrays.stream(configuredEmails.split(","))
-                .map(this::normalizeEmail)
-                .filter(value -> !value.isBlank())
-                .collect(Collectors.toUnmodifiableSet());
     }
 
     private String normalizeEmail(String correo) {

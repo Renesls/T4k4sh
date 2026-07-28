@@ -3,11 +3,16 @@ package com.t4kash.api.identity.controller;
 import com.t4kash.api.exception.InvalidCredentialsException;
 import com.t4kash.api.identity.dto.AuthResponse;
 import com.t4kash.api.identity.dto.AuthenticatedUserResponse;
+import com.t4kash.api.identity.dto.ForgotPasswordRequest;
+import com.t4kash.api.identity.dto.LoginChallengeResponse;
 import com.t4kash.api.identity.dto.LoginRequest;
+import com.t4kash.api.identity.dto.MessageResponse;
 import com.t4kash.api.identity.dto.RegisterRequest;
 import com.t4kash.api.identity.dto.RegistrationResponse;
 import com.t4kash.api.identity.dto.ResendVerificationRequest;
+import com.t4kash.api.identity.dto.ResetPasswordRequest;
 import com.t4kash.api.identity.dto.VerifyEmailRequest;
+import com.t4kash.api.identity.dto.VerifyLoginRequest;
 import com.t4kash.api.identity.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -59,11 +64,49 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public AuthResponse login(
+    public LoginChallengeResponse login(
             @Valid @RequestBody LoginRequest request,
             HttpServletRequest httpRequest
     ) {
         return authService.login(
+                request,
+                clientIp(httpRequest),
+                httpRequest.getHeader(HttpHeaders.USER_AGENT)
+        );
+    }
+
+    @PostMapping("/login/verify")
+    public AuthResponse verifyLogin(
+            @Valid @RequestBody VerifyLoginRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        return authService.verifyLogin(
+                request,
+                clientIp(httpRequest),
+                httpRequest.getHeader(HttpHeaders.USER_AGENT)
+        );
+    }
+
+    @PostMapping("/login/resend")
+    public LoginChallengeResponse resendLoginVerification(
+            @Valid @RequestBody ResendVerificationRequest request
+    ) {
+        return authService.resendLoginVerification(request.correo());
+    }
+
+    @PostMapping("/password/forgot")
+    public MessageResponse forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request
+    ) {
+        return authService.requestPasswordReset(request.correo());
+    }
+
+    @PostMapping("/password/reset")
+    public MessageResponse resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        return authService.resetPassword(
                 request,
                 clientIp(httpRequest),
                 httpRequest.getHeader(HttpHeaders.USER_AGENT)

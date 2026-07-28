@@ -8,6 +8,12 @@ object Routes {
     const val REGISTER = "register"
     const val VERIFY_EMAIL_ARG = "email"
     const val VERIFY_EMAIL = "verify-email?email={$VERIFY_EMAIL_ARG}"
+    const val LOGIN_VERIFICATION_ARG = "email"
+    const val LOGIN_VERIFICATION =
+        "login-verification?email={$LOGIN_VERIFICATION_ARG}"
+    const val FORGOT_PASSWORD = "forgot-password"
+    const val RESET_PASSWORD_ARG = "email"
+    const val RESET_PASSWORD = "reset-password?email={$RESET_PASSWORD_ARG}"
     const val MARKETPLACE = "marketplace"
     const val OPPORTUNITY_MAP = "opportunity-map"
     const val NETWORK = "network"
@@ -34,5 +40,13 @@ object Routes {
     fun jobDetails(jobId: Int): String = "profile/jobs/$jobId"
     fun verifyEmail(email: String = ""): String {
         return "verify-email?email=${Uri.encode(email)}"
+    }
+
+    fun loginVerification(email: String): String {
+        return "login-verification?email=${Uri.encode(email)}"
+    }
+
+    fun resetPassword(email: String): String {
+        return "reset-password?email=${Uri.encode(email)}"
     }
 }

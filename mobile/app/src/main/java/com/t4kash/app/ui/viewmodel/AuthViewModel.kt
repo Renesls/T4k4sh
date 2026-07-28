@@ -10,8 +10,10 @@ import com.t4kash.app.ui.model.AuthenticatedUserDto
 import com.t4kash.app.ui.model.CareerDto
 import com.t4kash.app.ui.model.LoginRequest
 import com.t4kash.app.ui.model.RegisterRequest
+import com.t4kash.app.ui.model.ResetPasswordRequest
 import com.t4kash.app.ui.model.UniversityDto
 import com.t4kash.app.ui.model.VerifyEmailRequest
+import com.t4kash.app.ui.model.VerifyLoginRequest
 import com.t4kash.app.ui.repository.AuthRepository
 import com.t4kash.app.ui.service.ApiResult
 import com.t4kash.app.ui.session.AuthSession
@@ -37,12 +39,34 @@ class AuthViewModel(
     fun login(
         email: String,
         password: String,
-        onSuccess: () -> Unit
+        onVerificationRequired: (String) -> Unit
     ) {
-        executeAuth(
-            request = { repository.login(LoginRequest(email.trim(), password)) },
-            onSuccess = onSuccess
-        )
+        if (uiState.isLoading) return
+        viewModelScope.launch {
+            uiState = uiState.copy(
+                isLoading = true,
+                errorMessage = null,
+                infoMessage = null
+            )
+            when (
+                val result = repository.login(
+                    LoginRequest(email.trim(), password)
+                )
+            ) {
+                is ApiResult.Success -> {
+                    uiState = uiState.copy(
+                        isLoading = false,
+                        infoMessage = result.data.mensaje
+                    )
+                    onVerificationRequired(result.data.correo)
+                }
+
+                is ApiResult.Error -> uiState = uiState.copy(
+                    isLoading = false,
+                    errorMessage = result.message
+                )
+            }
+        }
     }
 
     fun loadUniversities() {
@@ -89,8 +113,8 @@ class AuthViewModel(
         lastName: String,
         email: String,
         password: String,
-        universityId: Int,
-        careerId: Int,
+        universityId: Int?,
+        careerId: Int?,
         onVerificationRequired: (String) -> Unit
     ) {
         if (uiState.isLoading) return
@@ -143,6 +167,113 @@ class AuthViewModel(
             },
             onSuccess = onSuccess
         )
+    }
+
+    fun verifyLogin(
+        email: String,
+        code: String,
+        onSuccess: () -> Unit
+    ) {
+        executeAuth(
+            request = {
+                repository.verifyLogin(
+                    VerifyLoginRequest(
+                        correo = email.trim(),
+                        codigo = code.trim()
+                    )
+                )
+            },
+            onSuccess = onSuccess
+        )
+    }
+
+    fun resendLoginVerification(email: String) {
+        if (uiState.isLoading) return
+        viewModelScope.launch {
+            uiState = uiState.copy(
+                isLoading = true,
+                errorMessage = null,
+                infoMessage = null
+            )
+            when (val result = repository.resendLoginVerification(email.trim())) {
+                is ApiResult.Success -> uiState = uiState.copy(
+                    isLoading = false,
+                    infoMessage = result.data.mensaje
+                )
+
+                is ApiResult.Error -> uiState = uiState.copy(
+                    isLoading = false,
+                    errorMessage = result.message
+                )
+            }
+        }
+    }
+
+    fun requestPasswordReset(
+        email: String,
+        onCodeRequested: (String) -> Unit
+    ) {
+        if (uiState.isLoading) return
+        viewModelScope.launch {
+            uiState = uiState.copy(
+                isLoading = true,
+                errorMessage = null,
+                infoMessage = null
+            )
+            when (val result = repository.forgotPassword(email.trim())) {
+                is ApiResult.Success -> {
+                    uiState = uiState.copy(
+                        isLoading = false,
+                        infoMessage = result.data.mensaje
+                    )
+                    onCodeRequested(email.trim())
+                }
+
+                is ApiResult.Error -> uiState = uiState.copy(
+                    isLoading = false,
+                    errorMessage = result.message
+                )
+            }
+        }
+    }
+
+    fun resetPassword(
+        email: String,
+        code: String,
+        newPassword: String,
+        onSuccess: () -> Unit
+    ) {
+        if (uiState.isLoading) return
+        viewModelScope.launch {
+            uiState = uiState.copy(
+                isLoading = true,
+                errorMessage = null,
+                infoMessage = null
+            )
+            when (
+                val result = repository.resetPassword(
+                    ResetPasswordRequest(
+                        correo = email.trim(),
+                        codigo = code.trim(),
+                        nuevaPassword = newPassword
+                    )
+                )
+            ) {
+                is ApiResult.Success -> {
+                    UserSession.clear()
+                    uiState = uiState.copy(
+                        isLoading = false,
+                        infoMessage = result.data.mensaje
+                    )
+                    onSuccess()
+                }
+
+                is ApiResult.Error -> uiState = uiState.copy(
+                    isLoading = false,
+                    errorMessage = result.message
+                )
+            }
+        }
     }
 
     fun resendVerification(email: String) {

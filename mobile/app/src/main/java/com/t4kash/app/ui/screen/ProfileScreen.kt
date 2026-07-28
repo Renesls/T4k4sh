@@ -180,19 +180,23 @@ fun ProfileScreen(
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column {
-                        ProfileInfoRow(
-                            icon = Icons.Filled.School,
-                            label = "Universidad",
-                            value = user.universityName ?: "Sin universidad"
-                        )
-                        ProfileInfoRow(
-                            icon = Icons.Filled.School,
-                            label = "Carrera",
-                            value = user.careerName ?: "Sin carrera"
-                        )
+                        user.universityName?.let { university ->
+                            ProfileInfoRow(
+                                icon = Icons.Filled.School,
+                                label = "Universidad",
+                                value = university
+                            )
+                        }
+                        user.careerName?.let { career ->
+                            ProfileInfoRow(
+                                icon = Icons.Filled.School,
+                                label = "Carrera",
+                                value = career
+                            )
+                        }
                         ProfileInfoRow(
                             icon = Icons.Filled.Mail,
-                            label = "Correo institucional",
+                            label = "Correo",
                             value = user.email
                         )
                         ProfileInfoRow(

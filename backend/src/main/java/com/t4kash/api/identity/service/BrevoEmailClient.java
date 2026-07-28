@@ -47,6 +47,20 @@ public class BrevoEmailClient {
     }
 
     public void sendCode(String recipient, String code, int expirationMinutes) {
+        sendMessage(
+                recipient,
+                "Codigo de verificacion de T4KASH",
+                """
+                        Tu codigo de verificacion es:
+
+                        %s
+
+                        El codigo vence en %d minutos. Si no solicitaste esta cuenta, ignora este mensaje.
+                        """.formatted(code, expirationMinutes)
+        );
+    }
+
+    public void sendMessage(String recipient, String subject, String content) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new EmailDeliveryException(
                     "La clave de la API de correo no esta configurada."
@@ -61,14 +75,8 @@ public class BrevoEmailClient {
         Map<String, Object> request = Map.of(
                 "sender", Map.of("name", fromName, "email", from),
                 "to", List.of(Map.of("email", recipient)),
-                "subject", "Codigo de verificacion de T4KASH",
-                "textContent", """
-                        Tu codigo de verificacion es:
-
-                        %s
-
-                        El codigo vence en %d minutos. Si no solicitaste esta cuenta, ignora este mensaje.
-                        """.formatted(code, expirationMinutes)
+                "subject", subject,
+                "textContent", content
         );
 
         try {
@@ -82,11 +90,11 @@ public class BrevoEmailClient {
                     .toBodilessEntity();
         } catch (RestClientResponseException ex) {
             LOGGER.warn(
-                    "Brevo rechazo el correo de verificacion con estado {}.",
+                    "Brevo rechazo el correo con estado {}.",
                     ex.getStatusCode()
             );
             throw new EmailDeliveryException(
-                    "El proveedor de correo rechazo el envio del codigo.",
+                    "El proveedor de correo rechazo el envio.",
                     ex
             );
         } catch (RestClientException ex) {

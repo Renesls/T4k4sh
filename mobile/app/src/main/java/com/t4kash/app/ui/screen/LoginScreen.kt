@@ -66,9 +66,10 @@ import com.t4kash.app.ui.viewmodel.AuthViewModel
 @Composable
 fun LoginScreen(
     viewModel: AuthViewModel,
-    onLoginSuccess: () -> Unit,
+    onLoginVerification: (String) -> Unit,
     onRegister: () -> Unit,
-    onVerifyEmail: () -> Unit
+    onVerifyEmail: () -> Unit,
+    onForgotPassword: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -89,7 +90,7 @@ fun LoginScreen(
         }
         if (validationError == null) {
             focusManager.clearFocus()
-            viewModel.login(email, password, onLoginSuccess)
+            viewModel.login(email, password, onLoginVerification)
         }
     }
 
@@ -284,6 +285,14 @@ fun LoginScreen(
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
+                TextButton(
+                    onClick = {
+                        viewModel.clearError()
+                        onForgotPassword()
+                    }
+                ) {
+                    Text("Olvidaste tu contrasena?")
+                }
                 TextButton(
                     onClick = {
                         viewModel.clearError()

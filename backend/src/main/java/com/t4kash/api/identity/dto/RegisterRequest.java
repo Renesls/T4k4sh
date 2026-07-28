@@ -2,7 +2,6 @@ package com.t4kash.api.identity.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record RegisterRequest(
@@ -23,10 +22,8 @@ public record RegisterRequest(
         @Size(min = 8, max = 72, message = "La contrasena debe tener entre 8 y 72 caracteres.")
         String password,
 
-        @NotNull(message = "La universidad es obligatoria.")
         Integer idUniversidad,
 
-        @NotNull(message = "La carrera es obligatoria.")
         Integer idCarrera
 ) {
 }
