@@ -96,7 +96,7 @@ fun JobDetailScreen(
     LaunchedEffect(jobId) {
         viewModel.clearDeliveryFeedback()
         if (job == null) {
-            viewModel.refreshJobs()
+            viewModel.refreshJobs(force = true)
         }
         viewModel.loadDeliveries(jobId)
         viewModel.loadJobAttachments(jobId)
@@ -121,8 +121,8 @@ fun JobDetailScreen(
                 actions = {
                     IconButton(
                         onClick = {
-                            viewModel.loadDeliveries(jobId)
-                            viewModel.loadJobAttachments(jobId)
+                            viewModel.loadDeliveries(jobId, force = true)
+                            viewModel.loadJobAttachments(jobId, force = true)
                         },
                         enabled = !state.isLoadingDeliveries
                     ) {
@@ -249,7 +249,7 @@ fun JobDetailScreen(
                         }
                     }
 
-                    state.attachmentsError?.let { error ->
+                    state.jobAttachmentsError?.let { error ->
                         item {
                             Text(
                                 text = error,

@@ -32,7 +32,7 @@ fun NavGraph(
     val marketplaceViewModel: MarketplaceViewModel = viewModel()
     val onBottomNavigate: (String) -> Unit = { route ->
         if (route == Routes.MARKETPLACE) {
-            marketplaceViewModel.refresh()
+            marketplaceViewModel.refresh(force = true)
         }
         navController.navigateBottom(route)
     }

@@ -126,7 +126,7 @@ fun MyPublicationsScreen(
                 ) {
                     ConnectionErrorState(
                         message = state.errorMessage,
-                        onRetry = viewModel::refresh
+                        onRetry = { viewModel.refresh(force = true) }
                     )
                 }
             }

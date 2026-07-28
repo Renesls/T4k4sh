@@ -151,7 +151,9 @@ fun ApplicationManagementScreen(
                 ) {
                     ConnectionErrorState(
                         message = state.applicationsError,
-                        onRetry = { viewModel.loadApplications(taskId) }
+                        onRetry = {
+                            viewModel.loadApplications(taskId, force = true)
+                        }
                     )
                 }
             }

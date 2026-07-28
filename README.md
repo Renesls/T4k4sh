@@ -458,13 +458,13 @@ chore: ajustar configuración de render
 
 ## Etapas Pendientes
 
-1. **Optimización y estandarización (en progreso)**
-   - Ya se centralizaron los formatos de fechas, córdobas y tamaños de archivo.
+1. **Optimización y estandarización (completada)**
+   - Los formatos de fechas, córdobas y tamaños de archivo están centralizados.
    - El usuario demo se obtiene desde un único punto de la aplicación.
-   - Mantener las convenciones de nombres en todo código interno nuevo.
-   - Reducir recargas y solicitudes duplicadas al backend.
-   - Dividir componentes o `ViewModel` que acumulen demasiadas responsabilidades.
-   - Eliminar comentarios redundantes y mantener solo los que aporten contexto.
+   - Inicio y trabajos reutilizan datos recientes para evitar solicitudes duplicadas.
+   - Postulaciones, entregas y adjuntos tienen controladores independientes.
+   - Los recursos por tarea o trabajo se reutilizan y admiten actualización forzada.
+   - El estado de la interfaz está separado de las acciones del `ViewModel`.
 2. **Integración de identidad**
    - Conectar el módulo de autenticación y roles desarrollado por Dev 1.
    - Sustituir el usuario demo con ID `1` por el usuario de la sesión.

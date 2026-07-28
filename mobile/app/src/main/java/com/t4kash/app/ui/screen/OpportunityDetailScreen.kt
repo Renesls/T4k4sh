@@ -194,8 +194,8 @@ fun OpportunityDetailScreen(
                 OpportunityDetailContent(
                     task = task,
                     attachments = state.taskAttachments,
-                    isLoadingAttachments = state.isLoadingAttachments,
-                    attachmentsError = state.attachmentsError,
+                    isLoadingAttachments = state.isLoadingTaskAttachments,
+                    attachmentsError = state.taskAttachmentsError,
                     onOpenMap = onOpenMap,
                     modifier = Modifier.padding(innerPadding)
                 )

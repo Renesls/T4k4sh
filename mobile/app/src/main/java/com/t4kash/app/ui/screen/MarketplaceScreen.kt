@@ -131,7 +131,7 @@ fun MarketplaceScreen(
                 onNavigate = onNavigate,
                 onReselect = { route ->
                     if (route == Routes.MARKETPLACE && !state.isLoading) {
-                        viewModel.refresh()
+                        viewModel.refresh(force = true)
                     }
                 }
             )
@@ -152,7 +152,7 @@ fun MarketplaceScreen(
     ) { innerPadding ->
         PullToRefreshBox(
             isRefreshing = state.isLoading && state.tasks.isNotEmpty(),
-            onRefresh = viewModel::refresh,
+            onRefresh = { viewModel.refresh(force = true) },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
@@ -262,7 +262,7 @@ fun MarketplaceScreen(
                     item {
                         ConnectionErrorState(
                             message = state.errorMessage,
-                            onRetry = viewModel::refresh
+                            onRetry = { viewModel.refresh(force = true) }
                         )
                     }
                 }

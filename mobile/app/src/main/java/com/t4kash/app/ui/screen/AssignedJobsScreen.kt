@@ -137,7 +137,7 @@ fun AssignedJobsScreen(
                 ) {
                     ConnectionErrorState(
                         message = state.jobsError,
-                        onRetry = viewModel::refreshJobs
+                        onRetry = { viewModel.refreshJobs(force = true) }
                     )
                 }
             }
