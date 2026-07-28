@@ -5,6 +5,9 @@ import com.t4kash.api.identity.dto.AuthResponse;
 import com.t4kash.api.identity.dto.AuthenticatedUserResponse;
 import com.t4kash.api.identity.dto.LoginRequest;
 import com.t4kash.api.identity.dto.RegisterRequest;
+import com.t4kash.api.identity.dto.RegistrationResponse;
+import com.t4kash.api.identity.dto.ResendVerificationRequest;
+import com.t4kash.api.identity.dto.VerifyEmailRequest;
 import com.t4kash.api.identity.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -29,16 +32,30 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(
-            @Valid @RequestBody RegisterRequest request,
+    public ResponseEntity<RegistrationResponse> register(
+            @Valid @RequestBody RegisterRequest request
+    ) {
+        RegistrationResponse response = authService.register(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/verify-email")
+    public AuthResponse verifyEmail(
+            @Valid @RequestBody VerifyEmailRequest request,
             HttpServletRequest httpRequest
     ) {
-        AuthResponse response = authService.register(
+        return authService.verifyEmail(
                 request,
                 clientIp(httpRequest),
                 httpRequest.getHeader(HttpHeaders.USER_AGENT)
         );
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/resend-verification")
+    public RegistrationResponse resendVerification(
+            @Valid @RequestBody ResendVerificationRequest request
+    ) {
+        return authService.resendVerification(request.correo());
     }
 
     @PostMapping("/login")

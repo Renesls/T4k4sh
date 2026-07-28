@@ -2,8 +2,13 @@ package com.t4kash.app.ui.repository
 
 import com.t4kash.app.ui.model.AuthResponse
 import com.t4kash.app.ui.model.AuthenticatedUserDto
+import com.t4kash.app.ui.model.CareerDto
 import com.t4kash.app.ui.model.LoginRequest
 import com.t4kash.app.ui.model.RegisterRequest
+import com.t4kash.app.ui.model.RegistrationResponse
+import com.t4kash.app.ui.model.ResendVerificationRequest
+import com.t4kash.app.ui.model.UniversityDto
+import com.t4kash.app.ui.model.VerifyEmailRequest
 import com.t4kash.app.ui.service.ApiResult
 import com.t4kash.app.ui.service.AuthApiService
 import com.t4kash.app.ui.service.RetrofitClient
@@ -17,8 +22,32 @@ class AuthRepository(
         api.login(request)
     }
 
-    suspend fun register(request: RegisterRequest): ApiResult<AuthResponse> = execute {
+    suspend fun register(
+        request: RegisterRequest
+    ): ApiResult<RegistrationResponse> = execute {
         api.register(request)
+    }
+
+    suspend fun verifyEmail(
+        request: VerifyEmailRequest
+    ): ApiResult<AuthResponse> = execute {
+        api.verifyEmail(request)
+    }
+
+    suspend fun resendVerification(
+        email: String
+    ): ApiResult<RegistrationResponse> = execute {
+        api.resendVerification(ResendVerificationRequest(email))
+    }
+
+    suspend fun getUniversities(): ApiResult<List<UniversityDto>> = execute {
+        api.getUniversities()
+    }
+
+    suspend fun getCareers(
+        universityId: Int
+    ): ApiResult<List<CareerDto>> = execute {
+        api.getCareers(universityId)
     }
 
     suspend fun getCurrentUser(): ApiResult<AuthenticatedUserDto> = execute {

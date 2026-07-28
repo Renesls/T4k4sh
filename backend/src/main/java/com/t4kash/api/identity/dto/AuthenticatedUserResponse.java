@@ -7,6 +7,10 @@ public record AuthenticatedUserResponse(
         String nombre,
         String apellido,
         String correo,
+        Integer idUniversidad,
+        String nombreUniversidad,
+        Integer idCarrera,
+        String nombreCarrera,
         String estadoUsuario,
         List<String> roles
 ) {

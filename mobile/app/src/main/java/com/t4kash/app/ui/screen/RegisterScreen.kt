@@ -2,6 +2,7 @@ package com.t4kash.app.ui.screen
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -21,17 +23,22 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
@@ -53,7 +60,7 @@ import com.t4kash.app.ui.viewmodel.AuthViewModel
 fun RegisterScreen(
     viewModel: AuthViewModel,
     onBack: () -> Unit,
-    onRegisterSuccess: () -> Unit
+    onVerificationRequired: (String) -> Unit
 ) {
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
@@ -62,14 +69,32 @@ fun RegisterScreen(
     var passwordConfirmation by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var validationError by remember { mutableStateOf<String?>(null) }
+    var selectedUniversityId by rememberSaveable { mutableStateOf<Int?>(null) }
+    var selectedCareerId by rememberSaveable { mutableStateOf<Int?>(null) }
     val focusManager = LocalFocusManager.current
     val uiState = viewModel.uiState
+    val selectedUniversity = uiState.universities.firstOrNull {
+        it.idUniversidad == selectedUniversityId
+    }
+    val selectedCareer = uiState.careers.firstOrNull {
+        it.idCarrera == selectedCareerId
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.loadUniversities()
+    }
 
     fun submit() {
         validationError = when {
             firstName.isBlank() || lastName.isBlank() || email.isBlank() ||
                 password.isBlank() || passwordConfirmation.isBlank() ->
                 "Completa todos los campos."
+
+            selectedUniversityId == null ->
+                "Selecciona tu universidad."
+
+            selectedCareerId == null ->
+                "Selecciona tu carrera."
 
             !email.contains("@") ->
                 "Ingresa un correo válido."
@@ -89,7 +114,9 @@ fun RegisterScreen(
                 lastName = lastName,
                 email = email,
                 password = password,
-                onSuccess = onRegisterSuccess
+                universityId = checkNotNull(selectedUniversityId),
+                careerId = checkNotNull(selectedCareerId),
+                onVerificationRequired = onVerificationRequired
             )
         }
     }
@@ -193,6 +220,48 @@ fun RegisterScreen(
                                 imeAction = ImeAction.Next
                             )
                         )
+                        SelectionMenu(
+                            label = "Universidad",
+                            value = selectedUniversity?.nombreUniversidad
+                                ?: if (uiState.isLoadingOptions) {
+                                    "Cargando universidades..."
+                                } else {
+                                    "Seleccionar universidad"
+                                },
+                            options = uiState.universities.map {
+                                it.idUniversidad to it.nombreUniversidad
+                            },
+                            enabled = !uiState.isLoadingOptions,
+                            onSelected = { universityId ->
+                                selectedUniversityId = universityId
+                                selectedCareerId = null
+                                validationError = null
+                                viewModel.clearError()
+                                viewModel.loadCareers(universityId)
+                            }
+                        )
+                        SelectionMenu(
+                            label = "Carrera",
+                            value = selectedCareer?.nombreCarrera
+                                ?: if (
+                                    uiState.isLoadingOptions &&
+                                    selectedUniversityId != null
+                                ) {
+                                    "Cargando carreras..."
+                                } else {
+                                    "Seleccionar carrera"
+                                },
+                            options = uiState.careers.map {
+                                it.idCarrera to it.nombreCarrera
+                            },
+                            enabled = selectedUniversityId != null &&
+                                !uiState.isLoadingOptions,
+                            onSelected = { careerId ->
+                                selectedCareerId = careerId
+                                validationError = null
+                                viewModel.clearError()
+                            }
+                        )
                         OutlinedTextField(
                             value = password,
                             onValueChange = {
@@ -283,6 +352,56 @@ fun RegisterScreen(
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SelectionMenu(
+    label: String,
+    value: String,
+    options: List<Pair<Int, String>>,
+    enabled: Boolean,
+    onSelected: (Int) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = T4Text
+        )
+        Box(modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(
+                onClick = { expanded = true },
+                enabled = enabled,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    text = value,
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(
+                    imageVector = Icons.Filled.ArrowDropDown,
+                    contentDescription = null
+                )
+            }
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                options.forEach { (id, name) ->
+                    DropdownMenuItem(
+                        text = { Text(name) },
+                        onClick = {
+                            expanded = false
+                            onSelected(id)
+                        }
+                    )
                 }
             }
         }

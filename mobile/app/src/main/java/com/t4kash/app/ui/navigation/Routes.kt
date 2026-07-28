@@ -1,9 +1,13 @@
 package com.t4kash.app.ui.navigation
 
+import android.net.Uri
+
 object Routes {
     const val SPLASH = "splash"
     const val LOGIN = "login"
     const val REGISTER = "register"
+    const val VERIFY_EMAIL_ARG = "email"
+    const val VERIFY_EMAIL = "verify-email?email={$VERIFY_EMAIL_ARG}"
     const val MARKETPLACE = "marketplace"
     const val OPPORTUNITY_MAP = "opportunity-map"
     const val NETWORK = "network"
@@ -28,4 +32,7 @@ object Routes {
     fun taskApplications(taskId: Int): String = "opportunity/$taskId/applications"
     fun myPublications(filter: String = "ALL"): String = "profile/publications/$filter"
     fun jobDetails(jobId: Int): String = "profile/jobs/$jobId"
+    fun verifyEmail(email: String = ""): String {
+        return "verify-email?email=${Uri.encode(email)}"
+    }
 }

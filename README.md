@@ -43,10 +43,10 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 | Postulación desde Android | Implementado |
 | Postulaciones, asignaciones y entregas en la API | Implementado |
 | Navegación, carga y manejo visual de errores | Implementado |
-| Autenticación y sesiones reales | Pendiente |
+| Registro institucional, verificación y sesiones persistentes | Implementado |
 | Mensajería, pagos y notificaciones push | Pendiente |
 
-La versión actual usa usuarios demo para validar el flujo. La publicación desde Android utiliza temporalmente `idCliente = 1` y la postulación utiliza `idEstudiante = 1` hasta integrar autenticación real.
+El registro valida el dominio de la universidad, relaciona la carrera y activa la cuenta después de confirmar un código enviado por correo. Android conserva la sesión iniciada y utiliza el ID de la cuenta autenticada para publicaciones, postulaciones, trabajos y archivos. Las contraseñas se almacenan con BCrypt y la base conserva únicamente el hash de cada token de sesión.
 
 ## Tecnologías
 
@@ -199,6 +199,14 @@ El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno 
 | Método | Ruta | Uso |
 |---|---|---|
 | `GET` | `/api/health` | Verificar disponibilidad |
+| `POST` | `/api/auth/register` | Crear una cuenta pendiente y enviar el código |
+| `POST` | `/api/auth/verify-email` | Verificar el código y activar la cuenta |
+| `POST` | `/api/auth/resend-verification` | Enviar un código nuevo |
+| `POST` | `/api/auth/login` | Iniciar sesión |
+| `GET` | `/api/auth/me` | Consultar el usuario autenticado |
+| `POST` | `/api/auth/logout` | Cerrar la sesión actual |
+| `GET` | `/api/identity/universities` | Listar universidades activas |
+| `GET` | `/api/identity/universities/{id}/careers` | Listar carreras de una universidad |
 | `GET` | `/api/categories` | Listar categorías activas |
 | `GET` | `/api/tasks` | Listar oportunidades |
 | `POST` | `/api/tasks` | Crear una oportunidad |
@@ -212,7 +220,7 @@ El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno 
 | `POST` | `/api/jobs/{idTrabajo}/deliveries` | Registrar entrega |
 | `POST` | `/api/deliveries/{idEntrega}/approve` | Aprobar entrega |
 
-Los endpoints de autenticación todavía no están implementados. El cliente y el estudiante se representan mediante IDs demo durante esta fase.
+Los endpoints `/api/auth/me` y `/api/auth/logout` requieren el encabezado `Authorization: Bearer <token>`. El token completo se entrega únicamente al cliente; PostgreSQL almacena su hash SHA-256.
 
 ### Crear una Tarea Presencial
 
@@ -372,6 +380,13 @@ Las pruebas del backend cubren la normalización de modalidades, la eliminación
 | `SUPABASE_URL` | URL del proyecto usada por Storage | `https://PROJECT_REF.supabase.co` |
 | `SUPABASE_SECRET_KEY` | Clave secreta usada solo por el backend | Configurada en Render |
 | `SUPABASE_STORAGE_BUCKET` | Bucket privado de adjuntos | `t4kash-attachments` |
+| `APP_AUTH_EVALUATOR_EMAILS` | Correos no institucionales autorizados para evaluación | `evaluador@gmail.com` |
+| `APP_MAIL_ENABLED` | Activa el envío de códigos | `true` |
+| `APP_MAIL_FROM` | Remitente visible de verificación | Cuenta SMTP |
+| `SMTP_HOST` | Servidor de correo | Servidor del proveedor |
+| `SMTP_PORT` | Puerto SMTP | `587` |
+| `SMTP_USERNAME` | Usuario SMTP | Configurado en Render |
+| `SMTP_PASSWORD` | Contraseña o clave SMTP | Configurada en Render |
 | `T4KASH_API_BASE_URL` | URL consumida por Android | URL de Render |
 
 Las contraseñas, cadenas de conexión y claves privadas no deben guardarse en Git. Render administra las variables del backend y Android solo recibe la URL pública de la API.
@@ -460,18 +475,24 @@ chore: ajustar configuración de render
 
 1. **Optimización y estandarización (completada)**
    - Los formatos de fechas, córdobas y tamaños de archivo están centralizados.
-   - El usuario demo se obtiene desde un único punto de la aplicación.
+   - La sesión y el usuario actual se obtienen desde un único punto de la aplicación.
    - Inicio y trabajos reutilizan datos recientes para evitar solicitudes duplicadas.
    - Postulaciones, entregas y adjuntos tienen controladores independientes.
    - Los recursos por tarea o trabajo se reutilizan y admiten actualización forzada.
    - El estado de la interfaz está separado de las acciones del `ViewModel`.
-2. **Integración de identidad**
-   - Conectar el módulo de autenticación y roles desarrollado por Dev 1.
-   - Sustituir el usuario demo con ID `1` por el usuario de la sesión.
-   - Aplicar permisos según el rol y la propiedad de cada recurso.
-3. **Ubicación y mapa**
-   - Permitir elegir o ajustar manualmente la ubicación de una tarea.
-   - Completar el flujo de distancia, rango y navegación hacia la oportunidad.
+2. **Integración de identidad (completada para el MVP)**
+   - Registro e inicio de sesión conectados con la API.
+   - Validación del dominio institucional y selección de carrera.
+   - Activación mediante código enviado por correo y opción de reenvío.
+   - Contraseñas protegidas con BCrypt y tokens almacenados como hash.
+   - Sesión persistente y cierre de sesión desde Android.
+   - El usuario autenticado sustituye al ID demo en todos los flujos.
+   - Los perfiles muestran nombre, correo, estado y roles reales.
+3. **Ubicación y mapa (completada)**
+   - Las tareas presenciales o híbridas pueden usar el GPS o elegir un punto manualmente.
+   - El mapa muestra oportunidades dentro de un radio configurable de 5 a 50 km.
+   - Cada marcador presenta una vista previa con ubicación, distancia y acceso al detalle.
+   - El detalle de una oportunidad permite abrir el mapa enfocado en su ubicación.
 4. **Comunicación**
    - Implementar conversaciones y mensajes.
    - Incorporar notificaciones push con Firebase Cloud Messaging.
@@ -480,5 +501,6 @@ chore: ajustar configuración de render
    - Agregar calificaciones y reputación al finalizar trabajos.
 6. **Cierre técnico**
    - Ejecutar pruebas integrales de Android, backend y PostgreSQL.
-   - Revisar validaciones, permisos, manejo de errores y estados de sesión.
+   - Endurecer permisos del backend según rol y propiedad de cada recurso.
+   - Revisar validaciones, manejo de errores y estados de sesión.
    - Actualizar diagramas, documentación y guía de despliegue final.

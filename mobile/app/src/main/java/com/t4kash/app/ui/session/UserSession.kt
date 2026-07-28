@@ -11,6 +11,8 @@ data class SessionUser(
     val firstName: String,
     val lastName: String,
     val email: String,
+    val universityName: String?,
+    val careerName: String?,
     val accountStatus: String,
     val roles: Set<String>
 ) {
@@ -39,6 +41,8 @@ object UserSession {
     private const val KEY_FIRST_NAME = "first_name"
     private const val KEY_LAST_NAME = "last_name"
     private const val KEY_EMAIL = "email"
+    private const val KEY_UNIVERSITY_NAME = "university_name"
+    private const val KEY_CAREER_NAME = "career_name"
     private const val KEY_ACCOUNT_STATUS = "account_status"
     private const val KEY_ROLES = "roles"
 
@@ -68,6 +72,8 @@ object UserSession {
             .putString(KEY_FIRST_NAME, session.user.firstName)
             .putString(KEY_LAST_NAME, session.user.lastName)
             .putString(KEY_EMAIL, session.user.email)
+            .putString(KEY_UNIVERSITY_NAME, session.user.universityName)
+            .putString(KEY_CAREER_NAME, session.user.careerName)
             .putString(KEY_ACCOUNT_STATUS, session.user.accountStatus)
             .putStringSet(KEY_ROLES, session.user.roles)
             .apply()
@@ -103,6 +109,8 @@ object UserSession {
                 firstName = prefs.getString(KEY_FIRST_NAME, "").orEmpty(),
                 lastName = prefs.getString(KEY_LAST_NAME, "").orEmpty(),
                 email = prefs.getString(KEY_EMAIL, "").orEmpty(),
+                universityName = prefs.getString(KEY_UNIVERSITY_NAME, null),
+                careerName = prefs.getString(KEY_CAREER_NAME, null),
                 accountStatus = prefs.getString(KEY_ACCOUNT_STATUS, "ACTIVO").orEmpty(),
                 roles = prefs.getStringSet(KEY_ROLES, emptySet()).orEmpty().toSet()
             )

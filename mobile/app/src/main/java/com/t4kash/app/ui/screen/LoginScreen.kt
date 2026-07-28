@@ -67,7 +67,8 @@ import com.t4kash.app.ui.viewmodel.AuthViewModel
 fun LoginScreen(
     viewModel: AuthViewModel,
     onLoginSuccess: () -> Unit,
-    onRegister: () -> Unit
+    onRegister: () -> Unit,
+    onVerifyEmail: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -290,6 +291,14 @@ fun LoginScreen(
                     }
                 ) {
                     Text("Crear una cuenta")
+                }
+                TextButton(
+                    onClick = {
+                        viewModel.clearError()
+                        onVerifyEmail()
+                    }
+                ) {
+                    Text("Ya tengo un código de verificación")
                 }
             }
         }

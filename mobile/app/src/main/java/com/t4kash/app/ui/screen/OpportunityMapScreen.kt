@@ -45,9 +45,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.t4kash.app.ui.GeoPoint
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.distanceInKilometers
+import com.t4kash.app.ui.formatDistance
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.theme.T4BrandDark
 import com.t4kash.app.ui.theme.T4Mint
@@ -77,16 +81,9 @@ import org.maplibre.compose.sources.rememberGeoJsonSource
 import org.maplibre.compose.style.BaseStyle
 import org.maplibre.compose.util.ClickResult
 import org.maplibre.spatialk.geojson.Position
-import kotlin.math.atan2
-import kotlin.math.cos
 import kotlin.math.roundToInt
-import kotlin.math.sin
-import kotlin.math.sqrt
 
-private const val OPEN_FREE_MAP_STYLE =
-    "https://tiles.openfreemap.org/styles/liberty"
 private const val DEFAULT_RADIUS_KM = 50f
-private const val EARTH_RADIUS_KM = 6371.0
 
 @SuppressLint("MissingPermission")
 @Composable
@@ -114,6 +111,9 @@ fun OpportunityMapScreen(
     var mapErrorMessage by remember { mutableStateOf<String?>(null) }
     var hasCenteredOnUser by rememberSaveable { mutableStateOf(false) }
     var radiusKm by rememberSaveable { mutableFloatStateOf(DEFAULT_RADIUS_KM) }
+    var selectedTaskId by rememberSaveable(focusedTaskId) {
+        mutableStateOf(focusedTaskId)
+    }
     var hasLocationPermission by remember {
         mutableStateOf(context.hasLocationPermission())
     }
@@ -165,9 +165,25 @@ fun OpportunityMapScreen(
     val taskGeoJson = remember(visibleTasks) {
         visibleTasks.toGeoJson()
     }
+    val selectedTask = remember(locatedTasks, selectedTaskId) {
+        locatedTasks.firstOrNull { it.idTarea == selectedTaskId }
+    }
+    val selectedTaskGeoJson = remember(selectedTask) {
+        selectedTask?.let { listOf(it).toGeoJson() }
+    }
+    val selectedTaskDistance = remember(selectedTask, userPosition) {
+        val taskPoint = selectedTask?.geoPoint()
+        val userPoint = userPosition?.toGeoPoint()
+        if (taskPoint == null || userPoint == null) {
+            null
+        } else {
+            distanceInKilometers(userPoint, taskPoint)
+        }
+    }
 
     LaunchedEffect(focusedTask?.idTarea) {
         focusedTask?.let { task ->
+            selectedTaskId = task.idTarea
             cameraState.animateTo(
                 CameraPosition(
                     target = Position(
@@ -213,7 +229,7 @@ fun OpportunityMapScreen(
             key(reloadKey) {
                 MaplibreMap(
                     modifier = Modifier.fillMaxSize(),
-                    baseStyle = BaseStyle.Uri(OPEN_FREE_MAP_STYLE),
+                    baseStyle = BaseStyle.Uri(OPEN_FREE_MAP_STYLE_URI),
                     cameraState = cameraState,
                     onMapLoadFinished = {
                         isMapLoading = false
@@ -250,13 +266,27 @@ fun OpportunityMapScreen(
                                 ?.jsonPrimitive
                                 ?.intOrNull
                             if (taskId != null) {
-                                onTaskSelected(taskId)
+                                selectedTaskId = taskId
                                 ClickResult.Consume
                             } else {
                                 ClickResult.Pass
                             }
                         }
                     )
+
+                    selectedTaskGeoJson?.let { geoJson ->
+                        val selectedTaskSource = rememberGeoJsonSource(
+                            data = GeoJsonData.JsonString(geoJson)
+                        )
+                        CircleLayer(
+                            id = "t4kash-selected-task",
+                            source = selectedTaskSource,
+                            radius = const(12.dp),
+                            color = const(T4Mint),
+                            strokeColor = const(T4BrandDark),
+                            strokeWidth = const(3.dp)
+                        )
+                    }
 
                     if (hasLocationPermission) {
                         LocationPuck(
@@ -339,9 +369,9 @@ fun OpportunityMapScreen(
                                 text = when {
                                     uiState.errorMessage != null -> uiState.errorMessage
                                     userPosition == null ->
-                                        "Esperando una ubicacion valida del telefono."
+                                        "Esperando una ubicación válida del teléfono."
                                     focusedTask != null ->
-                                        "Mostrando la ubicacion de ${focusedTask.titulo}."
+                                        "Mostrando la ubicación de ${focusedTask.titulo}."
                                     else ->
                                         "Tareas presenciales o hibridas dentro del radio."
                                 },
@@ -356,7 +386,7 @@ fun OpportunityMapScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Radio de busqueda",
+                            text = "Radio de búsqueda",
                             style = MaterialTheme.typography.labelMedium,
                             color = T4Text
                         )
@@ -394,15 +424,78 @@ fun OpportunityMapScreen(
                     }
                 },
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(18.dp),
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = 18.dp,
+                        bottom = if (selectedTask == null) 18.dp else 154.dp
+                    ),
                 containerColor = T4Mint,
                 contentColor = T4BrandDark
             ) {
                 Icon(
                     imageVector = Icons.Filled.MyLocation,
-                    contentDescription = "Centrar en mi ubicacion"
+                    contentDescription = "Centrar en mi ubicación"
                 )
+            }
+
+            selectedTask?.let { task ->
+                Card(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(14.dp)
+                        .widthIn(max = 360.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = T4Surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.LocationOn,
+                                contentDescription = null,
+                                tint = T4Primary
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = task.titulo,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = T4Text,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = task.direccionReferencia
+                                        ?: task.modalidad
+                                        ?: "Oportunidad presencial",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = T4TextMuted,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Text(
+                                text = selectedTaskDistance?.let(::formatDistance)
+                                    ?: "Sin distancia",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = T4Primary
+                            )
+                        }
+                        Button(
+                            onClick = { onTaskSelected(task.idTarea) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Ver oportunidad")
+                        }
+                    }
+                }
             }
 
             if (isMapLoading) {
@@ -500,29 +593,26 @@ private fun List<TaskDto>.toGeoJson(): String {
 }
 
 private fun TaskDto.hasValidCoordinates(): Boolean {
-    val latitude = latitud ?: return false
-    val longitude = longitud ?: return false
-    return Position(latitude = latitude, longitude = longitude).isUsableLocation()
+    return geoPoint()?.isValid() == true
 }
 
 private fun Position.isUsableLocation(): Boolean {
-    return latitude in -90.0..90.0 &&
-        longitude in -180.0..180.0 &&
-        !(latitude == 0.0 && longitude == 0.0)
+    return toGeoPoint().isValid()
 }
 
 private fun TaskDto.distanceTo(position: Position): Double {
-    val taskLatitude = latitud ?: return Double.POSITIVE_INFINITY
-    val taskLongitude = longitud ?: return Double.POSITIVE_INFINITY
-    val latitudeDelta = Math.toRadians(taskLatitude - position.latitude)
-    val longitudeDelta = Math.toRadians(taskLongitude - position.longitude)
-    val startLatitude = Math.toRadians(position.latitude)
-    val endLatitude = Math.toRadians(taskLatitude)
-    val haversine =
-        sin(latitudeDelta / 2) * sin(latitudeDelta / 2) +
-            cos(startLatitude) * cos(endLatitude) *
-            sin(longitudeDelta / 2) * sin(longitudeDelta / 2)
-    return EARTH_RADIUS_KM * 2 * atan2(sqrt(haversine), sqrt(1 - haversine))
+    val taskPoint = geoPoint() ?: return Double.POSITIVE_INFINITY
+    return distanceInKilometers(position.toGeoPoint(), taskPoint)
+}
+
+private fun TaskDto.geoPoint(): GeoPoint? {
+    val latitude = latitud ?: return null
+    val longitude = longitud ?: return null
+    return GeoPoint(latitude, longitude)
+}
+
+private fun Position.toGeoPoint(): GeoPoint {
+    return GeoPoint(latitude, longitude)
 }
 
 private val LOCATION_PERMISSIONS = arrayOf(

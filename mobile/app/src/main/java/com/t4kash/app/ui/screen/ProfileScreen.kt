@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Mail
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.WorkHistory
 import androidx.compose.material3.Card
@@ -180,17 +181,27 @@ fun ProfileScreen(
                 ) {
                     Column {
                         ProfileInfoRow(
+                            icon = Icons.Filled.School,
+                            label = "Universidad",
+                            value = user.universityName ?: "Sin universidad"
+                        )
+                        ProfileInfoRow(
+                            icon = Icons.Filled.School,
+                            label = "Carrera",
+                            value = user.careerName ?: "Sin carrera"
+                        )
+                        ProfileInfoRow(
+                            icon = Icons.Filled.Mail,
+                            label = "Correo institucional",
+                            value = user.email
+                        )
+                        ProfileInfoRow(
                             icon = Icons.Filled.VerifiedUser,
                             label = "Roles",
                             value = user.roles
                                 .sorted()
                                 .joinToString(" · ")
                                 .ifBlank { "Usuario" }
-                        )
-                        ProfileInfoRow(
-                            icon = Icons.Filled.Mail,
-                            label = "Correo institucional",
-                            value = user.email
                         )
                         ProfileInfoRow(
                             icon = Icons.Filled.VerifiedUser,

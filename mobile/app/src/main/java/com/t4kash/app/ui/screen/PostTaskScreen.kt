@@ -31,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.TipsAndUpdates
@@ -69,7 +70,7 @@ import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4BottomBar
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
-import com.t4kash.app.ui.DemoSession
+import com.t4kash.app.ui.session.UserSession
 import com.t4kash.app.ui.components.t4CategoryColors
 import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.model.PendingAttachment
@@ -120,6 +121,7 @@ fun PostTaskScreen(
     var validationError by remember { mutableStateOf<String?>(null) }
     var pendingAttachments by remember { mutableStateOf<List<PendingAttachment>>(emptyList()) }
     var captureLocationRequested by remember { mutableStateOf(false) }
+    var showLocationPicker by rememberSaveable { mutableStateOf(false) }
     var hasLocationPermission by remember {
         mutableStateOf(context.hasTaskLocationPermission())
     }
@@ -205,6 +207,21 @@ fun PostTaskScreen(
         viewModel.clearAttachmentFeedback()
     }
 
+    if (showLocationPicker) {
+        TaskLocationPickerDialog(
+            initialLatitude = latitude,
+            initialLongitude = longitude,
+            onDismiss = { showLocationPicker = false },
+            onLocationSelected = { selectedLatitude, selectedLongitude ->
+                latitude = selectedLatitude
+                longitude = selectedLongitude
+                captureLocationRequested = false
+                validationError = null
+                showLocationPicker = false
+            }
+        )
+    }
+
     fun publish() {
         val numericBudget = budget.toDoubleOrNull()
         val applicationDeadline = applicationDeadlineMillis
@@ -243,7 +260,7 @@ fun PostTaskScreen(
                 fechaLimitePostulacion = applicationDeadline.toApiDateTime(),
                 fechaLimite = taskDeadline.toApiDateTime(),
                 idCategoria = selectedCategoryId ?: return,
-                idCliente = DemoSession.USER_ID,
+                idCliente = UserSession.requireUserId(),
                 modalidad = modality,
                 direccionReferencia = addressReference.trim().takeIf {
                     modality != MODALIDAD_REMOTA && it.isNotEmpty()
@@ -549,6 +566,27 @@ fun PostTaskScreen(
                                             "Actualizar mi ubicación"
                                         captureLocationRequested -> "Buscando ubicación..."
                                         else -> "Usar mi ubicación actual"
+                                    }
+                                )
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    focusManager.clearFocus()
+                                    showLocationPicker = true
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Map,
+                                    contentDescription = null
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    if (latitude == null || longitude == null) {
+                                        "Elegir ubicación en el mapa"
+                                    } else {
+                                        "Ajustar ubicación en el mapa"
                                     }
                                 )
                             }

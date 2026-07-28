@@ -27,6 +27,7 @@ import com.t4kash.app.ui.screen.ProfileScreen
 import com.t4kash.app.ui.screen.RegisterScreen
 import com.t4kash.app.ui.screen.SplashScreen
 import com.t4kash.app.ui.screen.WalletScreen
+import com.t4kash.app.ui.screen.VerifyEmailScreen
 import com.t4kash.app.ui.viewmodel.MarketplaceViewModel
 import com.t4kash.app.ui.viewmodel.AuthViewModel
 import com.t4kash.app.ui.session.UserSession
@@ -79,16 +80,39 @@ fun NavGraph(
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
                 },
-                onRegister = { navController.navigate(Routes.REGISTER) }
+                onRegister = { navController.navigate(Routes.REGISTER) },
+                onVerifyEmail = {
+                    navController.navigate(Routes.verifyEmail())
+                }
             )
         }
         composable(Routes.REGISTER) {
             RegisterScreen(
                 viewModel = authViewModel,
                 onBack = { navController.popBackStack() },
-                onRegisterSuccess = {
+                onVerificationRequired = { email ->
+                    navController.navigate(Routes.verifyEmail(email))
+                }
+            )
+        }
+        composable(
+            route = Routes.VERIFY_EMAIL,
+            arguments = listOf(
+                navArgument(Routes.VERIFY_EMAIL_ARG) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                }
+            )
+        ) { backStackEntry ->
+            VerifyEmailScreen(
+                initialEmail = backStackEntry.arguments
+                    ?.getString(Routes.VERIFY_EMAIL_ARG)
+                    .orEmpty(),
+                viewModel = authViewModel,
+                onBack = { navController.popBackStack() },
+                onVerified = {
                     navController.navigate(Routes.MARKETPLACE) {
-                        popUpTo(Routes.LOGIN) { inclusive = true }
+                        popUpTo(navController.graph.id) { inclusive = true }
                     }
                 }
             )
