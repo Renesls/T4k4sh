@@ -16,7 +16,6 @@ import retrofit2.http.POST
 import retrofit2.http.Part
 import retrofit2.http.Path
 import okhttp3.MultipartBody
-import okhttp3.RequestBody
 
 interface MarketplaceApiService {
     @GET("categories")
@@ -77,7 +76,6 @@ interface MarketplaceApiService {
     @POST("tasks/{taskId}/attachments")
     suspend fun uploadTaskAttachment(
         @Path("taskId") taskId: Int,
-        @Part("userId") userId: RequestBody,
         @Part file: MultipartBody.Part
     ): AttachmentDto
 
@@ -90,7 +88,6 @@ interface MarketplaceApiService {
     @POST("deliveries/{deliveryId}/attachments")
     suspend fun uploadDeliveryAttachment(
         @Path("deliveryId") deliveryId: Int,
-        @Part("userId") userId: RequestBody,
         @Part file: MultipartBody.Part
     ): AttachmentDto
 }

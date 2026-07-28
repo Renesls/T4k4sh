@@ -245,6 +245,9 @@ public class AuthService {
                 .orElseThrow(() -> new InvalidCredentialsException(
                         "La cuenta de la sesion ya no existe."
                 ));
+        if (!ACTIVE_USER.equalsIgnoreCase(usuario.getEstadoUsuario())) {
+            throw new InvalidCredentialsException("La cuenta no se encuentra activa.");
+        }
         return toUserResponse(usuario);
     }
 

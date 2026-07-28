@@ -1,5 +1,6 @@
 package com.t4kash.api.marketplace.service;
 
+import com.t4kash.api.exception.ForbiddenOperationException;
 import com.t4kash.api.exception.ResourceConflictException;
 import com.t4kash.api.exception.ResourceNotFoundException;
 import com.t4kash.api.marketplace.dto.ApplicationResponse;
@@ -20,7 +21,6 @@ import com.t4kash.api.marketplace.repository.PostulacionRepository;
 import com.t4kash.api.marketplace.repository.TareaRepository;
 import com.t4kash.api.marketplace.repository.TrabajoAsignadoRepository;
 import com.t4kash.api.marketplace.repository.UsuarioEstudianteRepository;
-import com.t4kash.api.marketplace.repository.UsuarioRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,7 +50,6 @@ public class MarketplaceService {
     private final PostulacionRepository postulacionRepository;
     private final TrabajoAsignadoRepository trabajoRepository;
     private final EntregaRepository entregaRepository;
-    private final UsuarioRepository usuarioRepository;
     private final UsuarioEstudianteRepository estudianteRepository;
 
     public MarketplaceService(
@@ -59,7 +58,6 @@ public class MarketplaceService {
             PostulacionRepository postulacionRepository,
             TrabajoAsignadoRepository trabajoRepository,
             EntregaRepository entregaRepository,
-            UsuarioRepository usuarioRepository,
             UsuarioEstudianteRepository estudianteRepository
     ) {
         this.categoriaRepository = categoriaRepository;
@@ -67,7 +65,6 @@ public class MarketplaceService {
         this.postulacionRepository = postulacionRepository;
         this.trabajoRepository = trabajoRepository;
         this.entregaRepository = entregaRepository;
-        this.usuarioRepository = usuarioRepository;
         this.estudianteRepository = estudianteRepository;
     }
 
@@ -97,12 +94,9 @@ public class MarketplaceService {
     }
 
     @Transactional
-    public TaskResponse createTask(CreateTaskRequest request) {
+    public TaskResponse createTask(Integer currentUserId, CreateTaskRequest request) {
         if (!categoriaRepository.existsById(request.idCategoria())) {
             throw new ResourceNotFoundException("La categoria indicada no existe.");
-        }
-        if (!usuarioRepository.existsById(request.idCliente())) {
-            throw new ResourceNotFoundException("El usuario cliente indicado no existe.");
         }
         validateTaskDates(request, LocalDateTime.now());
 
@@ -115,7 +109,7 @@ public class MarketplaceService {
         tarea.setFechaLimite(request.fechaLimite());
         tarea.setEstadoTarea(ESTADO_TAREA_PUBLICADA);
         tarea.setIdCategoria(request.idCategoria());
-        tarea.setIdCliente(request.idCliente());
+        tarea.setIdCliente(currentUserId);
         tarea.setTipoOportunidad(request.tipoOportunidad().trim());
         String modalidad = normalizeModality(request.modalidad());
         tarea.setModalidad(modalidad);
@@ -170,8 +164,9 @@ public class MarketplaceService {
     }
 
     @Transactional(readOnly = true)
-    public List<ApplicationResponse> listApplications(Integer idTarea) {
-        ensureTaskExists(idTarea);
+    public List<ApplicationResponse> listApplications(Integer currentUserId, Integer idTarea) {
+        Tarea tarea = findTask(idTarea);
+        requireTaskOwner(tarea, currentUserId);
         return postulacionRepository.findByIdTareaOrderByFechaPostulacionDesc(idTarea)
                 .stream()
                 .map(ApplicationResponse::fromEntity)
@@ -179,7 +174,11 @@ public class MarketplaceService {
     }
 
     @Transactional(noRollbackFor = ResourceConflictException.class)
-    public ApplicationResponse applyToTask(Integer idTarea, CreateApplicationRequest request) {
+    public ApplicationResponse applyToTask(
+            Integer currentUserId,
+            Integer idTarea,
+            CreateApplicationRequest request
+    ) {
         Tarea tarea = findTask(idTarea);
         if (closeExpiredTask(tarea, LocalDateTime.now())) {
             throw new ResourceConflictException(
@@ -189,17 +188,22 @@ public class MarketplaceService {
         if (!ESTADO_TAREA_PUBLICADA.equals(tarea.getEstadoTarea())) {
             throw new ResourceConflictException("La tarea no esta disponible para nuevas postulaciones.");
         }
-        if (!estudianteRepository.existsById(request.idEstudiante())) {
-            throw new ResourceNotFoundException("El estudiante indicado no existe.");
+        if (tarea.getIdCliente().equals(currentUserId)) {
+            throw new ResourceConflictException("No puedes postularte a tu propia tarea.");
         }
-        postulacionRepository.findByIdTareaAndIdEstudiante(idTarea, request.idEstudiante())
+        if (!estudianteRepository.existsById(currentUserId)) {
+            throw new ForbiddenOperationException(
+                    "Tu cuenta no tiene un perfil estudiantil activo."
+            );
+        }
+        postulacionRepository.findByIdTareaAndIdEstudiante(idTarea, currentUserId)
                 .ifPresent(existing -> {
                     throw new ResourceConflictException("El estudiante ya se postulo a esta tarea.");
                 });
 
         Postulacion postulacion = new Postulacion();
         postulacion.setIdTarea(idTarea);
-        postulacion.setIdEstudiante(request.idEstudiante());
+        postulacion.setIdEstudiante(currentUserId);
         postulacion.setMensaje(request.mensaje());
         postulacion.setPrecioPropuesto(request.precioPropuesto());
         postulacion.setFechaPostulacion(LocalDateTime.now());
@@ -209,8 +213,10 @@ public class MarketplaceService {
     }
 
     @Transactional
-    public JobResponse acceptApplication(Integer idPostulacion) {
+    public JobResponse acceptApplication(Integer currentUserId, Integer idPostulacion) {
         Postulacion postulacion = findApplication(idPostulacion);
+        Tarea tarea = findTask(postulacion.getIdTarea());
+        requireTaskOwner(tarea, currentUserId);
         if (!ESTADO_POSTULACION_PENDIENTE.equals(postulacion.getEstadoPostulacion())) {
             throw new ResourceConflictException("Solo se pueden aceptar postulaciones pendientes.");
         }
@@ -218,7 +224,6 @@ public class MarketplaceService {
             throw new ResourceConflictException("Esta tarea ya tiene un trabajo asignado.");
         }
 
-        Tarea tarea = findTask(postulacion.getIdTarea());
         postulacion.setEstadoPostulacion(ESTADO_POSTULACION_ACEPTADA);
         tarea.setEstadoTarea(ESTADO_TAREA_ASIGNADA);
 
@@ -300,8 +305,9 @@ public class MarketplaceService {
     }
 
     @Transactional
-    public ApplicationResponse rejectApplication(Integer idPostulacion) {
+    public ApplicationResponse rejectApplication(Integer currentUserId, Integer idPostulacion) {
         Postulacion postulacion = findApplication(idPostulacion);
+        requireTaskOwner(findTask(postulacion.getIdTarea()), currentUserId);
         if (!ESTADO_POSTULACION_PENDIENTE.equals(postulacion.getEstadoPostulacion())) {
             throw new ResourceConflictException("Solo se pueden rechazar postulaciones pendientes.");
         }
@@ -310,16 +316,21 @@ public class MarketplaceService {
     }
 
     @Transactional(readOnly = true)
-    public List<JobResponse> listJobs() {
-        return trabajoRepository.findAllByOrderByFechaInicioDesc()
+    public List<JobResponse> listJobs(Integer currentUserId) {
+        return trabajoRepository.findVisibleToUser(currentUserId)
                 .stream()
                 .map(JobResponse::fromEntity)
                 .toList();
     }
 
     @Transactional
-    public DeliveryResponse createDelivery(Integer idTrabajo, CreateDeliveryRequest request) {
+    public DeliveryResponse createDelivery(
+            Integer currentUserId,
+            Integer idTrabajo,
+            CreateDeliveryRequest request
+    ) {
         TrabajoAsignado trabajo = findJob(idTrabajo);
+        requireAssignedStudent(trabajo, currentUserId);
         if (!ESTADO_TRABAJO_EN_PROCESO.equals(trabajo.getEstadoTrabajo())) {
             throw new ResourceConflictException("Solo se pueden enviar entregas para trabajos en proceso.");
         }
@@ -334,8 +345,9 @@ public class MarketplaceService {
     }
 
     @Transactional(readOnly = true)
-    public List<DeliveryResponse> listDeliveries(Integer idTrabajo) {
-        findJob(idTrabajo);
+    public List<DeliveryResponse> listDeliveries(Integer currentUserId, Integer idTrabajo) {
+        TrabajoAsignado trabajo = findJob(idTrabajo);
+        requireJobParticipant(trabajo, currentUserId);
         return entregaRepository.findByIdTrabajoOrderByFechaEntregaDesc(idTrabajo)
                 .stream()
                 .map(DeliveryResponse::fromEntity)
@@ -343,13 +355,14 @@ public class MarketplaceService {
     }
 
     @Transactional
-    public DeliveryResponse approveDelivery(Integer idEntrega) {
+    public DeliveryResponse approveDelivery(Integer currentUserId, Integer idEntrega) {
         Entrega entrega = findDelivery(idEntrega);
         if (!ESTADO_ENTREGA_ENVIADA.equals(entrega.getEstadoEntrega())) {
             throw new ResourceConflictException("Solo se pueden aprobar entregas enviadas.");
         }
 
         TrabajoAsignado trabajo = findJob(entrega.getIdTrabajo());
+        requireTaskOwner(findTask(trabajo.getIdTarea()), currentUserId);
         entrega.setEstadoEntrega(ESTADO_ENTREGA_APROBADA);
         trabajo.setEstadoTrabajo(ESTADO_TRABAJO_FINALIZADO);
 
@@ -362,9 +375,37 @@ public class MarketplaceService {
                 .orElseThrow(() -> new ResourceNotFoundException("La tarea indicada no existe."));
     }
 
-    private void ensureTaskExists(Integer idTarea) {
-        if (!tareaRepository.existsById(idTarea)) {
-            throw new ResourceNotFoundException("La tarea indicada no existe.");
+    private void requireTaskOwner(Tarea tarea, Integer currentUserId) {
+        if (!tarea.getIdCliente().equals(currentUserId)) {
+            throw new ForbiddenOperationException(
+                    "Solo el propietario de la tarea puede realizar esta accion."
+            );
+        }
+    }
+
+    private void requireAssignedStudent(
+            TrabajoAsignado trabajo,
+            Integer currentUserId
+    ) {
+        if (!trabajo.getIdEstudiante().equals(currentUserId)) {
+            throw new ForbiddenOperationException(
+                    "Solo el estudiante asignado puede realizar esta accion."
+            );
+        }
+    }
+
+    private void requireJobParticipant(
+            TrabajoAsignado trabajo,
+            Integer currentUserId
+    ) {
+        Tarea tarea = findTask(trabajo.getIdTarea());
+        boolean isParticipant =
+                trabajo.getIdEstudiante().equals(currentUserId) ||
+                tarea.getIdCliente().equals(currentUserId);
+        if (!isParticipant) {
+            throw new ForbiddenOperationException(
+                    "Solo los participantes del trabajo pueden consultar esta informacion."
+            );
         }
     }
 

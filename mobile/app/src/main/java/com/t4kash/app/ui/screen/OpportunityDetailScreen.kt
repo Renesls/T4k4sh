@@ -112,7 +112,6 @@ fun OpportunityDetailScreen(
                 viewModel.applyToTask(
                     taskId = task.idTarea,
                     request = CreateApplicationRequest(
-                        idEstudiante = UserSession.requireUserId(),
                         mensaje = message,
                         precioPropuesto = proposedPrice
                     )

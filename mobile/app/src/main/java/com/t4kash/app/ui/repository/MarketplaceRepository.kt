@@ -13,7 +13,6 @@ import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.service.ApiResult
 import com.t4kash.app.ui.service.MarketplaceApiService
 import com.t4kash.app.ui.service.RetrofitClient
-import com.t4kash.app.ui.session.UserSession
 import org.json.JSONObject
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -134,8 +133,8 @@ class MarketplaceRepository(
         taskId: Int,
         attachment: PendingAttachment
     ): ApiResult<AttachmentDto> {
-        return uploadAttachment(attachment) { userId, file ->
-            api.uploadTaskAttachment(taskId, userId, file)
+        return uploadAttachment(attachment) { file ->
+            api.uploadTaskAttachment(taskId, file)
         }
     }
 
@@ -143,14 +142,14 @@ class MarketplaceRepository(
         deliveryId: Int,
         attachment: PendingAttachment
     ): ApiResult<AttachmentDto> {
-        return uploadAttachment(attachment) { userId, file ->
-            api.uploadDeliveryAttachment(deliveryId, userId, file)
+        return uploadAttachment(attachment) { file ->
+            api.uploadDeliveryAttachment(deliveryId, file)
         }
     }
 
     private suspend fun uploadAttachment(
         attachment: PendingAttachment,
-        upload: suspend (okhttp3.RequestBody, MultipartBody.Part) -> AttachmentDto
+        upload: suspend (MultipartBody.Part) -> AttachmentDto
     ): ApiResult<AttachmentDto> {
         return try {
             val mediaType = attachment.mimeType.toMediaType()
@@ -160,9 +159,7 @@ class MarketplaceRepository(
                 attachment.name,
                 fileBody
             )
-            val userId = UserSession.requireUserId().toString()
-                .toRequestBody("text/plain".toMediaType())
-            ApiResult.Success(upload(userId, filePart))
+            ApiResult.Success(upload(filePart))
         } catch (e: Exception) {
             ApiResult.Error(e.apiMessage("No se pudo subir ${attachment.name}."))
         }

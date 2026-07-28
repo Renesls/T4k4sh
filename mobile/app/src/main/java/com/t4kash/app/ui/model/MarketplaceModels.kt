@@ -33,7 +33,6 @@ data class CreateTaskRequest(
     val fechaLimitePostulacion: String? = null,
     val fechaLimite: String? = null,
     val idCategoria: Int,
-    val idCliente: Int,
     val tipoOportunidad: String = "TAREA",
     val modalidad: String,
     val visibilidad: String = "PUBLICA",
@@ -43,7 +42,6 @@ data class CreateTaskRequest(
 )
 
 data class CreateApplicationRequest(
-    val idEstudiante: Int,
     val mensaje: String?,
     val precioPropuesto: Double?
 )

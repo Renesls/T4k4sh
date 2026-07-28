@@ -1,12 +1,13 @@
 package com.t4kash.api.marketplace.service;
 
+import com.t4kash.api.exception.ForbiddenOperationException;
 import com.t4kash.api.marketplace.dto.AttachmentResponse;
 import com.t4kash.api.marketplace.entity.ArchivoAdjunto;
+import com.t4kash.api.marketplace.entity.Tarea;
 import com.t4kash.api.marketplace.repository.ArchivoAdjuntoRepository;
 import com.t4kash.api.marketplace.repository.EntregaRepository;
 import com.t4kash.api.marketplace.repository.TareaRepository;
 import com.t4kash.api.marketplace.repository.TrabajoAsignadoRepository;
-import com.t4kash.api.marketplace.repository.UsuarioRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,6 +15,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
+
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -35,8 +38,6 @@ class AttachmentServiceTest {
     @Mock
     private TrabajoAsignadoRepository trabajoRepository;
     @Mock
-    private UsuarioRepository usuarioRepository;
-    @Mock
     private ObjectStorage objectStorage;
 
     private AttachmentService service;
@@ -48,15 +49,13 @@ class AttachmentServiceTest {
                 tareaRepository,
                 entregaRepository,
                 trabajoRepository,
-                usuarioRepository,
                 objectStorage
         );
     }
 
     @Test
     void rejectsFilesLargerThanTenMegabytes() {
-        when(tareaRepository.existsById(10)).thenReturn(true);
-        when(usuarioRepository.existsById(1)).thenReturn(true);
+        mockOwnedTask();
         byte[] content = new byte[(int) AttachmentService.MAX_FILE_SIZE + 1];
         MockMultipartFile file = new MockMultipartFile(
                 "file",
@@ -76,8 +75,7 @@ class AttachmentServiceTest {
 
     @Test
     void rejectsExecutableFiles() {
-        when(tareaRepository.existsById(10)).thenReturn(true);
-        when(usuarioRepository.existsById(1)).thenReturn(true);
+        mockOwnedTask();
         MockMultipartFile file = new MockMultipartFile(
                 "file",
                 "programa.exe",
@@ -96,8 +94,7 @@ class AttachmentServiceTest {
 
     @Test
     void uploadsFileAndStoresOnlyMetadata() {
-        when(tareaRepository.existsById(10)).thenReturn(true);
-        when(usuarioRepository.existsById(1)).thenReturn(true);
+        mockOwnedTask();
         when(objectStorage.bucketName()).thenReturn("t4kash-attachments");
         when(archivoRepository.saveAndFlush(any(ArchivoAdjunto.class)))
                 .thenAnswer(invocation -> {
@@ -134,5 +131,29 @@ class AttachmentServiceTest {
         ArchivoAdjunto metadata = metadataCaptor.getValue();
         assertEquals("t4kash-attachments", metadata.getBucketStorage());
         assertEquals(4L, metadata.getTamanoBytes());
+    }
+
+    @Test
+    void rejectsTaskAttachmentsFromUsersWhoDoNotOwnTheTask() {
+        mockOwnedTask();
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "documento.pdf",
+                "application/pdf",
+                new byte[]{1, 2, 3}
+        );
+
+        assertThrows(
+                ForbiddenOperationException.class,
+                () -> service.attachToTask(10, 99, file)
+        );
+        verify(objectStorage, never()).upload(any(), any(), any());
+    }
+
+    private void mockOwnedTask() {
+        Tarea task = new Tarea();
+        task.setIdTarea(10);
+        task.setIdCliente(1);
+        when(tareaRepository.findById(10)).thenReturn(Optional.of(task));
     }
 }

@@ -220,7 +220,14 @@ El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno 
 | `POST` | `/api/jobs/{idTrabajo}/deliveries` | Registrar entrega |
 | `POST` | `/api/deliveries/{idEntrega}/approve` | Aprobar entrega |
 
-Los endpoints `/api/auth/me` y `/api/auth/logout` requieren el encabezado `Authorization: Bearer <token>`. El token completo se entrega únicamente al cliente; PostgreSQL almacena su hash SHA-256.
+Los endpoints privados de identidad, marketplace y archivos requieren el encabezado
+`Authorization: Bearer <token>`. El token completo se entrega únicamente al cliente;
+PostgreSQL almacena su hash SHA-256. El backend obtiene el usuario desde esta sesión y
+no acepta IDs de cliente, estudiante o propietario enviados por Android.
+
+En Swagger, el token se configura desde **Authorize**. Las operaciones protegidas
+muestran un candado y responden `401` cuando la sesión no es válida o `403` cuando
+el usuario no tiene el rol, la propiedad o la participación necesaria.
 
 ### Crear una Tarea Presencial
 
@@ -232,7 +239,6 @@ Los endpoints `/api/auth/me` y `/api/auth/logout` requieren el encabezado `Autho
   "fechaLimitePostulacion": null,
   "fechaLimite": null,
   "idCategoria": 4,
-  "idCliente": 1,
   "tipoOportunidad": "TAREA",
   "modalidad": "PRESENCIAL",
   "visibilidad": "PUBLICA",
@@ -248,7 +254,6 @@ Para una tarea remota se utiliza `"modalidad": "REMOTA"` y se omiten o envían c
 
 ```json
 {
-  "idEstudiante": 1,
   "mensaje": "Tengo experiencia en este tipo de trabajo y disponibilidad esta semana.",
   "precioPropuesto": 25.00
 }
@@ -289,14 +294,15 @@ Flujo actual de exploración y postulación:
 
 ## Uso del MVP
 
-1. Abrir la aplicación y entrar con el acceso demo.
+1. Abrir la aplicación, registrar una cuenta o iniciar sesión con una cuenta verificada.
 2. Explorar oportunidades desde Inicio o aplicar filtros por categoría.
 3. Abrir una tarea para consultar presupuesto, modalidad, fechas y ubicación.
 4. En tareas presenciales o híbridas, utilizar el mapa para revisar la ubicación.
 5. Pulsar **Postularse**, completar la propuesta y enviarla.
 6. Utilizar la sección **Publicar** para crear una nueva oportunidad.
 
-Las funciones de identidad todavía utilizan IDs temporales. No deben interpretarse como autenticación o autorización definitiva.
+Las operaciones privadas utilizan el usuario autenticado de la sesión. Android no decide
+el propietario de una tarea, postulación, entrega o archivo.
 
 ## Ejecución Local
 

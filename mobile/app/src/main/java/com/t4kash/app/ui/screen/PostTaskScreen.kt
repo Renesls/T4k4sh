@@ -70,7 +70,6 @@ import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4BottomBar
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
-import com.t4kash.app.ui.session.UserSession
 import com.t4kash.app.ui.components.t4CategoryColors
 import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.model.PendingAttachment
@@ -260,7 +259,6 @@ fun PostTaskScreen(
                 fechaLimitePostulacion = applicationDeadline.toApiDateTime(),
                 fechaLimite = taskDeadline.toApiDateTime(),
                 idCategoria = selectedCategoryId ?: return,
-                idCliente = UserSession.requireUserId(),
                 modalidad = modality,
                 direccionReferencia = addressReference.trim().takeIf {
                     modality != MODALIDAD_REMOTA && it.isNotEmpty()
