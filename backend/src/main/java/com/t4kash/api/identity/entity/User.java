@@ -1,4 +1,4 @@
-package com.t4kash.api.identity;
+package com.t4kash.api.identity.entity;
 
 import jakarta.persistence.*;
 import java.util.List;
@@ -34,5 +34,31 @@ public class User {
     @Column(name = "skill_name")
     private List<String> skills;
 
-    // IMPORTANTE: Generá los Getters, Setters y Constructores aquí
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public Object getPassword() {
+        return password;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
 }
