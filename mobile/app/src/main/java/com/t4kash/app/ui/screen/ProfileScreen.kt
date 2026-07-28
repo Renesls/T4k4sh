@@ -142,7 +142,7 @@ fun ProfileScreen(
                                 color = Color.White.copy(alpha = 0.82f)
                             )
                             Text(
-                                text = "Usuario #${user.id}",
+                                text = "#${user.id}",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = T4Mint
                             )
