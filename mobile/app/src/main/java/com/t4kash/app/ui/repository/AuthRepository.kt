@@ -12,6 +12,7 @@ import com.t4kash.app.ui.model.VerifyEmailRequest
 import com.t4kash.app.ui.service.ApiResult
 import com.t4kash.app.ui.service.AuthApiService
 import com.t4kash.app.ui.service.RetrofitClient
+import java.net.SocketTimeoutException
 import org.json.JSONObject
 import retrofit2.HttpException
 
@@ -68,6 +69,9 @@ class AuthRepository(
 }
 
 private fun Exception.authMessage(): String {
+    if (this is SocketTimeoutException) {
+        return "La solicitud tardo demasiado. Intenta nuevamente."
+    }
     if (this is HttpException) {
         val detail = runCatching {
             val body = response()?.errorBody()?.string().orEmpty()

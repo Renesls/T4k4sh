@@ -33,7 +33,13 @@ services:
         sync: false
       - key: APP_MAIL_ENABLED
         sync: false
+      - key: APP_MAIL_PROVIDER
+        value: "brevo"
       - key: APP_MAIL_FROM
+        sync: false
+      - key: APP_MAIL_FROM_NAME
+        value: "T4KASH"
+      - key: BREVO_API_KEY
         sync: false
       - key: SMTP_HOST
         sync: false

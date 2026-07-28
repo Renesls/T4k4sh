@@ -382,7 +382,10 @@ Las pruebas del backend cubren la normalización de modalidades, la eliminación
 | `SUPABASE_STORAGE_BUCKET` | Bucket privado de adjuntos | `t4kash-attachments` |
 | `APP_AUTH_EVALUATOR_EMAILS` | Correos no institucionales autorizados para evaluación | `evaluador@gmail.com` |
 | `APP_MAIL_ENABLED` | Activa el envío de códigos | `true` |
-| `APP_MAIL_FROM` | Remitente visible de verificación | Cuenta SMTP |
+| `APP_MAIL_PROVIDER` | Transporte de correo (`brevo` en Render Free, `smtp` en local) | `brevo` |
+| `APP_MAIL_FROM` | Remitente visible de verificación | Remitente verificado en Brevo |
+| `APP_MAIL_FROM_NAME` | Nombre visible del remitente | `T4KASH` |
+| `BREVO_API_KEY` | Clave privada para enviar mediante HTTPS | Configurada en Render |
 | `SMTP_HOST` | Servidor de correo | Servidor del proveedor |
 | `SMTP_PORT` | Puerto SMTP | `587` |
 | `SMTP_USERNAME` | Usuario SMTP | Configurado en Render |
@@ -390,6 +393,7 @@ Las pruebas del backend cubren la normalización de modalidades, la eliminación
 | `T4KASH_API_BASE_URL` | URL consumida por Android | URL de Render |
 
 Las contraseñas, cadenas de conexión y claves privadas no deben guardarse en Git. Render administra las variables del backend y Android solo recibe la URL pública de la API.
+Los servicios gratuitos de Render bloquean los puertos SMTP, por lo que el despliegue usa la API HTTPS de Brevo. La configuración SMTP se conserva para desarrollo local o proveedores que permitan esos puertos.
 
 ## Despliegue
 

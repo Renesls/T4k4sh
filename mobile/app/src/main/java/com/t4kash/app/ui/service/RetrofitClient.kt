@@ -6,6 +6,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import com.t4kash.app.ui.session.UserSession
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
     private val baseUrl: String
@@ -19,6 +20,10 @@ object RetrofitClient {
     }
 
     private val httpClient = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .callTimeout(45, TimeUnit.SECONDS)
         .addInterceptor { chain ->
             val request = chain.request()
             val sessionToken = UserSession.accessToken
