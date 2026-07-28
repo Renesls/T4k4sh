@@ -50,6 +50,7 @@ import com.t4kash.app.ui.components.EmptyState
 import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.formatNioCurrency
 import com.t4kash.app.ui.model.ApplicationDto
 import com.t4kash.app.ui.theme.T4AmberContainer
 import com.t4kash.app.ui.theme.T4Border
@@ -333,7 +334,7 @@ private fun ApplicationCard(
 
             Text(
                 text = application.precioPropuesto?.let {
-                    "C\$ ${"%.2f".format(it)} propuestos"
+                    "${formatNioCurrency(it)} propuestos"
                 } ?: "Sin precio propuesto",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,

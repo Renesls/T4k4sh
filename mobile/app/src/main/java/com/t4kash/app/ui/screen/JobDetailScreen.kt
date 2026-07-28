@@ -56,6 +56,9 @@ import com.t4kash.app.ui.components.EmptyState
 import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.DemoSession
+import com.t4kash.app.ui.formatApiDateTime
+import com.t4kash.app.ui.formatNioCurrency
 import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.PendingAttachment
@@ -72,9 +75,6 @@ import com.t4kash.app.ui.theme.T4Surface
 import com.t4kash.app.ui.theme.T4Text
 import com.t4kash.app.ui.theme.T4TextMuted
 import com.t4kash.app.ui.viewmodel.MarketplaceViewModel
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @Composable
 fun JobDetailScreen(
@@ -156,8 +156,8 @@ fun JobDetailScreen(
             }
 
             else -> {
-                val isStudent = job.idEstudiante == DEMO_DELIVERY_USER_ID
-                val isClient = task?.idCliente == DEMO_DELIVERY_USER_ID
+                val isStudent = job.idEstudiante == DemoSession.USER_ID
+                val isClient = task?.idCliente == DemoSession.USER_ID
                 val canSend = isStudent &&
                     job.estadoTrabajo.equals("EN_PROCESO", ignoreCase = true)
 
@@ -436,17 +436,17 @@ private fun JobSummary(
             SummaryRow(
                 icon = Icons.Filled.Payments,
                 label = "Presupuesto",
-                value = task?.presupuesto?.let(::formatJobCordobas) ?: "Sin monto"
+                value = task?.presupuesto?.let(::formatNioCurrency) ?: "Sin monto"
             )
             SummaryRow(
                 icon = Icons.Filled.Schedule,
                 label = "Inicio",
-                value = job.fechaInicio.toDeliveryDate()
+                value = formatApiDateTime(job.fechaInicio)
             )
             SummaryRow(
                 icon = Icons.Filled.CalendarMonth,
                 label = "Entrega esperada",
-                value = job.fechaEntregaEsperada.toDeliveryDate()
+                value = formatApiDateTime(job.fechaEntregaEsperada)
             )
         }
     }
@@ -595,7 +595,7 @@ private fun DeliveryCard(
                         color = T4Text
                     )
                     Text(
-                        text = delivery.fechaEntrega.toDeliveryDate(),
+                        text = formatApiDateTime(delivery.fechaEntrega),
                         style = MaterialTheme.typography.bodySmall,
                         color = T4TextMuted
                     )
@@ -642,28 +642,5 @@ private fun DeliveryCard(
     }
 }
 
-private fun formatJobCordobas(amount: Double): String {
-    return "C$ " + String.format(Locale.US, "%,.2f", amount)
-}
-
-private fun String?.toDeliveryDate(): String {
-    if (this.isNullOrBlank()) {
-        return "Sin fecha definida"
-    }
-    val parsed = parseDeliveryDate(this)
-        ?: return substringBefore('.').replace('T', ' ')
-    return SimpleDateFormat("dd/MM/yyyy · HH:mm", Locale.getDefault()).format(parsed)
-}
-
-private fun parseDeliveryDate(value: String): Date? {
-    val normalized = value.substringBefore('.').take(19)
-    return runCatching {
-        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).apply {
-            isLenient = false
-        }.parse(normalized)
-    }.getOrNull()
-}
-
-private const val DEMO_DELIVERY_USER_ID = 1
 private const val MIN_DELIVERY_LENGTH = 10
 private const val MAX_DELIVERY_LENGTH = 1000

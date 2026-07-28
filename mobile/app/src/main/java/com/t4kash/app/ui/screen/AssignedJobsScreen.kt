@@ -47,8 +47,12 @@ import com.t4kash.app.ui.components.EmptyState
 import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.DemoSession
+import com.t4kash.app.ui.formatApiDateTime
+import com.t4kash.app.ui.formatNioCurrency
 import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.TaskDto
+import com.t4kash.app.ui.parseApiDateTime
 import com.t4kash.app.ui.theme.T4AmberContainer
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
@@ -62,9 +66,7 @@ import com.t4kash.app.ui.theme.T4Surface
 import com.t4kash.app.ui.theme.T4Text
 import com.t4kash.app.ui.theme.T4TextMuted
 import com.t4kash.app.ui.viewmodel.MarketplaceViewModel
-import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 
 @Composable
 fun AssignedJobsScreen(
@@ -298,7 +300,7 @@ private fun AssignedJobCard(
                 )
                 task?.let {
                     Text(
-                        text = formatCordobas(it.presupuesto),
+                        text = formatNioCurrency(it.presupuesto),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = T4MintDark
@@ -333,12 +335,12 @@ private fun AssignedJobCard(
             JobDateRow(
                 icon = Icons.Filled.WorkHistory,
                 label = "Inicio",
-                value = job.fechaInicio.toJobDate()
+                value = formatApiDateTime(job.fechaInicio)
             )
             JobDateRow(
                 icon = Icons.Filled.CalendarMonth,
                 label = "Entrega esperada",
-                value = job.fechaEntregaEsperada.toJobDate()
+                value = formatApiDateTime(job.fechaEntregaEsperada)
             )
             JobDateRow(
                 icon = Icons.Filled.School,
@@ -381,12 +383,12 @@ private fun JobDateRow(
 }
 
 private fun JobDto.belongsToDemoUser(task: TaskDto?): Boolean {
-    return idEstudiante == DEMO_JOB_USER_ID || task?.idCliente == DEMO_JOB_USER_ID
+    return idEstudiante == DemoSession.USER_ID || task?.idCliente == DemoSession.USER_ID
 }
 
 private fun JobDto.roleLabel(task: TaskDto?): String {
-    val isClient = task?.idCliente == DEMO_JOB_USER_ID
-    val isStudent = idEstudiante == DEMO_JOB_USER_ID
+    val isClient = task?.idCliente == DemoSession.USER_ID
+    val isStudent = idEstudiante == DemoSession.USER_ID
     return when {
         isClient && isStudent -> "Participas como cliente y estudiante"
         isClient -> "Participas como cliente"
@@ -416,8 +418,8 @@ private fun JobDto.progress(): Float {
     if (estadoTrabajo.equals("FINALIZADO", ignoreCase = true)) {
         return 1f
     }
-    val start = parseJobDate(fechaInicio)?.time ?: return 0f
-    val end = parseJobDate(fechaEntregaEsperada)?.time ?: return 0f
+    val start = parseApiDateTime(fechaInicio)?.time ?: return 0f
+    val end = parseApiDateTime(fechaEntregaEsperada)?.time ?: return 0f
     if (end <= start) {
         return 0f
     }
@@ -429,7 +431,7 @@ private fun JobDto.isOverdue(): Boolean {
     if (estadoTrabajo.equals("FINALIZADO", ignoreCase = true)) {
         return false
     }
-    val deadline = parseJobDate(fechaEntregaEsperada) ?: return false
+    val deadline = parseApiDateTime(fechaEntregaEsperada) ?: return false
     return deadline.before(Date())
 }
 
@@ -449,30 +451,6 @@ private fun jobSummary(jobs: List<JobDto>): String {
     return "$active en proceso · $completed finalizados"
 }
 
-private fun formatCordobas(amount: Double): String {
-    return "C$ " + String.format(Locale.US, "%,.2f", amount)
-}
-
-private fun String?.toJobDate(): String {
-    if (this.isNullOrBlank()) {
-        return "Sin fecha definida"
-    }
-    val parsed = parseJobDate(this) ?: return substringBefore('.').replace('T', ' ')
-    return SimpleDateFormat("dd/MM/yyyy · HH:mm", Locale.getDefault()).format(parsed)
-}
-
-private fun parseJobDate(value: String?): Date? {
-    if (value.isNullOrBlank()) {
-        return null
-    }
-    val normalized = value.substringBefore('.').take(19)
-    return runCatching {
-        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).apply {
-            isLenient = false
-        }.parse(normalized)
-    }.getOrNull()
-}
-
 private enum class JobRoleFilter(val label: String) {
     ALL("Todos"),
     CLIENT("Como cliente"),
@@ -481,10 +459,8 @@ private enum class JobRoleFilter(val label: String) {
     fun matches(job: JobDto, task: TaskDto?): Boolean {
         return when (this) {
             ALL -> true
-            CLIENT -> task?.idCliente == DEMO_JOB_USER_ID
-            STUDENT -> job.idEstudiante == DEMO_JOB_USER_ID
+            CLIENT -> task?.idCliente == DemoSession.USER_ID
+            STUDENT -> job.idEstudiante == DemoSession.USER_ID
         }
     }
 }
-
-private const val DEMO_JOB_USER_ID = 1

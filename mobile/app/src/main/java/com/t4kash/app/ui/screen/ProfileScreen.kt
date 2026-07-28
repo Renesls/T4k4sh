@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import com.t4kash.app.ui.components.T4BottomBar
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.DemoSession
 import com.t4kash.app.ui.navigation.Routes
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
@@ -61,7 +62,7 @@ fun ProfileScreen(
     onOpenWallet: () -> Unit,
     onLogout: () -> Unit
 ) {
-    val ownTasks = viewModel.uiState.tasks.filter { it.idCliente == DEMO_PROFILE_USER_ID }
+    val ownTasks = viewModel.uiState.tasks.filter { it.idCliente == DemoSession.USER_ID }
     val activeTasks = ownTasks.count {
         it.estadoTarea.equals("PUBLICADA", ignoreCase = true)
     }
@@ -69,7 +70,7 @@ fun ProfileScreen(
         it.estadoTarea.equals("ASIGNADA", ignoreCase = true)
     }
     val relatedJobs = viewModel.uiState.jobs.count { job ->
-        job.idEstudiante == DEMO_PROFILE_USER_ID ||
+        job.idEstudiante == DemoSession.USER_ID ||
             ownTasks.any { it.idTarea == job.idTarea }
     }
 
@@ -140,7 +141,7 @@ fun ProfileScreen(
                                 color = Color.White.copy(alpha = 0.82f)
                             )
                             Text(
-                                text = "Usuario #$DEMO_PROFILE_USER_ID",
+                                text = "Usuario #${DemoSession.USER_ID}",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = T4Mint
                             )
@@ -421,5 +422,3 @@ private fun ProfileInfoRow(
         }
     }
 }
-
-private const val DEMO_PROFILE_USER_ID = 1

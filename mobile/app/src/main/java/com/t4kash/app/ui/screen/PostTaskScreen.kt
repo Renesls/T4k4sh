@@ -69,6 +69,7 @@ import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4BottomBar
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.DemoSession
 import com.t4kash.app.ui.components.t4CategoryColors
 import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.model.PendingAttachment
@@ -136,7 +137,18 @@ fun PostTaskScreen(
         }
     }
 
-    val locationProvider = if (hasLocationPermission) {
+    val hasRuntimeLocationPermission =
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+    val locationProvider = if (
+        hasLocationPermission && hasRuntimeLocationPermission
+    ) {
         rememberDefaultLocationProvider()
     } else {
         rememberNullLocationProvider()
@@ -231,7 +243,7 @@ fun PostTaskScreen(
                 fechaLimitePostulacion = applicationDeadline.toApiDateTime(),
                 fechaLimite = taskDeadline.toApiDateTime(),
                 idCategoria = selectedCategoryId ?: return,
-                idCliente = 1,
+                idCliente = DemoSession.USER_ID,
                 modalidad = modality,
                 direccionReferencia = addressReference.trim().takeIf {
                     modality != MODALIDAD_REMOTA && it.isNotEmpty()

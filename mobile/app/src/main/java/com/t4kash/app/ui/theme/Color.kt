@@ -2,7 +2,7 @@ package com.t4kash.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Brand palette sampled from the visual identity supplied by the team.
+// Paleta tomada de la identidad visual definida por el equipo.
 val T4BrandDark = Color(0xFF191919)
 val T4Primary = Color(0xFF5749FD)
 val T4PrimarySoft = Color(0xFF6B5EFF)

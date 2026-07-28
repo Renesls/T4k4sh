@@ -58,6 +58,9 @@ import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
 import com.t4kash.app.ui.components.t4CategoryColors
+import com.t4kash.app.ui.DemoSession
+import com.t4kash.app.ui.formatApiDateTime
+import com.t4kash.app.ui.formatNioCurrency
 import com.t4kash.app.ui.model.CreateApplicationRequest
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.theme.T4Background
@@ -109,7 +112,7 @@ fun OpportunityDetailScreen(
                 viewModel.applyToTask(
                     taskId = task.idTarea,
                     request = CreateApplicationRequest(
-                        idEstudiante = DEMO_STUDENT_ID,
+                        idEstudiante = DemoSession.USER_ID,
                         mensaje = message,
                         precioPropuesto = proposedPrice
                     )
@@ -137,7 +140,7 @@ fun OpportunityDetailScreen(
                     onManageApplications = onManageApplications,
                     isApplying = state.isApplying,
                     canApply = task.estadoTarea.equals("PUBLICADA", ignoreCase = true),
-                    isOwnedTask = task.idCliente == DEMO_CLIENT_ID
+                    isOwnedTask = task.idCliente == DemoSession.USER_ID
                 )
             }
         }
@@ -200,7 +203,6 @@ fun OpportunityDetailScreen(
         }
     }
 }
-
 @Composable
 private fun OpportunityDetailContent(
     task: TaskDto,
@@ -291,7 +293,11 @@ private fun OpportunityDetailContent(
             DetailSection(title = "Resumen rapido") {
                 SummaryRow("Estado", task.estadoTarea, Icons.Filled.Event)
                 SummaryRow("Modalidad", task.modalidad ?: "No definida", Icons.Filled.Place)
-                SummaryRow("Fecha limite", task.fechaLimite ?: "Por confirmar", Icons.Filled.Event)
+                SummaryRow(
+                    "Fecha limite",
+                    formatApiDateTime(task.fechaLimite, emptyValue = "Por confirmar"),
+                    Icons.Filled.Event
+                )
                 SummaryRow("Visibilidad", task.visibilidad, Icons.Filled.Place)
                 if (task.hasMapLocation()) {
                     SummaryRow(
@@ -345,7 +351,7 @@ private fun HeroCard(task: TaskDto) {
 
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    text = "C\$ ${"%.2f".format(task.presupuesto)}",
+                    text = formatNioCurrency(task.presupuesto),
                     color = T4Mint,
                     style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Black
@@ -638,6 +644,3 @@ private fun DetailActionBar(
         }
     }
 }
-
-private const val DEMO_STUDENT_ID = 1
-private const val DEMO_CLIENT_ID = 1

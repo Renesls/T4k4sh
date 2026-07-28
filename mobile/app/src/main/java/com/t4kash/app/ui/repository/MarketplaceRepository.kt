@@ -1,5 +1,6 @@
 package com.t4kash.app.ui.repository
 
+import com.t4kash.app.ui.DemoSession
 import com.t4kash.app.ui.model.ApplicationDto
 import com.t4kash.app.ui.model.AttachmentDto
 import com.t4kash.app.ui.model.CreateApplicationRequest
@@ -159,7 +160,8 @@ class MarketplaceRepository(
                 attachment.name,
                 fileBody
             )
-            val userId = "1".toRequestBody("text/plain".toMediaType())
+            val userId = DemoSession.USER_ID.toString()
+                .toRequestBody("text/plain".toMediaType())
             ApiResult.Success(upload(userId, filePart))
         } catch (e: Exception) {
             ApiResult.Error(e.apiMessage("No se pudo subir ${attachment.name}."))

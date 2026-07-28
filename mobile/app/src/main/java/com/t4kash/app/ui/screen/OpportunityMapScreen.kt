@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -112,7 +113,7 @@ fun OpportunityMapScreen(
     var isMapLoading by remember { mutableStateOf(true) }
     var mapErrorMessage by remember { mutableStateOf<String?>(null) }
     var hasCenteredOnUser by rememberSaveable { mutableStateOf(false) }
-    var radiusKm by rememberSaveable { mutableStateOf(DEFAULT_RADIUS_KM) }
+    var radiusKm by rememberSaveable { mutableFloatStateOf(DEFAULT_RADIUS_KM) }
     var hasLocationPermission by remember {
         mutableStateOf(context.hasLocationPermission())
     }

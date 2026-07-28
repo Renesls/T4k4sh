@@ -459,8 +459,8 @@ private fun DrawScope.drawTriangle(
 @Composable
 fun StatusChip(
     text: String,
-    selected: Boolean = false,
     modifier: Modifier = Modifier,
+    selected: Boolean = false,
     containerColor: Color? = null,
     contentColor: Color? = null
 ) {

@@ -149,7 +149,6 @@ T4k4sh/
     sqlserver-original.sql Referencia histórica del modelo original
   docs/
     diagramas/            Diagramas de base de datos y UML
-    deployment.md         Guía de Render y Supabase
   render.yaml             Configuración del servicio de Render
   README.md               Documentación principal
 ```
@@ -379,8 +378,6 @@ Las contraseñas, cadenas de conexión y claves privadas no deben guardarse en G
 
 ## Despliegue
 
-La guía ampliada se encuentra en `docs/deployment.md`.
-
 Orden correcto para publicar cambios:
 
 1. Verificar que el esquema actualizado ya esté aplicado en Supabase.
@@ -461,9 +458,10 @@ chore: ajustar configuración de render
 
 ## Etapas Pendientes
 
-1. **Optimización y estandarización**
-   - Aplicar las convenciones de nombres en el código interno nuevo.
-   - Centralizar formatos repetidos de fechas, córdobas y tamaños de archivo.
+1. **Optimización y estandarización (en progreso)**
+   - Ya se centralizaron los formatos de fechas, córdobas y tamaños de archivo.
+   - El usuario demo se obtiene desde un único punto de la aplicación.
+   - Mantener las convenciones de nombres en todo código interno nuevo.
    - Reducir recargas y solicitudes duplicadas al backend.
    - Dividir componentes o `ViewModel` que acumulen demasiadas responsabilidades.
    - Eliminar comentarios redundantes y mantener solo los que aporten contexto.

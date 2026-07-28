@@ -47,8 +47,12 @@ import com.t4kash.app.ui.components.EmptyState
 import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.DemoSession
+import com.t4kash.app.ui.formatApiDateTime
+import com.t4kash.app.ui.formatNioCurrency
 import com.t4kash.app.ui.model.CategoryDto
 import com.t4kash.app.ui.model.TaskDto
+import com.t4kash.app.ui.parseApiDateTime
 import com.t4kash.app.ui.theme.T4AmberContainer
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
@@ -61,9 +65,6 @@ import com.t4kash.app.ui.theme.T4Surface
 import com.t4kash.app.ui.theme.T4Text
 import com.t4kash.app.ui.theme.T4TextMuted
 import com.t4kash.app.ui.viewmodel.MarketplaceViewModel
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 @Composable
@@ -79,7 +80,7 @@ fun MyPublicationsScreen(
     }
     val selectedFilter = PublicationFilter.valueOf(selectedFilterName)
     val ownTasks = state.tasks
-        .filter { it.idCliente == DEMO_CLIENT_ID }
+        .filter { it.idCliente == DemoSession.USER_ID }
         .sortedByDescending { it.fechaPublicacion }
     val filteredTasks = ownTasks.filter {
         selectedFilter.status == null ||
@@ -288,7 +289,7 @@ private fun PublicationCard(
                 PublicationValue(
                     icon = Icons.Filled.Payments,
                     label = "Presupuesto",
-                    value = "C\$ ${"%.2f".format(task.presupuesto)}",
+                    value = formatNioCurrency(task.presupuesto),
                     modifier = Modifier.weight(1f)
                 )
                 PublicationValue(
@@ -302,17 +303,17 @@ private fun PublicationCard(
             PublicationDateRow(
                 icon = Icons.Filled.CalendarMonth,
                 label = "Publicada",
-                value = task.fechaPublicacion.toDisplayDate()
+                value = formatApiDateTime(task.fechaPublicacion)
             )
             PublicationDateRow(
                 icon = Icons.Filled.EventAvailable,
                 label = "Cierre de postulaciones",
-                value = task.fechaLimitePostulacion.toDisplayDate()
+                value = formatApiDateTime(task.fechaLimitePostulacion)
             )
             PublicationDateRow(
                 icon = Icons.Filled.Work,
                 label = "Fecha limite del trabajo",
-                value = task.fechaLimite.toDisplayDate()
+                value = formatApiDateTime(task.fechaLimite)
             )
 
             Row(
@@ -429,14 +430,6 @@ private fun publicationStatusColors(status: String): Pair<Color, Color> {
     }
 }
 
-private fun String?.toDisplayDate(): String {
-    if (this.isNullOrBlank()) {
-        return "Sin fecha definida"
-    }
-    val parsed = parseApiDate(this) ?: return substringBefore('.').replace('T', ' ')
-    return SimpleDateFormat("dd/MM/yyyy · HH:mm", Locale.getDefault()).format(parsed)
-}
-
 private fun TaskDto.deadlineSummary(): String {
     if (estadoTarea.equals("ASIGNADA", ignoreCase = true)) {
         return "Trabajo asignado"
@@ -444,7 +437,7 @@ private fun TaskDto.deadlineSummary(): String {
     if (estadoTarea.equals("CERRADA", ignoreCase = true)) {
         return "Postulaciones cerradas"
     }
-    val deadline = parseApiDate(fechaLimitePostulacion ?: fechaLimite)
+    val deadline = parseApiDateTime(fechaLimitePostulacion ?: fechaLimite)
         ?: return "Sin cierre programado"
     val remainingMillis = deadline.time - System.currentTimeMillis()
     if (remainingMillis <= 0) {
@@ -456,18 +449,6 @@ private fun TaskDto.deadlineSummary(): String {
     }
     val hours = TimeUnit.MILLISECONDS.toHours(remainingMillis).coerceAtLeast(1)
     return if (hours == 1L) "Finaliza en 1 hora" else "Finaliza en $hours horas"
-}
-
-private fun parseApiDate(value: String?): Date? {
-    if (value.isNullOrBlank()) {
-        return null
-    }
-    val normalized = value.substringBefore('.').take(19)
-    return runCatching {
-        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).apply {
-            isLenient = false
-        }.parse(normalized)
-    }.getOrNull()
 }
 
 private enum class PublicationFilter(
@@ -488,5 +469,3 @@ private enum class PublicationFilter(
         }
     }
 }
-
-private const val DEMO_CLIENT_ID = 1

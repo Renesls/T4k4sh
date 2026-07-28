@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.t4kash.app.BuildConfig
+import com.t4kash.app.ui.formatFileSize
 import com.t4kash.app.ui.model.AttachmentDto
 import com.t4kash.app.ui.model.PendingAttachment
 import com.t4kash.app.ui.theme.T4Border
@@ -43,7 +44,6 @@ import com.t4kash.app.ui.theme.T4Primary
 import com.t4kash.app.ui.theme.T4Surface
 import com.t4kash.app.ui.theme.T4Text
 import com.t4kash.app.ui.theme.T4TextMuted
-import java.util.Locale
 
 @Composable
 fun AttachmentPickerSection(
@@ -158,7 +158,7 @@ private fun PendingAttachmentRow(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = formatAttachmentSize(attachment.content.size.toLong()),
+                text = formatFileSize(attachment.content.size.toLong()),
                 style = MaterialTheme.typography.bodySmall,
                 color = T4TextMuted
             )
@@ -198,7 +198,7 @@ fun StoredAttachmentRow(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = formatAttachmentSize(attachment.tamanoBytes),
+                text = formatFileSize(attachment.tamanoBytes),
                 style = MaterialTheme.typography.bodySmall,
                 color = T4TextMuted
             )
@@ -209,18 +209,6 @@ fun StoredAttachmentRow(
                 contentDescription = "Descargar ${attachment.nombreOriginal}"
             )
         }
-    }
-}
-
-fun formatAttachmentSize(bytes: Long): String {
-    return when {
-        bytes >= 1024L * 1024L ->
-            String.format(Locale.US, "%.1f MB", bytes / (1024f * 1024f))
-
-        bytes >= 1024L ->
-            String.format(Locale.US, "%.1f KB", bytes / 1024f)
-
-        else -> "$bytes B"
     }
 }
 

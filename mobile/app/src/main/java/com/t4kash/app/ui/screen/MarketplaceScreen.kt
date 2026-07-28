@@ -61,6 +61,7 @@ import com.t4kash.app.ui.components.T4BottomBar
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
 import com.t4kash.app.ui.components.t4CategoryColors
+import com.t4kash.app.ui.formatNioCurrency
 import com.t4kash.app.ui.model.CategoryDto
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.navigation.Routes
@@ -371,7 +372,7 @@ private fun TaskCard(
                     contentColor = categoryColors.content
                 )
                 Text(
-                    text = "C\$ ${"%.2f".format(task.presupuesto)}",
+                    text = formatNioCurrency(task.presupuesto),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = T4MintDark
