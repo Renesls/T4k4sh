@@ -53,7 +53,8 @@ data class ApplicationDto(
     val mensaje: String?,
     val precioPropuesto: Double?,
     val fechaPostulacion: String,
-    val estadoPostulacion: String
+    val estadoPostulacion: String,
+    val numeroIntento: Int
 )
 
 data class JobDto(
@@ -87,6 +88,7 @@ data class AttachmentDto(
     val idArchivo: Int,
     val idTarea: Int?,
     val idEntrega: Int?,
+    val idVerificacion: Int?,
     val idUsuarioSube: Int,
     val nombreOriginal: String,
     val tipoMime: String,

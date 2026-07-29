@@ -12,6 +12,7 @@ import com.t4kash.api.marketplace.entity.Entrega;
 import com.t4kash.api.marketplace.entity.Postulacion;
 import com.t4kash.api.marketplace.entity.Tarea;
 import com.t4kash.api.marketplace.entity.TrabajoAsignado;
+import com.t4kash.api.marketplace.entity.UsuarioEstudiante;
 import com.t4kash.api.marketplace.repository.CategoriaTareaRepository;
 import com.t4kash.api.marketplace.repository.EntregaRepository;
 import com.t4kash.api.marketplace.repository.PostulacionRepository;
@@ -174,6 +175,10 @@ class MarketplaceServiceTest {
         when(postulacionRepository.findById(100)).thenReturn(Optional.of(accepted));
         when(trabajoRepository.findByIdTarea(10)).thenReturn(Optional.empty());
         when(tareaRepository.findById(10)).thenReturn(Optional.of(task));
+        when(estudianteRepository.findByIdForUpdate(1))
+                .thenReturn(Optional.of(new UsuarioEstudiante()));
+        when(trabajoRepository.countByIdEstudianteAndEstadoTrabajo(1, "EN_PROCESO"))
+                .thenReturn(0L);
         when(
                 postulacionRepository
                         .findByIdTareaAndEstadoPostulacionAndIdPostulacionNot(
@@ -196,6 +201,100 @@ class MarketplaceServiceTest {
         assertEquals("ACEPTADA", accepted.getEstadoPostulacion());
         assertEquals("RECHAZADA", remaining.getEstadoPostulacion());
         verify(postulacionRepository).saveAll(List.of(remaining));
+    }
+
+    @Test
+    void rejectedStudentCanApplyAgainWithSecondAttempt() {
+        Tarea task = task(10, "PUBLICADA", LocalDateTime.now().plusDays(1));
+        Postulacion previous = application(90, 10, 2);
+        previous.setEstadoPostulacion("RECHAZADA");
+        previous.setNumeroIntento(1);
+        when(tareaRepository.findById(10)).thenReturn(Optional.of(task));
+        when(estudianteRepository.existsById(2)).thenReturn(true);
+        when(trabajoRepository.countByIdEstudianteAndEstadoTrabajo(2, "EN_PROCESO"))
+                .thenReturn(0L);
+        when(
+                postulacionRepository
+                        .findFirstByIdTareaAndIdEstudianteOrderByNumeroIntentoDesc(10, 2)
+        ).thenReturn(Optional.of(previous));
+        when(postulacionRepository.save(any(Postulacion.class)))
+                .thenAnswer(invocation -> {
+                    Postulacion application = invocation.getArgument(0);
+                    application.setIdPostulacion(100);
+                    return application;
+                });
+
+        var response = service.applyToTask(
+                2,
+                10,
+                new CreateApplicationRequest(
+                        "Nueva propuesta con cambios.",
+                        new BigDecimal("18.00")
+                )
+        );
+
+        assertEquals(2, response.numeroIntento());
+        assertEquals("PENDIENTE", response.estadoPostulacion());
+    }
+
+    @Test
+    void studentCannotExceedThreeApplicationAttempts() {
+        Tarea task = task(10, "PUBLICADA", LocalDateTime.now().plusDays(1));
+        Postulacion previous = application(90, 10, 2);
+        previous.setEstadoPostulacion("RECHAZADA");
+        previous.setNumeroIntento(3);
+        when(tareaRepository.findById(10)).thenReturn(Optional.of(task));
+        when(estudianteRepository.existsById(2)).thenReturn(true);
+        when(trabajoRepository.countByIdEstudianteAndEstadoTrabajo(2, "EN_PROCESO"))
+                .thenReturn(0L);
+        when(
+                postulacionRepository
+                        .findFirstByIdTareaAndIdEstudianteOrderByNumeroIntentoDesc(10, 2)
+        ).thenReturn(Optional.of(previous));
+
+        assertThrows(
+                ResourceConflictException.class,
+                () -> service.applyToTask(
+                        2,
+                        10,
+                        new CreateApplicationRequest(
+                                "Cuarta propuesta.",
+                                new BigDecimal("18.00")
+                        )
+                )
+        );
+    }
+
+    @Test
+    void secondActiveJobCancelsOtherPendingApplications() {
+        Tarea task = task(10, "PUBLICADA", LocalDateTime.now().plusDays(1));
+        Postulacion accepted = application(100, 10, 2);
+        accepted.setNumeroIntento(1);
+        Postulacion otherPending = application(110, 20, 2);
+        otherPending.setNumeroIntento(1);
+        when(postulacionRepository.findById(100)).thenReturn(Optional.of(accepted));
+        when(tareaRepository.findById(10)).thenReturn(Optional.of(task));
+        when(trabajoRepository.findByIdTarea(10)).thenReturn(Optional.empty());
+        when(estudianteRepository.findByIdForUpdate(2))
+                .thenReturn(Optional.of(new UsuarioEstudiante()));
+        when(trabajoRepository.countByIdEstudianteAndEstadoTrabajo(2, "EN_PROCESO"))
+                .thenReturn(1L);
+        when(
+                postulacionRepository.findByIdEstudianteAndEstadoPostulacion(
+                        2,
+                        "PENDIENTE"
+                )
+        ).thenReturn(List.of(otherPending));
+        when(trabajoRepository.save(any(TrabajoAsignado.class)))
+                .thenAnswer(invocation -> {
+                    TrabajoAsignado job = invocation.getArgument(0);
+                    job.setIdTrabajo(50);
+                    return job;
+                });
+
+        service.acceptApplication(1, 100);
+
+        assertEquals("CANCELADA_LIMITE", otherPending.getEstadoPostulacion());
     }
 
     @Test
@@ -341,6 +440,7 @@ class MarketplaceServiceTest {
         application.setPrecioPropuesto(new BigDecimal("20.00"));
         application.setFechaPostulacion(LocalDateTime.now().minusMinutes(10));
         application.setEstadoPostulacion("PENDIENTE");
+        application.setNumeroIntento(1);
         return application;
     }
 

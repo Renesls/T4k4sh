@@ -143,18 +143,30 @@ public class AuthService {
             throw new IllegalStateException("No se encontro el rol CLIENTE.");
         }
 
-        if (profile.student()) {
-            int assignedStudentRole = usuarioRolRepository.assignRole(
-                    usuario.getIdUsuario(),
-                    "ESTUDIANTE"
-            );
-            if (assignedStudentRole == 0) {
-                throw new IllegalStateException("No se encontro el rol ESTUDIANTE.");
+        if (profile.studentRequested()) {
+            if (!profile.automaticStudentAccess()
+                    && (request.carnetUniversitario() == null
+                    || request.carnetUniversitario().isBlank())) {
+                throw new IllegalArgumentException(
+                        "Ingresa tu carnet para solicitar la validacion estudiantil."
+                );
+            }
+            if (profile.automaticStudentAccess()) {
+                assignStudentRole(usuario.getIdUsuario());
             }
             UsuarioEstudiante estudiante = new UsuarioEstudiante();
             estudiante.setIdUsuario(usuario.getIdUsuario());
             estudiante.setIdCarrera(profile.careerId());
-            estudiante.setEstadoPerfilEstudiante(PENDING_VERIFICATION);
+            estudiante.setCarnetUniversitario(
+                    request.carnetUniversitario() == null
+                            ? null
+                            : request.carnetUniversitario().trim()
+            );
+            estudiante.setEstadoPerfilEstudiante(
+                    profile.automaticStudentAccess()
+                            ? PENDING_VERIFICATION
+                            : "PENDIENTE_REVISION"
+            );
             estudiante.setFechaCreacion(now);
             estudianteRepository.save(estudiante);
         }
@@ -204,8 +216,12 @@ public class AuthService {
 
         estudianteRepository.findById(usuario.getIdUsuario())
                 .ifPresent(estudiante -> {
-                    estudiante.setEstadoPerfilEstudiante(ACTIVE_USER);
-                    estudianteRepository.save(estudiante);
+                    if (PENDING_VERIFICATION.equals(
+                            estudiante.getEstadoPerfilEstudiante()
+                    )) {
+                        estudiante.setEstadoPerfilEstudiante(ACTIVE_USER);
+                        estudianteRepository.save(estudiante);
+                    }
                 });
 
         verification.setEstadoVerificacion(VERIFIED);
@@ -579,6 +595,16 @@ public class AuthService {
                     session.setFechaCierre(now);
                     sesionRepository.save(session);
                 });
+    }
+
+    private void assignStudentRole(Integer userId) {
+        int assignedStudentRole = usuarioRolRepository.assignRole(
+                userId,
+                "ESTUDIANTE"
+        );
+        if (assignedStudentRole == 0) {
+            throw new IllegalStateException("No se encontro el rol ESTUDIANTE.");
+        }
     }
 
     private RegistrationResponse registrationResponse(

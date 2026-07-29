@@ -71,6 +71,7 @@ fun RegisterScreen(
     var validationError by remember { mutableStateOf<String?>(null) }
     var selectedUniversityId by rememberSaveable { mutableStateOf<Int?>(null) }
     var selectedCareerId by rememberSaveable { mutableStateOf<Int?>(null) }
+    var studentCard by rememberSaveable { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
     val uiState = viewModel.uiState
     val selectedUniversity = uiState.universities.firstOrNull {
@@ -105,6 +106,11 @@ fun RegisterScreen(
             selectedUniversityId != NO_INSTITUTION_ID && selectedCareerId == null ->
                 "Selecciona tu carrera."
 
+            selectedUniversity?.dominioCorreo.isNullOrBlank() &&
+                selectedUniversityId != NO_INSTITUTION_ID &&
+                studentCard.isBlank() ->
+                "Ingresa tu numero de carnet para solicitar la validacion."
+
             !email.contains("@") ->
                 "Ingresa un correo válido."
 
@@ -128,6 +134,9 @@ fun RegisterScreen(
                 },
                 careerId = selectedCareerId.takeIf {
                     selectedUniversityId != NO_INSTITUTION_ID
+                },
+                studentCard = studentCard.takeIf {
+                    selectedUniversity?.dominioCorreo.isNullOrBlank()
                 },
                 onVerificationRequired = onVerificationRequired
             )
@@ -245,6 +254,7 @@ fun RegisterScreen(
                             onSelected = { universityId ->
                                 selectedUniversityId = universityId
                                 selectedCareerId = null
+                                studentCard = ""
                                 validationError = null
                                 viewModel.clearError()
                                 if (universityId != NO_INSTITUTION_ID) {
@@ -273,6 +283,29 @@ fun RegisterScreen(
                                     validationError = null
                                     viewModel.clearError()
                                 }
+                            )
+                        }
+                        if (
+                            selectedUniversityId != null &&
+                            selectedUniversityId != NO_INSTITUTION_ID &&
+                            selectedUniversity?.dominioCorreo.isNullOrBlank()
+                        ) {
+                            Text(
+                                text = "Esta universidad requiere validar carnet o constancia despues de confirmar el correo.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = T4Text
+                            )
+                            OutlinedTextField(
+                                value = studentCard,
+                                onValueChange = {
+                                    studentCard = it.take(50)
+                                    validationError = null
+                                    viewModel.clearError()
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("Numero de carnet") },
+                                singleLine = true,
+                                shape = RoundedCornerShape(8.dp)
                             )
                         }
                         OutlinedTextField(

@@ -113,8 +113,11 @@ public class AttachmentController {
             @PathVariable Integer attachmentId
     ) {
         AuthenticatedUserResponse user = authenticatedUserService.requireUser(authorization);
-        DownloadedAttachment attachment =
-                attachmentService.download(attachmentId, user.idUsuario());
+        DownloadedAttachment attachment = attachmentService.download(
+                attachmentId,
+                user.idUsuario(),
+                user.roles().stream().anyMatch("ADMIN"::equalsIgnoreCase)
+        );
         ContentDisposition disposition = ContentDisposition.attachment()
                 .filename(attachment.fileName(), StandardCharsets.UTF_8)
                 .build();

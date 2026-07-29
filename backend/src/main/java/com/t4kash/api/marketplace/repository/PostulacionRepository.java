@@ -15,5 +15,24 @@ public interface PostulacionRepository extends JpaRepository<Postulacion, Intege
             Integer idPostulacion
     );
 
-    Optional<Postulacion> findByIdTareaAndIdEstudiante(Integer idTarea, Integer idEstudiante);
+    Optional<Postulacion>
+    findFirstByIdTareaAndIdEstudianteOrderByNumeroIntentoDesc(
+            Integer idTarea,
+            Integer idEstudiante
+    );
+
+    List<Postulacion>
+    findByIdEstudianteOrderByFechaPostulacionDesc(Integer idEstudiante);
+
+    List<Postulacion>
+    findByIdEstudianteAndEstadoPostulacion(
+            Integer idEstudiante,
+            String estadoPostulacion
+    );
+
+    List<Postulacion>
+    findByIdTareaAndEstadoPostulacion(
+            Integer idTarea,
+            String estadoPostulacion
+    );
 }

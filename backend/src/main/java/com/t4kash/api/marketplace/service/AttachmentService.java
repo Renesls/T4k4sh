@@ -86,7 +86,7 @@ public class AttachmentService {
     ) {
         Tarea tarea = findTask(taskId);
         requireTaskOwner(tarea, userId);
-        return store(file, userId, taskId, null, "tasks/" + taskId);
+        return store(file, userId, taskId, null, null, "tasks/" + taskId);
     }
 
     @Transactional
@@ -98,7 +98,23 @@ public class AttachmentService {
         Entrega entrega = findDelivery(deliveryId);
         TrabajoAsignado trabajo = findJob(entrega.getIdTrabajo());
         requireAssignedStudent(trabajo, userId);
-        return store(file, userId, null, deliveryId, "deliveries/" + deliveryId);
+        return store(file, userId, null, deliveryId, null, "deliveries/" + deliveryId);
+    }
+
+    @Transactional
+    public AttachmentResponse attachToVerification(
+            Integer verificationId,
+            Integer userId,
+            MultipartFile file
+    ) {
+        return store(
+                file,
+                userId,
+                null,
+                null,
+                verificationId,
+                "student-verifications/" + verificationId
+        );
     }
 
     @Transactional(readOnly = true)
@@ -153,13 +169,34 @@ public class AttachmentService {
     }
 
     @Transactional(readOnly = true)
+    public List<AttachmentResponse> listVerificationAttachments(Integer verificationId) {
+        return archivoRepository
+                .findByIdVerificacionAndEstadoArchivoOrderByFechaSubidaDesc(
+                        verificationId,
+                        ACTIVE_STATUS
+                )
+                .stream()
+                .map(AttachmentResponse::fromEntity)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public DownloadedAttachment download(Integer attachmentId, Integer userId) {
+        return download(attachmentId, userId, false);
+    }
+
+    @Transactional(readOnly = true)
+    public DownloadedAttachment download(
+            Integer attachmentId,
+            Integer userId,
+            boolean administrator
+    ) {
         ArchivoAdjunto attachment = archivoRepository.findById(attachmentId)
                 .filter(file -> ACTIVE_STATUS.equals(file.getEstadoArchivo()))
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "El archivo adjunto indicado no existe."
                 ));
-        requireAttachmentAccess(attachment, userId);
+        requireAttachmentAccess(attachment, userId, administrator);
         return new DownloadedAttachment(
                 attachment.getNombreOriginal(),
                 attachment.getTipoMime(),
@@ -172,6 +209,7 @@ public class AttachmentService {
             Integer userId,
             Integer taskId,
             Integer deliveryId,
+            Integer verificationId,
             String folder
     ) {
         ValidatedFile validated = validate(file);
@@ -188,6 +226,7 @@ public class AttachmentService {
             ArchivoAdjunto attachment = new ArchivoAdjunto();
             attachment.setIdTarea(taskId);
             attachment.setIdEntrega(deliveryId);
+            attachment.setIdVerificacion(verificationId);
             attachment.setIdUsuarioSube(userId);
             attachment.setNombreOriginal(validated.originalName());
             attachment.setTipoMime(validated.mimeType());
@@ -274,7 +313,8 @@ public class AttachmentService {
 
     private void requireAttachmentAccess(
             ArchivoAdjunto attachment,
-            Integer userId
+            Integer userId,
+            boolean administrator
     ) {
         if (attachment.getIdTarea() != null) {
             findTask(attachment.getIdTarea());
@@ -284,6 +324,14 @@ public class AttachmentService {
             Entrega entrega = findDelivery(attachment.getIdEntrega());
             requireJobParticipant(findJob(entrega.getIdTrabajo()), userId);
             return;
+        }
+        if (attachment.getIdVerificacion() != null) {
+            if (administrator || attachment.getIdUsuarioSube().equals(userId)) {
+                return;
+            }
+            throw new ForbiddenOperationException(
+                    "Solo el estudiante o un administrador pueden consultar este archivo."
+            );
         }
         throw new ForbiddenOperationException(
                 "El archivo no esta asociado a un recurso accesible."

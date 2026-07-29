@@ -26,7 +26,11 @@ internal class ApplicationActions(
                 is ApiResult.Success -> updateState {
                     it.copy(
                         isApplying = false,
-                        sentApplication = result.data
+                        sentApplication = result.data,
+                        myApplications = listOf(result.data) +
+                            it.myApplications.filterNot { existing ->
+                                existing.idPostulacion == result.data.idPostulacion
+                            }
                     )
                 }
 
@@ -46,6 +50,36 @@ internal class ApplicationActions(
                 applicationError = null,
                 sentApplication = null
             )
+        }
+    }
+
+    fun loadMine(force: Boolean = false) {
+        val current = state()
+        if (current.isLoadingMyApplications || (!force && current.myApplications.isNotEmpty())) {
+            return
+        }
+        scope.launch {
+            updateState {
+                it.copy(
+                    isLoadingMyApplications = true,
+                    myApplicationsError = null
+                )
+            }
+            when (val result = repository.loadMyApplications()) {
+                is ApiResult.Success -> updateState {
+                    it.copy(
+                        myApplications = result.data,
+                        isLoadingMyApplications = false
+                    )
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        isLoadingMyApplications = false,
+                        myApplicationsError = result.message
+                    )
+                }
+            }
         }
     }
 

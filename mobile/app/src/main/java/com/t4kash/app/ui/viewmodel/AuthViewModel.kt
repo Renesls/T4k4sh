@@ -115,6 +115,7 @@ class AuthViewModel(
         password: String,
         universityId: Int?,
         careerId: Int?,
+        studentCard: String?,
         onVerificationRequired: (String) -> Unit
     ) {
         if (uiState.isLoading) return
@@ -131,7 +132,8 @@ class AuthViewModel(
                     correo = email.trim(),
                     password = password,
                     idUniversidad = universityId,
-                    idCarrera = careerId
+                    idCarrera = careerId,
+                    carnetUniversitario = studentCard?.trim()?.takeIf { it.isNotEmpty() }
                 )
             )
             when (result) {

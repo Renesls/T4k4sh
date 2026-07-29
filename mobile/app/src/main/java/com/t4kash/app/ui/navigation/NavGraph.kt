@@ -258,6 +258,23 @@ fun NavGraph(
         composable(Routes.CHAT) {
             ChatScreen(onNavigate = onBottomNavigate)
         }
+        composable(
+            route = Routes.TASK_EDIT,
+            arguments = listOf(
+                navArgument(Routes.TASK_ID_ARG) { type = NavType.IntType }
+            )
+        ) { backStackEntry ->
+            val taskId = backStackEntry.arguments?.getInt(Routes.TASK_ID_ARG) ?: 0
+            PostTaskScreen(
+                viewModel = marketplaceViewModel,
+                onNavigate = onBottomNavigate,
+                editTaskId = taskId,
+                onBack = { navController.popBackStack() },
+                onTaskPublished = {
+                    navController.popBackStack()
+                }
+            )
+        }
         composable(Routes.PROFILE) {
             val currentUser = session?.user
             if (currentUser == null) {
@@ -301,6 +318,9 @@ fun NavGraph(
                 onBack = { navController.popBackStack() },
                 onTaskSelected = { taskId ->
                     navController.navigate(Routes.taskDetails(taskId))
+                },
+                onEditTask = { taskId ->
+                    navController.navigate(Routes.editTask(taskId))
                 }
             )
         }

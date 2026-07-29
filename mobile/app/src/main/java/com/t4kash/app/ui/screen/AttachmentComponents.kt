@@ -2,6 +2,7 @@ package com.t4kash.app.ui.screen
 
 import android.app.DownloadManager
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.database.Cursor
 import android.net.Uri
 import android.os.Environment
@@ -9,6 +10,7 @@ import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,9 +31,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -39,6 +45,7 @@ import com.t4kash.app.BuildConfig
 import com.t4kash.app.ui.formatFileSize
 import com.t4kash.app.ui.model.AttachmentDto
 import com.t4kash.app.ui.model.PendingAttachment
+import com.t4kash.app.ui.session.UserSession
 import com.t4kash.app.ui.theme.T4Border
 import com.t4kash.app.ui.theme.T4Primary
 import com.t4kash.app.ui.theme.T4Surface
@@ -138,16 +145,33 @@ private fun PendingAttachmentRow(
     onRemove: () -> Unit,
     enabled: Boolean
 ) {
+    val imagePreview = remember(attachment.content, attachment.mimeType) {
+        attachment.content
+            .takeIf { attachment.mimeType.startsWith("image/") }
+            ?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+            ?.asImageBitmap()
+    }
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = Icons.Filled.InsertDriveFile,
-            contentDescription = null,
-            tint = T4Primary
-        )
+        if (imagePreview != null) {
+            Image(
+                bitmap = imagePreview,
+                contentDescription = "Vista previa de ${attachment.name}",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(6.dp))
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Filled.InsertDriveFile,
+                contentDescription = null,
+                tint = T4Primary
+            )
+        }
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = attachment.name,
@@ -270,6 +294,9 @@ private fun Context.downloadAttachment(attachment: AttachmentDto) {
             Environment.DIRECTORY_DOWNLOADS,
             attachment.nombreOriginal
         )
+    UserSession.accessToken?.takeIf { it.isNotBlank() }?.let {
+        request.addRequestHeader("Authorization", "Bearer $it")
+    }
     val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
     manager.enqueue(request)
 }

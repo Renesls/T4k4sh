@@ -23,7 +23,7 @@ public class VerificacionUsuario {
     @Column(name = "correo_institucional", nullable = false, length = 150)
     private String correoInstitucional;
 
-    @Column(name = "codigo_verificacion", nullable = false, length = 20)
+    @Column(name = "codigo_verificacion", length = 20)
     private String codigoVerificacion;
 
     @Column(name = "estado_verificacion", nullable = false, length = 30)

@@ -18,6 +18,9 @@ data class MarketplaceUiState(
     val isApplying: Boolean = false,
     val applicationError: String? = null,
     val sentApplication: ApplicationDto? = null,
+    val myApplications: List<ApplicationDto> = emptyList(),
+    val isLoadingMyApplications: Boolean = false,
+    val myApplicationsError: String? = null,
     val managedTaskId: Int? = null,
     val loadedApplicationsTaskId: Int? = null,
     val applications: List<ApplicationDto> = emptyList(),
@@ -48,5 +51,12 @@ data class MarketplaceUiState(
     val taskAttachmentsError: String? = null,
     val jobAttachmentsError: String? = null,
     val attachmentsError: String? = null,
-    val attachmentsUploadedTaskId: Int? = null
+    val attachmentsUploadedTaskId: Int? = null,
+    val isUpdatingTask: Boolean = false,
+    val updatedTask: TaskDto? = null,
+    val taskMutationError: String? = null,
+    val cancelledTaskId: Int? = null,
+    val isUploadingStudentProof: Boolean = false,
+    val studentProofMessage: String? = null,
+    val studentProofError: String? = null
 )

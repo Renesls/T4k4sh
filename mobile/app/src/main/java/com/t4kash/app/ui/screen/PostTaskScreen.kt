@@ -74,6 +74,7 @@ import com.t4kash.app.ui.components.t4CategoryColors
 import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.model.PendingAttachment
 import com.t4kash.app.ui.navigation.Routes
+import com.t4kash.app.ui.parseApiDateTime
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
 import com.t4kash.app.ui.theme.T4Mint
@@ -98,11 +99,16 @@ fun PostTaskScreen(
     currentRoute: String = Routes.POST,
     viewModel: MarketplaceViewModel,
     onNavigate: (String) -> Unit,
-    onTaskPublished: () -> Unit
+    onTaskPublished: () -> Unit,
+    editTaskId: Int? = null,
+    onBack: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val uiState = viewModel.uiState
+    val editingTask = editTaskId?.let { id ->
+        uiState.tasks.firstOrNull { it.idTarea == id }
+    }
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var budget by remember { mutableStateOf("") }
@@ -123,6 +129,25 @@ fun PostTaskScreen(
     var showLocationPicker by rememberSaveable { mutableStateOf(false) }
     var hasLocationPermission by remember {
         mutableStateOf(context.hasTaskLocationPermission())
+    }
+    var editInitialized by rememberSaveable(editTaskId) {
+        mutableStateOf(false)
+    }
+
+    LaunchedEffect(editingTask?.idTarea) {
+        val task = editingTask ?: return@LaunchedEffect
+        if (editInitialized) return@LaunchedEffect
+        title = task.titulo
+        description = task.descripcion
+        budget = task.presupuesto.toString()
+        modality = task.modalidad ?: MODALIDAD_REMOTA
+        addressReference = task.direccionReferencia.orEmpty()
+        latitude = task.latitud
+        longitude = task.longitud
+        applicationDeadlineMillis = task.fechaLimitePostulacion.toEpochMillis()
+        taskDeadlineMillis = task.fechaLimite.toEpochMillis()
+        selectedCategoryId = task.idCategoria
+        editInitialized = true
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -185,18 +210,23 @@ fun PostTaskScreen(
 
     LaunchedEffect(
         uiState.publishedTask?.idTarea,
+        uiState.updatedTask?.idTarea,
         uiState.isUploadingAttachments,
         uiState.attachmentsUploadedTaskId,
         uiState.attachmentsError
     ) {
-        val publishedTask = uiState.publishedTask ?: return@LaunchedEffect
+        val savedTask = if (editTaskId == null) {
+            uiState.publishedTask
+        } else {
+            uiState.updatedTask
+        } ?: return@LaunchedEffect
         when {
             pendingAttachments.isEmpty() -> finishPublication()
-            uiState.attachmentsUploadedTaskId == publishedTask.idTarea ->
+            uiState.attachmentsUploadedTaskId == savedTask.idTarea ->
                 finishPublication()
             !uiState.isUploadingAttachments && uiState.attachmentsError == null ->
                 viewModel.uploadTaskAttachments(
-                    publishedTask.idTarea,
+                    savedTask.idTarea,
                     pendingAttachments
                 )
         }
@@ -204,6 +234,7 @@ fun PostTaskScreen(
 
     LaunchedEffect(Unit) {
         viewModel.clearAttachmentFeedback()
+        viewModel.clearPublishFeedback()
     }
 
     if (showLocationPicker) {
@@ -238,9 +269,9 @@ fun PostTaskScreen(
             applicationDeadline <= now ->
                 "El cierre de postulaciones debe ser futuro."
             taskDeadline == null ->
-                "Selecciona la fecha de entrega del trabajo."
+                "Selecciona la fecha limite del trabajo."
             taskDeadline <= applicationDeadline ->
-                "La entrega debe ocurrir después del cierre de postulaciones."
+                "La fecha limite debe ser posterior al cierre de postulaciones."
             modality != MODALIDAD_REMOTA && (latitude == null || longitude == null) ->
                 "Captura la ubicación para esta modalidad."
             else -> null
@@ -251,8 +282,7 @@ fun PostTaskScreen(
         }
 
         focusManager.clearFocus()
-        viewModel.publishTask(
-            CreateTaskRequest(
+        val request = CreateTaskRequest(
                 titulo = title.trim(),
                 descripcion = description.trim(),
                 presupuesto = numericBudget,
@@ -266,22 +296,33 @@ fun PostTaskScreen(
                 latitud = latitude.takeIf { modality != MODALIDAD_REMOTA },
                 longitud = longitude.takeIf { modality != MODALIDAD_REMOTA }
             )
-        )
+        if (editTaskId == null) {
+            viewModel.publishTask(request)
+        } else {
+            viewModel.updateTask(editTaskId, request)
+        }
     }
 
     Scaffold(
         containerColor = T4Background,
         topBar = {
             T4TopBar(
-                title = "Publicar",
-                subtitle = "Crea una nueva oportunidad"
+                title = if (editTaskId == null) "Publicar" else "Editar publicacion",
+                subtitle = if (editTaskId == null) {
+                    "Crea una nueva oportunidad"
+                } else {
+                    "Actualiza la informacion"
+                },
+                onBack = onBack
             )
         },
         bottomBar = {
-            T4BottomBar(
-                currentRoute = currentRoute,
-                onNavigate = onNavigate
-            )
+            if (editTaskId == null) {
+                T4BottomBar(
+                    currentRoute = currentRoute,
+                    onNavigate = onNavigate
+                )
+            }
         }
     ) { innerPadding ->
         LazyColumn(
@@ -438,7 +479,7 @@ fun PostTaskScreen(
                             }
                         )
                         DateTimeSelector(
-                            label = "Entrega del trabajo",
+                            label = "Fecha limite del trabajo",
                             selectedMillis = taskDeadlineMillis,
                             onClick = {
                                 val minimumTaskDeadline = (
@@ -610,7 +651,7 @@ fun PostTaskScreen(
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
-                        uiState.publishError?.let { message ->
+                        (uiState.publishError ?: uiState.taskMutationError)?.let { message ->
                             Text(
                                 text = message,
                                 color = MaterialTheme.colorScheme.error,
@@ -631,8 +672,10 @@ fun PostTaskScreen(
                     },
                     onError = { validationError = it },
                     enabled = !uiState.isPublishing &&
+                        !uiState.isUpdatingTask &&
                         !uiState.isUploadingAttachments &&
-                        uiState.publishedTask == null
+                        uiState.publishedTask == null &&
+                        uiState.updatedTask == null
                 )
             }
 
@@ -659,7 +702,7 @@ fun PostTaskScreen(
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedButton(
                                     onClick = {
-                                        uiState.publishedTask?.let { task ->
+                                        (uiState.publishedTask ?: uiState.updatedTask)?.let { task ->
                                             viewModel.clearAttachmentFeedback()
                                             viewModel.uploadTaskAttachments(
                                                 task.idTarea,
@@ -687,13 +730,19 @@ fun PostTaskScreen(
                 Button(
                     onClick = ::publish,
                     enabled = !uiState.isPublishing &&
+                        !uiState.isUpdatingTask &&
                         !uiState.isUploadingAttachments &&
-                        uiState.publishedTask == null,
+                        uiState.publishedTask == null &&
+                        uiState.updatedTask == null,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
                 ) {
-                    if (uiState.isPublishing || uiState.isUploadingAttachments) {
+                    if (
+                        uiState.isPublishing ||
+                        uiState.isUpdatingTask ||
+                        uiState.isUploadingAttachments
+                    ) {
                         CircularProgressIndicator(
                             modifier = Modifier.height(22.dp),
                             color = Color.White,
@@ -703,6 +752,8 @@ fun PostTaskScreen(
                         Text(
                             if (uiState.isUploadingAttachments) {
                                 "Subiendo archivos..."
+                            } else if (uiState.isUpdatingTask) {
+                                "Guardando cambios..."
                             } else {
                                 "Publicando..."
                             }
@@ -713,7 +764,13 @@ fun PostTaskScreen(
                             contentDescription = null
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Publicar oportunidad")
+                        Text(
+                            if (editTaskId == null) {
+                                "Publicar oportunidad"
+                            } else {
+                                "Guardar cambios"
+                            }
+                        )
                     }
                 }
             }
@@ -846,6 +903,10 @@ private fun Long?.toApiDateTime(): String? {
         "yyyy-MM-dd'T'HH:mm:ss",
         Locale.US
     ).format(this)
+}
+
+private fun String?.toEpochMillis(): Long? {
+    return parseApiDateTime(this)?.time
 }
 
 private const val ONE_MINUTE_MILLIS = 60_000L

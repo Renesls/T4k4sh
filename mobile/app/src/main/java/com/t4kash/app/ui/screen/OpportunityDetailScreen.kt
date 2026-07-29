@@ -83,10 +83,43 @@ fun OpportunityDetailScreen(
 ) {
     val state = viewModel.uiState
     val task = state.tasks.firstOrNull { it.idTarea == taskId }
+    val sessionUser = UserSession.current?.user
+    val hasStudentRole = sessionUser?.roles?.contains("ESTUDIANTE") == true
+    val latestApplication = state.myApplications
+        .filter { it.idTarea == taskId }
+        .maxByOrNull { it.numeroIntento }
+    val activeStudentJobs = state.jobs.count {
+        it.idEstudiante == sessionUser?.id &&
+            it.estadoTrabajo.equals("EN_PROCESO", ignoreCase = true)
+    }
+    val canRetry = latestApplication == null ||
+        latestApplication.estadoPostulacion.equals("RECHAZADA", ignoreCase = true) ||
+        latestApplication.estadoPostulacion.equals(
+            "CANCELADA_LIMITE",
+            ignoreCase = true
+        )
+    val attemptsAvailable =
+        latestApplication == null || latestApplication.numeroIntento < 3
+    val applicationLabel = when {
+        !hasStudentRole -> "Requiere perfil estudiantil"
+        activeStudentJobs >= 2 -> "Limite de trabajos alcanzado"
+        latestApplication?.estadoPostulacion.equals("PENDIENTE", true) ->
+            "Postulacion pendiente"
+        latestApplication?.estadoPostulacion.equals("ACEPTADA", true) ->
+            "Postulacion aceptada"
+        !attemptsAvailable -> "Intentos agotados"
+        latestApplication != null ->
+            "Volver a postularse (${latestApplication.numeroIntento + 1}/3)"
+        else -> "Postularse"
+    }
     var showApplicationDialog by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(taskId) {
         viewModel.loadTaskAttachments(taskId)
+        if (hasStudentRole) {
+            viewModel.loadMyApplications(force = true)
+            viewModel.refreshJobs(force = true)
+        }
     }
 
     LaunchedEffect(state.sentApplication?.idPostulacion) {
@@ -138,10 +171,13 @@ fun OpportunityDetailScreen(
                     },
                     onManageApplications = onManageApplications,
                     isApplying = state.isApplying,
-                    canApply = task.estadoTarea.equals("PUBLICADA", ignoreCase = true),
+                    canApply = task.estadoTarea.equals("PUBLICADA", ignoreCase = true) &&
+                        canRetry &&
+                        attemptsAvailable &&
+                        activeStudentJobs < 2,
                     isOwnedTask = task.idCliente == UserSession.requireUserId(),
-                    hasStudentRole = UserSession.current?.user?.roles
-                        ?.contains("ESTUDIANTE") == true
+                    hasStudentRole = hasStudentRole,
+                    applicationLabel = applicationLabel
                 )
             }
         }
@@ -609,7 +645,8 @@ private fun DetailActionBar(
     isApplying: Boolean,
     canApply: Boolean,
     isOwnedTask: Boolean,
-    hasStudentRole: Boolean
+    hasStudentRole: Boolean,
+    applicationLabel: String
 ) {
     Row(
         modifier = Modifier
@@ -639,8 +676,10 @@ private fun DetailActionBar(
                 Text(
                     when {
                         !hasStudentRole -> "Requiere perfil estudiantil"
-                        canApply -> "Postularse"
-                        else -> "Postulaciones cerradas"
+                        canApply -> applicationLabel
+                        else -> applicationLabel.takeUnless {
+                            it == "Postularse"
+                        } ?: "Postulaciones cerradas"
                     }
                 )
                 Spacer(modifier = Modifier.width(4.dp))

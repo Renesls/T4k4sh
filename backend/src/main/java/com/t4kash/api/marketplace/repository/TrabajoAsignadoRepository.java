@@ -11,6 +11,11 @@ import java.util.Optional;
 public interface TrabajoAsignadoRepository extends JpaRepository<TrabajoAsignado, Integer> {
     Optional<TrabajoAsignado> findByIdTarea(Integer idTarea);
 
+    long countByIdEstudianteAndEstadoTrabajo(
+            Integer idEstudiante,
+            String estadoTrabajo
+    );
+
     @Query(
             value = """
             SELECT trabajo.*

@@ -18,7 +18,7 @@ public class Universidad {
     @Column(name = "nombre_universidad", nullable = false, length = 150)
     private String nombreUniversidad;
 
-    @Column(name = "dominio_correo", nullable = false, length = 100)
+    @Column(name = "dominio_correo", length = 100)
     private String dominioCorreo;
 
     @Column(name = "estado", nullable = false)

@@ -23,6 +23,9 @@ public class ArchivoAdjunto {
     @Column(name = "id_entrega")
     private Integer idEntrega;
 
+    @Column(name = "id_verificacion")
+    private Integer idVerificacion;
+
     @Column(name = "id_usuario_sube", nullable = false)
     private Integer idUsuarioSube;
 
@@ -72,6 +75,14 @@ public class ArchivoAdjunto {
 
     public void setIdEntrega(Integer idEntrega) {
         this.idEntrega = idEntrega;
+    }
+
+    public Integer getIdVerificacion() {
+        return idVerificacion;
+    }
+
+    public void setIdVerificacion(Integer idVerificacion) {
+        this.idVerificacion = idVerificacion;
     }
 
     public Integer getIdUsuarioSube() {

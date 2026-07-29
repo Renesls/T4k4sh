@@ -87,6 +87,24 @@ class RegistrationPolicyServiceTest {
         assertNull(profile.university());
     }
 
+    @Test
+    void universityWithoutDomainRequiresManualStudentReview() {
+        Universidad university = university(2, null);
+        when(universidadRepository.findByIdUniversidadAndEstadoTrue(2))
+                .thenReturn(Optional.of(university));
+        when(carreraRepository.findByIdCarreraAndIdUniversidad(5, 2))
+                .thenReturn(Optional.of(mock(Carrera.class)));
+
+        RegistrationProfile profile = service("").resolve(
+                "student@gmail.com",
+                2,
+                5
+        );
+
+        assertTrue(profile.studentRequested());
+        assertFalse(profile.automaticStudentAccess());
+    }
+
     private RegistrationPolicyService service(String evaluatorEmails) {
         return new RegistrationPolicyService(
                 universidadRepository,

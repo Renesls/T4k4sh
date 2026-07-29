@@ -24,6 +24,9 @@ public record RegisterRequest(
 
         Integer idUniversidad,
 
-        Integer idCarrera
+        Integer idCarrera,
+
+        @Size(max = 50, message = "El carnet no puede superar 50 caracteres.")
+        String carnetUniversitario
 ) {
 }

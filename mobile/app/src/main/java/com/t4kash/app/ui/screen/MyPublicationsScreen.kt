@@ -19,11 +19,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.EventAvailable
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +38,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -72,7 +78,8 @@ fun MyPublicationsScreen(
     initialFilter: String,
     viewModel: MarketplaceViewModel,
     onBack: () -> Unit,
-    onTaskSelected: (Int) -> Unit
+    onTaskSelected: (Int) -> Unit,
+    onEditTask: (Int) -> Unit
 ) {
     val state = viewModel.uiState
     var selectedFilterName by rememberSaveable(initialFilter) {
@@ -85,6 +92,34 @@ fun MyPublicationsScreen(
     val filteredTasks = ownTasks.filter {
         selectedFilter.status == null ||
             it.estadoTarea.equals(selectedFilter.status, ignoreCase = true)
+    }
+    var taskToCancel by remember { mutableStateOf<TaskDto?>(null) }
+
+    taskToCancel?.let { task ->
+        AlertDialog(
+            onDismissRequest = { taskToCancel = null },
+            title = { Text("Cancelar publicacion") },
+            text = {
+                Text(
+                    "La oportunidad dejara de aceptar postulaciones, pero permanecera en el historial."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.cancelTask(task.idTarea)
+                        taskToCancel = null
+                    }
+                ) {
+                    Text("Cancelar publicacion", color = T4Danger)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { taskToCancel = null }) {
+                    Text("Volver")
+                }
+            }
+        )
     }
 
     LaunchedEffect(Unit) {
@@ -192,6 +227,16 @@ fun MyPublicationsScreen(
                             )
                         }
                     }
+                    state.taskMutationError?.let { error ->
+                        item {
+                            Text(
+                                text = error,
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
 
                     if (filteredTasks.isEmpty()) {
                         item {
@@ -220,6 +265,8 @@ fun MyPublicationsScreen(
                                     it.idCategoria == task.idCategoria
                                 },
                                 onClick = { onTaskSelected(task.idTarea) },
+                                onEdit = { onEditTask(task.idTarea) },
+                                onCancel = { taskToCancel = task },
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )
                         }
@@ -235,6 +282,8 @@ private fun PublicationCard(
     task: TaskDto,
     category: CategoryDto?,
     onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val statusColors = publicationStatusColors(task.estadoTarea)
@@ -340,6 +389,37 @@ private fun PublicationCard(
                         tint = T4TextMuted,
                         modifier = Modifier.size(18.dp)
                     )
+                }
+            }
+
+            if (task.estadoTarea.equals("PUBLICADA", ignoreCase = true)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onEdit,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Edit,
+                            contentDescription = null
+                        )
+                        Spacer(modifier = Modifier.size(6.dp))
+                        Text("Editar")
+                    }
+                    OutlinedButton(
+                        onClick = onCancel,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.DeleteOutline,
+                            contentDescription = null,
+                            tint = T4Danger
+                        )
+                        Spacer(modifier = Modifier.size(6.dp))
+                        Text("Cancelar", color = T4Danger)
+                    }
                 }
             }
         }

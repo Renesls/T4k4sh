@@ -26,6 +26,8 @@ import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.WorkHistory
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -33,6 +35,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -42,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import com.t4kash.app.ui.components.T4BottomBar
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.model.PendingAttachment
 import com.t4kash.app.ui.session.SessionUser
 import com.t4kash.app.ui.navigation.Routes
 import com.t4kash.app.ui.theme.T4Background
@@ -63,6 +70,13 @@ fun ProfileScreen(
     onOpenWallet: () -> Unit,
     onLogout: () -> Unit
 ) {
+    var verificationFiles by remember {
+        mutableStateOf<List<PendingAttachment>>(emptyList())
+    }
+    var verificationPickerError by remember { mutableStateOf<String?>(null) }
+    val needsStudentVerification =
+        user.universityName != null &&
+            user.roles.none { it.equals("ESTUDIANTE", ignoreCase = true) }
     val ownTasks = viewModel.uiState.tasks.filter { it.idCliente == user.id }
     val activeTasks = ownTasks.count {
         it.estadoTarea.equals("PUBLICADA", ignoreCase = true)
@@ -162,6 +176,75 @@ fun ProfileScreen(
                 )
             }
 
+            if (needsStudentVerification) {
+                item {
+                    AttachmentPickerSection(
+                        attachments = verificationFiles,
+                        onAttachmentsChange = {
+                            verificationFiles = it.take(1)
+                            verificationPickerError = null
+                        },
+                        onError = { verificationPickerError = it },
+                        enabled = !viewModel.uiState.isUploadingStudentProof,
+                        title = "Validar perfil estudiantil"
+                    )
+                }
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Adjunta una foto del carnet o una constancia universitaria.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = T4TextMuted
+                        )
+                        verificationPickerError?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        viewModel.uiState.studentProofError?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        viewModel.uiState.studentProofMessage?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = T4Text
+                            )
+                        }
+                        Button(
+                            onClick = {
+                                verificationFiles.firstOrNull()?.let {
+                                    viewModel.uploadStudentVerificationProof(it)
+                                }
+                            },
+                            enabled = verificationFiles.isNotEmpty() &&
+                                !viewModel.uiState.isUploadingStudentProof,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            if (viewModel.uiState.isUploadingStudentProof) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Filled.VerifiedUser,
+                                    contentDescription = null
+                                )
+                            }
+                            Spacer(modifier = Modifier.size(8.dp))
+                            Text("Enviar para revision")
+                        }
+                    }
+                }
+            }
+
             item {
                 Text(
                     text = "Cuenta",
@@ -198,20 +281,6 @@ fun ProfileScreen(
                             icon = Icons.Filled.Mail,
                             label = "Correo",
                             value = user.email
-                        )
-                        ProfileInfoRow(
-                            icon = Icons.Filled.VerifiedUser,
-                            label = "Roles",
-                            value = user.roles
-                                .sorted()
-                                .joinToString(" · ")
-                                .ifBlank { "Usuario" }
-                        )
-                        ProfileInfoRow(
-                            icon = Icons.Filled.VerifiedUser,
-                            label = "Estado de cuenta",
-                            value = user.accountStatus.lowercase()
-                                .replaceFirstChar { it.uppercase() }
                         )
                     }
                 }

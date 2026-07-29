@@ -45,7 +45,7 @@ public class RegistrationPolicyService {
                         "Este correo es institucional. Selecciona tu universidad y carrera."
                 );
             }
-            return new RegistrationProfile(evaluator, null, null);
+            return new RegistrationProfile(evaluator, evaluator, null, null);
         }
         if (careerId == null) {
             throw new IllegalArgumentException(
@@ -64,14 +64,21 @@ public class RegistrationPolicyService {
         ).orElseThrow(() -> new IllegalArgumentException(
                 "La carrera no pertenece a la universidad seleccionada."
         ));
-        if (!evaluator && !emailDomain(normalizedEmail).equals(
+        boolean universityHasDomain = university.getDominioCorreo() != null
+                && !university.getDominioCorreo().isBlank();
+        if (!evaluator && universityHasDomain && !emailDomain(normalizedEmail).equals(
                 normalizeDomain(university.getDominioCorreo())
         )) {
             throw new IllegalArgumentException(
                     "El correo no pertenece al dominio de la universidad seleccionada."
             );
         }
-        return new RegistrationProfile(true, university, careerId);
+        return new RegistrationProfile(
+                true,
+                evaluator || universityHasDomain,
+                university,
+                careerId
+        );
     }
 
     private boolean belongsToRegisteredUniversity(String email) {
@@ -79,6 +86,7 @@ public class RegistrationPolicyService {
         return universidadRepository.findAllByEstadoTrueOrderByNombreUniversidad()
                 .stream()
                 .map(Universidad::getDominioCorreo)
+                .filter(value -> value != null && !value.isBlank())
                 .map(this::normalizeDomain)
                 .anyMatch(domain::equals);
     }

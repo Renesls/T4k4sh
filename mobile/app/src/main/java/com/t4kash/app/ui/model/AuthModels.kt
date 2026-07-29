@@ -11,7 +11,8 @@ data class RegisterRequest(
     val correo: String,
     val password: String,
     val idUniversidad: Int?,
-    val idCarrera: Int?
+    val idCarrera: Int?,
+    val carnetUniversitario: String?
 )
 
 data class VerifyEmailRequest(
@@ -57,7 +58,7 @@ data class MessageResponse(
 data class UniversityDto(
     val idUniversidad: Int,
     val nombreUniversidad: String,
-    val dominioCorreo: String
+    val dominioCorreo: String?
 )
 
 data class CareerDto(

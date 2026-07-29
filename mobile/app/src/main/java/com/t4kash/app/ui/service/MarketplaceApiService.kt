@@ -10,11 +10,13 @@ import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.TaskDto
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
 import retrofit2.http.Path
+import retrofit2.http.PUT
 import okhttp3.MultipartBody
 
 interface MarketplaceApiService {
@@ -27,6 +29,15 @@ interface MarketplaceApiService {
     @POST("tasks")
     suspend fun createTask(@Body request: CreateTaskRequest): TaskDto
 
+    @PUT("tasks/{taskId}")
+    suspend fun updateTask(
+        @Path("taskId") taskId: Int,
+        @Body request: CreateTaskRequest
+    ): TaskDto
+
+    @DELETE("tasks/{taskId}")
+    suspend fun cancelTask(@Path("taskId") taskId: Int): TaskDto
+
     @POST("tasks/{taskId}/applications")
     suspend fun applyToTask(
         @Path("taskId") taskId: Int,
@@ -37,6 +48,9 @@ interface MarketplaceApiService {
     suspend fun getApplications(
         @Path("taskId") taskId: Int
     ): List<ApplicationDto>
+
+    @GET("applications/me")
+    suspend fun getMyApplications(): List<ApplicationDto>
 
     @POST("applications/{applicationId}/accept")
     suspend fun acceptApplication(
@@ -88,6 +102,12 @@ interface MarketplaceApiService {
     @POST("deliveries/{deliveryId}/attachments")
     suspend fun uploadDeliveryAttachment(
         @Path("deliveryId") deliveryId: Int,
+        @Part file: MultipartBody.Part
+    ): AttachmentDto
+
+    @Multipart
+    @POST("student-verifications/me/attachments")
+    suspend fun uploadStudentVerificationAttachment(
         @Part file: MultipartBody.Part
     ): AttachmentDto
 }

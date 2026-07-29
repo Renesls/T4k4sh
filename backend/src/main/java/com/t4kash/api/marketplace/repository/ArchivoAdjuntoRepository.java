@@ -20,4 +20,9 @@ public interface ArchivoAdjuntoRepository extends JpaRepository<ArchivoAdjunto, 
             List<Integer> idEntregas,
             String estadoArchivo
     );
+
+    List<ArchivoAdjunto> findByIdVerificacionAndEstadoArchivoOrderByFechaSubidaDesc(
+            Integer idVerificacion,
+            String estadoArchivo
+    );
 }

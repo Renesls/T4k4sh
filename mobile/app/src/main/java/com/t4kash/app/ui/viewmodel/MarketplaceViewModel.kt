@@ -111,7 +111,73 @@ class MarketplaceViewModel(
 
     fun clearPublishFeedback() {
         updateState {
-            it.copy(publishError = null, publishedTask = null)
+            it.copy(
+                publishError = null,
+                publishedTask = null,
+                taskMutationError = null,
+                updatedTask = null,
+                cancelledTaskId = null
+            )
+        }
+    }
+
+    fun updateTask(taskId: Int, request: CreateTaskRequest) {
+        viewModelScope.launch {
+            updateState {
+                it.copy(
+                    isUpdatingTask = true,
+                    taskMutationError = null,
+                    updatedTask = null
+                )
+            }
+            when (val result = repository.updateTask(taskId, request)) {
+                is ApiResult.Success -> updateState { current ->
+                    current.copy(
+                        isUpdatingTask = false,
+                        updatedTask = result.data,
+                        tasks = current.tasks.map {
+                            if (it.idTarea == result.data.idTarea) result.data else it
+                        }
+                    )
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        isUpdatingTask = false,
+                        taskMutationError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun cancelTask(taskId: Int) {
+        viewModelScope.launch {
+            updateState {
+                it.copy(
+                    isUpdatingTask = true,
+                    taskMutationError = null,
+                    cancelledTaskId = null
+                )
+            }
+            when (val result = repository.cancelTask(taskId)) {
+                is ApiResult.Success -> updateState { current ->
+                    current.copy(
+                        isUpdatingTask = false,
+                        cancelledTaskId = taskId,
+                        tasks = current.tasks.map {
+                            if (it.idTarea == taskId) result.data else it
+                        }
+                    )
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        isUpdatingTask = false,
+                        taskMutationError = result.message
+                    )
+                }
+            }
         }
     }
 
@@ -121,6 +187,10 @@ class MarketplaceViewModel(
 
     fun clearApplicationFeedback() {
         applicationActions.clearFeedback()
+    }
+
+    fun loadMyApplications(force: Boolean = false) {
+        applicationActions.loadMine(force)
     }
 
     fun loadApplications(taskId: Int, force: Boolean = false) {
@@ -209,6 +279,34 @@ class MarketplaceViewModel(
 
     fun clearAttachmentFeedback() {
         attachmentActions.clearFeedback()
+    }
+
+    fun uploadStudentVerificationProof(attachment: PendingAttachment) {
+        viewModelScope.launch {
+            updateState {
+                it.copy(
+                    isUploadingStudentProof = true,
+                    studentProofMessage = null,
+                    studentProofError = null
+                )
+            }
+            when (val result = repository.uploadStudentVerificationAttachment(attachment)) {
+                is ApiResult.Success -> updateState {
+                    it.copy(
+                        isUploadingStudentProof = false,
+                        studentProofMessage =
+                            "Documento enviado. Tu perfil quedo pendiente de revision."
+                    )
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        isUploadingStudentProof = false,
+                        studentProofError = result.message
+                    )
+                }
+            }
+        }
     }
 
     private fun updateState(

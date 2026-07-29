@@ -43,6 +43,25 @@ class MarketplaceRepository(
         }
     }
 
+    suspend fun updateTask(
+        taskId: Int,
+        request: CreateTaskRequest
+    ): ApiResult<TaskDto> {
+        return try {
+            ApiResult.Success(api.updateTask(taskId, request))
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudo actualizar la oportunidad."))
+        }
+    }
+
+    suspend fun cancelTask(taskId: Int): ApiResult<TaskDto> {
+        return try {
+            ApiResult.Success(api.cancelTask(taskId))
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudo cancelar la oportunidad."))
+        }
+    }
+
     suspend fun applyToTask(
         taskId: Int,
         request: CreateApplicationRequest
@@ -59,6 +78,14 @@ class MarketplaceRepository(
             ApiResult.Success(api.getApplications(taskId))
         } catch (e: Exception) {
             ApiResult.Error(e.apiMessage("No se pudieron cargar las postulaciones."))
+        }
+    }
+
+    suspend fun loadMyApplications(): ApiResult<List<ApplicationDto>> {
+        return try {
+            ApiResult.Success(api.getMyApplications())
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudo cargar tu historial de postulaciones."))
         }
     }
 
@@ -144,6 +171,14 @@ class MarketplaceRepository(
     ): ApiResult<AttachmentDto> {
         return uploadAttachment(attachment) { file ->
             api.uploadDeliveryAttachment(deliveryId, file)
+        }
+    }
+
+    suspend fun uploadStudentVerificationAttachment(
+        attachment: PendingAttachment
+    ): ApiResult<AttachmentDto> {
+        return uploadAttachment(attachment) { file ->
+            api.uploadStudentVerificationAttachment(file)
         }
     }
 
