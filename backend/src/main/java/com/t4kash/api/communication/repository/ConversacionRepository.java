@@ -13,7 +13,7 @@ public interface ConversacionRepository extends JpaRepository<Conversacion, Inte
 
     @Query(
             value = """
-            SELECT DISTINCT conversacion.*
+            SELECT conversacion.*
             FROM conversaciones conversacion
             INNER JOIN tareas tarea
                     ON tarea.id_tarea = conversacion.id_tarea
