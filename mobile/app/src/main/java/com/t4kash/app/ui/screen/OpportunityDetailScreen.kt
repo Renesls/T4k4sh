@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.School
@@ -32,16 +33,21 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -57,7 +63,11 @@ import com.t4kash.app.ui.components.EmptyState
 import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.components.keepVisibleAboveKeyboard
 import com.t4kash.app.ui.components.t4CategoryColors
+import com.t4kash.app.ui.session.UserSession
+import com.t4kash.app.ui.formatApiDateTime
+import com.t4kash.app.ui.formatNioCurrency
 import com.t4kash.app.ui.model.CreateApplicationRequest
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.theme.T4Background
@@ -80,13 +90,58 @@ fun OpportunityDetailScreen(
 ) {
     val state = viewModel.uiState
     val task = state.tasks.firstOrNull { it.idTarea == taskId }
+    val sessionUser = UserSession.current?.user
+    val hasStudentRole = sessionUser?.roles?.contains("ESTUDIANTE") == true
+    val latestApplication = state.myApplications
+        .filter { it.idTarea == taskId }
+        .maxByOrNull { it.numeroIntento }
+    val activeStudentJobs = state.jobs.count {
+        it.idEstudiante == sessionUser?.id &&
+            it.estadoTrabajo.equals("EN_PROCESO", ignoreCase = true)
+    }
+    val canRetry = latestApplication == null ||
+        latestApplication.estadoPostulacion.equals("RECHAZADA", ignoreCase = true) ||
+        latestApplication.estadoPostulacion.equals(
+            "CANCELADA_LIMITE",
+            ignoreCase = true
+        )
+    val attemptsAvailable =
+        latestApplication == null || latestApplication.numeroIntento < 3
+    val applicationLabel = when {
+        !hasStudentRole -> "Requiere perfil estudiantil"
+        activeStudentJobs >= 2 -> "Limite de trabajos alcanzado"
+        latestApplication?.estadoPostulacion.equals("PENDIENTE", true) ->
+            "Postulacion pendiente"
+        latestApplication?.estadoPostulacion.equals("ACEPTADA", true) ->
+            "Postulacion aceptada"
+        !attemptsAvailable -> "Intentos agotados"
+        latestApplication != null ->
+            "Volver a postularse (${latestApplication.numeroIntento + 1}/3)"
+        else -> "Postularse"
+    }
     var showApplicationDialog by rememberSaveable { mutableStateOf(false) }
+    var showReportDialog by rememberSaveable { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(taskId) {
+        viewModel.loadTaskAttachments(taskId)
+        if (hasStudentRole) {
+            viewModel.loadMyApplications(force = true)
+            viewModel.refreshJobs(force = true)
+        }
+    }
 
     LaunchedEffect(state.sentApplication?.idPostulacion) {
         if (state.sentApplication != null) {
             showApplicationDialog = false
-            viewModel.clearApplicationFeedback()
             onApply()
+        }
+    }
+    LaunchedEffect(state.taskReportMessage) {
+        state.taskReportMessage?.let { message ->
+            showReportDialog = false
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearTaskReportFeedback()
         }
     }
 
@@ -105,11 +160,26 @@ fun OpportunityDetailScreen(
                 viewModel.applyToTask(
                     taskId = task.idTarea,
                     request = CreateApplicationRequest(
-                        idEstudiante = DEMO_STUDENT_ID,
                         mensaje = message,
                         precioPropuesto = proposedPrice
                     )
                 )
+            }
+        )
+    }
+    if (showReportDialog && task != null) {
+        ReportTaskDialog(
+            taskTitle = task.titulo,
+            isSubmitting = state.isReportingTask,
+            apiError = state.taskReportError,
+            onDismiss = {
+                if (!state.isReportingTask) {
+                    showReportDialog = false
+                    viewModel.clearTaskReportFeedback()
+                }
+            },
+            onSubmit = { category, description ->
+                viewModel.reportTask(task.idTarea, category, description)
             }
         )
     }
@@ -123,6 +193,7 @@ fun OpportunityDetailScreen(
                 onBack = onBack
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             if (task != null) {
                 DetailActionBar(
@@ -132,8 +203,13 @@ fun OpportunityDetailScreen(
                     },
                     onManageApplications = onManageApplications,
                     isApplying = state.isApplying,
-                    canApply = task.estadoTarea.equals("PUBLICADA", ignoreCase = true),
-                    isOwnedTask = task.idCliente == DEMO_CLIENT_ID
+                    canApply = task.estadoTarea.equals("PUBLICADA", ignoreCase = true) &&
+                        canRetry &&
+                        attemptsAvailable &&
+                        activeStudentJobs < 2,
+                    isOwnedTask = task.idCliente == UserSession.requireUserId(),
+                    hasStudentRole = hasStudentRole,
+                    applicationLabel = applicationLabel
                 )
             }
         }
@@ -186,18 +262,32 @@ fun OpportunityDetailScreen(
             else -> {
                 OpportunityDetailContent(
                     task = task,
+                    attachments = state.taskAttachments,
+                    isLoadingAttachments = state.isLoadingTaskAttachments,
+                    attachmentsError = state.taskAttachmentsError,
                     onOpenMap = onOpenMap,
+                    canReport = sessionUser != null &&
+                        task.idCliente != sessionUser.id &&
+                        !task.estadoTarea.equals("CANCELADA", true),
+                    onReport = {
+                        viewModel.clearTaskReportFeedback()
+                        showReportDialog = true
+                    },
                     modifier = Modifier.padding(innerPadding)
                 )
             }
         }
     }
 }
-
 @Composable
 private fun OpportunityDetailContent(
     task: TaskDto,
+    attachments: List<com.t4kash.app.ui.model.AttachmentDto>,
+    isLoadingAttachments: Boolean,
+    attachmentsError: String?,
     onOpenMap: () -> Unit,
+    canReport: Boolean,
+    onReport: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -230,6 +320,37 @@ private fun OpportunityDetailContent(
                 )
             }
         }
+        if (attachments.isNotEmpty() || isLoadingAttachments || attachmentsError != null) {
+            item {
+                DetailSection(
+                    title = "Archivos adjuntos",
+                    icon = Icons.Filled.Description
+                ) {
+                    if (isLoadingAttachments) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                            Text(
+                                text = "Cargando archivos...",
+                                color = T4TextMuted
+                            )
+                        }
+                    }
+                    attachments.forEach { attachment ->
+                        StoredAttachmentRow(attachment = attachment)
+                    }
+                    attachmentsError?.let { error ->
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            }
+        }
         item {
             DetailSection(
                 title = "Perfil ideal",
@@ -250,7 +371,11 @@ private fun OpportunityDetailContent(
             DetailSection(title = "Resumen rapido") {
                 SummaryRow("Estado", task.estadoTarea, Icons.Filled.Event)
                 SummaryRow("Modalidad", task.modalidad ?: "No definida", Icons.Filled.Place)
-                SummaryRow("Fecha limite", task.fechaLimite ?: "Por confirmar", Icons.Filled.Event)
+                SummaryRow(
+                    "Fecha limite",
+                    formatApiDateTime(task.fechaLimite, emptyValue = "Por confirmar"),
+                    Icons.Filled.Event
+                )
                 SummaryRow("Visibilidad", task.visibilidad, Icons.Filled.Place)
                 if (task.hasMapLocation()) {
                     SummaryRow(
@@ -259,6 +384,21 @@ private fun OpportunityDetailContent(
                         icon = Icons.Filled.Place,
                         onClick = onOpenMap
                     )
+                }
+            }
+        }
+        if (canReport) {
+            item {
+                OutlinedButton(
+                    onClick = onReport,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Flag,
+                        contentDescription = null
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Reportar esta publicacion")
                 }
             }
         }
@@ -304,7 +444,7 @@ private fun HeroCard(task: TaskDto) {
 
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    text = "$${"%.2f".format(task.presupuesto)}",
+                    text = formatNioCurrency(task.presupuesto),
                     color = T4Mint,
                     style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Black
@@ -480,7 +620,9 @@ private fun ApplicationDialog(
                             message = it
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .keepVisibleAboveKeyboard(),
                     label = { Text("Mensaje opcional") },
                     minLines = 3,
                     maxLines = 5,
@@ -495,9 +637,11 @@ private fun ApplicationDialog(
                         proposedPrice = it
                         validationError = null
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .keepVisibleAboveKeyboard(),
                     label = { Text("Precio propuesto") },
-                    prefix = { Text("$") },
+                    prefix = { Text("C\$") },
                     singleLine = true,
                     enabled = !isSubmitting,
                     keyboardOptions = KeyboardOptions(
@@ -555,12 +699,135 @@ private fun ApplicationDialog(
 }
 
 @Composable
+private fun ReportTaskDialog(
+    taskTitle: String,
+    isSubmitting: Boolean,
+    apiError: String?,
+    onDismiss: () -> Unit,
+    onSubmit: (String, String?) -> Unit
+) {
+    val categories = remember {
+        listOf(
+            ReportCategoryOption("POSIBLE_ESTAFA", "Posible estafa"),
+            ReportCategoryOption("INFORMACION_FALSA", "Informacion falsa"),
+            ReportCategoryOption("CONTENIDO_INAPROPIADO", "Contenido"),
+            ReportCategoryOption("PUBLICACION_DUPLICADA", "Duplicada"),
+            ReportCategoryOption("OTRO", "Otro")
+        )
+    }
+    var selectedCategory by rememberSaveable { mutableStateOf<String?>(null) }
+    var description by rememberSaveable { mutableStateOf("") }
+    var validationError by rememberSaveable { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        modifier = Modifier.imePadding(),
+        onDismissRequest = onDismiss,
+        title = { Text("Reportar publicacion") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = taskTitle,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = T4Text
+                )
+                Text(
+                    text = "Selecciona el motivo que mejor describe el problema.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = T4TextMuted
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    categories.take(2).forEach { category ->
+                        FilterChip(
+                            selected = selectedCategory == category.code,
+                            onClick = {
+                                selectedCategory = category.code
+                                validationError = null
+                            },
+                            label = { Text(category.label) }
+                        )
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    categories.drop(2).forEach { category ->
+                        FilterChip(
+                            selected = selectedCategory == category.code,
+                            onClick = {
+                                selectedCategory = category.code
+                                validationError = null
+                            },
+                            label = { Text(category.label) }
+                        )
+                    }
+                }
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it.take(700) },
+                    label = { Text("Detalle opcional") },
+                    minLines = 3,
+                    maxLines = 5,
+                    enabled = !isSubmitting,
+                    supportingText = { Text("${description.length}/700") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .keepVisibleAboveKeyboard()
+                )
+                (validationError ?: apiError)?.let { error ->
+                    Text(
+                        text = error,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val category = selectedCategory
+                    if (category == null) {
+                        validationError = "Selecciona un motivo."
+                    } else {
+                        onSubmit(
+                            category,
+                            description.trim().ifBlank { null }
+                        )
+                    }
+                },
+                enabled = !isSubmitting
+            ) {
+                if (isSubmitting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text("Enviar reporte")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isSubmitting) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+private data class ReportCategoryOption(
+    val code: String,
+    val label: String
+)
+
+@Composable
 private fun DetailActionBar(
     onApply: () -> Unit,
     onManageApplications: () -> Unit,
     isApplying: Boolean,
     canApply: Boolean,
-    isOwnedTask: Boolean
+    isOwnedTask: Boolean,
+    hasStudentRole: Boolean,
+    applicationLabel: String
 ) {
     Row(
         modifier = Modifier
@@ -572,7 +839,7 @@ private fun DetailActionBar(
         Button(
             onClick = if (isOwnedTask) onManageApplications else onApply,
             modifier = Modifier.fillMaxWidth(),
-            enabled = isOwnedTask || (canApply && !isApplying)
+            enabled = isOwnedTask || (canApply && hasStudentRole && !isApplying)
         ) {
             if (isApplying && !isOwnedTask) {
                 CircularProgressIndicator(
@@ -587,7 +854,15 @@ private fun DetailActionBar(
                 Spacer(modifier = Modifier.width(6.dp))
                 Text("Gestionar postulaciones")
             } else {
-                Text(if (canApply) "Postularse" else "Postulaciones cerradas")
+                Text(
+                    when {
+                        !hasStudentRole -> "Requiere perfil estudiantil"
+                        canApply -> applicationLabel
+                        else -> applicationLabel.takeUnless {
+                            it == "Postularse"
+                        } ?: "Postulaciones cerradas"
+                    }
+                )
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
@@ -597,6 +872,3 @@ private fun DetailActionBar(
         }
     }
 }
-
-private const val DEMO_STUDENT_ID = 1
-private const val DEMO_CLIENT_ID = 1

@@ -6,56 +6,71 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.t4kash.app.ui.model.ApplicationDto
-import com.t4kash.app.ui.model.CategoryDto
 import com.t4kash.app.ui.model.CreateApplicationRequest
 import com.t4kash.app.ui.model.CreateTaskRequest
-import com.t4kash.app.ui.model.TaskDto
+import com.t4kash.app.ui.model.DeliveryDto
+import com.t4kash.app.ui.model.PendingAttachment
 import com.t4kash.app.ui.repository.MarketplaceRepository
 import com.t4kash.app.ui.service.ApiResult
 import kotlinx.coroutines.launch
 
-data class MarketplaceUiState(
-    val isLoading: Boolean = false,
-    val categories: List<CategoryDto> = emptyList(),
-    val tasks: List<TaskDto> = emptyList(),
-    val errorMessage: String? = null,
-    val isPublishing: Boolean = false,
-    val publishError: String? = null,
-    val publishedTask: TaskDto? = null,
-    val isApplying: Boolean = false,
-    val applicationError: String? = null,
-    val sentApplication: ApplicationDto? = null,
-    val managedTaskId: Int? = null,
-    val applications: List<ApplicationDto> = emptyList(),
-    val isLoadingApplications: Boolean = false,
-    val applicationsError: String? = null,
-    val updatingApplicationId: Int? = null,
-    val applicationActionMessage: String? = null
-)
-
 class MarketplaceViewModel(
     private val repository: MarketplaceRepository = MarketplaceRepository()
 ) : ViewModel() {
-    var uiState by mutableStateOf(MarketplaceUiState(isLoading = true))
+    var uiState by mutableStateOf(MarketplaceUiState())
         private set
+
+    private val refreshPolicy = RefreshPolicy()
+    private val applicationActions = ApplicationActions(
+        repository = repository,
+        scope = viewModelScope,
+        state = { uiState },
+        updateState = ::updateState
+    )
+    private val deliveryActions = DeliveryActions(
+        repository = repository,
+        scope = viewModelScope,
+        state = { uiState },
+        updateState = ::updateState
+    )
+    private val attachmentActions = AttachmentActions(
+        repository = repository,
+        scope = viewModelScope,
+        state = { uiState },
+        updateState = ::updateState
+    )
 
     init {
         refresh()
     }
 
-    fun refresh() {
+    fun refresh(force: Boolean = false) {
+        if (
+            !refreshPolicy.shouldRefresh(
+                target = RefreshTarget.HOME,
+                force = force,
+                isLoading = uiState.isLoading
+            )
+        ) {
+            return
+        }
         viewModelScope.launch {
-            uiState = uiState.copy(isLoading = true, errorMessage = null)
+            updateState { it.copy(isLoading = true, errorMessage = null) }
             when (val result = repository.loadHomeData()) {
                 is ApiResult.Success -> {
-                    uiState = MarketplaceUiState(
-                        categories = result.data.categories,
-                        tasks = result.data.tasks
-                    )
+                    refreshPolicy.markSuccessful(RefreshTarget.HOME)
+                    updateState {
+                        it.copy(
+                            isLoading = false,
+                            categories = result.data.categories,
+                            tasks = result.data.tasks,
+                            errorMessage = null
+                        )
+                    }
                 }
 
-                is ApiResult.Error -> {
-                    uiState = uiState.copy(
+                is ApiResult.Error -> updateState {
+                    it.copy(
                         isLoading = false,
                         errorMessage = result.message
                     )
@@ -66,24 +81,26 @@ class MarketplaceViewModel(
 
     fun publishTask(request: CreateTaskRequest) {
         viewModelScope.launch {
-            uiState = uiState.copy(
-                isPublishing = true,
-                publishError = null,
-                publishedTask = null
-            )
+            updateState {
+                it.copy(
+                    isPublishing = true,
+                    publishError = null,
+                    publishedTask = null
+                )
+            }
             when (val result = repository.createTask(request)) {
-                is ApiResult.Success -> {
-                    uiState = uiState.copy(
+                is ApiResult.Success -> updateState { current ->
+                    current.copy(
                         isPublishing = false,
-                        tasks = listOf(result.data) + uiState.tasks.filterNot {
+                        tasks = listOf(result.data) + current.tasks.filterNot {
                             it.idTarea == result.data.idTarea
                         },
                         publishedTask = result.data
                     )
                 }
 
-                is ApiResult.Error -> {
-                    uiState = uiState.copy(
+                is ApiResult.Error -> updateState {
+                    it.copy(
                         isPublishing = false,
                         publishError = result.message
                     )
@@ -93,145 +110,463 @@ class MarketplaceViewModel(
     }
 
     fun clearPublishFeedback() {
-        uiState = uiState.copy(publishError = null, publishedTask = null)
+        updateState {
+            it.copy(
+                publishError = null,
+                publishedTask = null,
+                taskMutationError = null,
+                updatedTask = null,
+                cancelledTaskId = null
+            )
+        }
+    }
+
+    fun updateTask(taskId: Int, request: CreateTaskRequest) {
+        viewModelScope.launch {
+            updateState {
+                it.copy(
+                    isUpdatingTask = true,
+                    taskMutationError = null,
+                    updatedTask = null
+                )
+            }
+            when (val result = repository.updateTask(taskId, request)) {
+                is ApiResult.Success -> updateState { current ->
+                    current.copy(
+                        isUpdatingTask = false,
+                        updatedTask = result.data,
+                        tasks = current.tasks.map {
+                            if (it.idTarea == result.data.idTarea) result.data else it
+                        }
+                    )
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        isUpdatingTask = false,
+                        taskMutationError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun cancelTask(taskId: Int) {
+        viewModelScope.launch {
+            updateState {
+                it.copy(
+                    isUpdatingTask = true,
+                    taskMutationError = null,
+                    cancelledTaskId = null
+                )
+            }
+            when (val result = repository.cancelTask(taskId)) {
+                is ApiResult.Success -> updateState { current ->
+                    current.copy(
+                        isUpdatingTask = false,
+                        cancelledTaskId = taskId,
+                        tasks = current.tasks.map {
+                            if (it.idTarea == taskId) result.data else it
+                        }
+                    )
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        isUpdatingTask = false,
+                        taskMutationError = result.message
+                    )
+                }
+            }
+        }
     }
 
     fun applyToTask(taskId: Int, request: CreateApplicationRequest) {
-        viewModelScope.launch {
-            uiState = uiState.copy(
-                isApplying = true,
-                applicationError = null,
-                sentApplication = null
-            )
-            when (val result = repository.applyToTask(taskId, request)) {
-                is ApiResult.Success -> {
-                    uiState = uiState.copy(
-                        isApplying = false,
-                        sentApplication = result.data
-                    )
-                }
-
-                is ApiResult.Error -> {
-                    uiState = uiState.copy(
-                        isApplying = false,
-                        applicationError = result.message
-                    )
-                }
-            }
-        }
+        applicationActions.applyToTask(taskId, request)
     }
 
     fun clearApplicationFeedback() {
-        uiState = uiState.copy(
-            applicationError = null,
-            sentApplication = null
-        )
+        applicationActions.clearFeedback()
     }
 
-    fun loadApplications(taskId: Int) {
-        viewModelScope.launch {
-            uiState = uiState.copy(
-                managedTaskId = taskId,
-                applications = emptyList(),
-                isLoadingApplications = true,
-                applicationsError = null,
-                applicationActionMessage = null
-            )
-            when (val result = repository.loadApplications(taskId)) {
-                is ApiResult.Success -> {
-                    uiState = uiState.copy(
-                        isLoadingApplications = false,
-                        applications = result.data
-                    )
-                }
+    fun loadMyApplications(force: Boolean = false) {
+        applicationActions.loadMine(force)
+    }
 
-                is ApiResult.Error -> {
-                    uiState = uiState.copy(
-                        isLoadingApplications = false,
-                        applicationsError = result.message
-                    )
-                }
-            }
-        }
+    fun loadApplications(taskId: Int, force: Boolean = false) {
+        applicationActions.load(taskId, force)
     }
 
     fun acceptApplication(application: ApplicationDto) {
-        viewModelScope.launch {
-            uiState = uiState.copy(
-                updatingApplicationId = application.idPostulacion,
-                applicationsError = null,
-                applicationActionMessage = null
-            )
-            when (
-                val result = repository.acceptApplication(application.idPostulacion)
-            ) {
-                is ApiResult.Success -> {
-                    uiState = uiState.copy(
-                        updatingApplicationId = null,
-                        applications = uiState.applications.map {
-                            if (it.idPostulacion == application.idPostulacion) {
-                                it.copy(estadoPostulacion = "ACEPTADA")
-                            } else {
-                                it
-                            }
-                        },
-                        tasks = uiState.tasks.map {
-                            if (it.idTarea == result.data.idTarea) {
-                                it.copy(estadoTarea = "ASIGNADA")
-                            } else {
-                                it
-                            }
-                        },
-                        applicationActionMessage =
-                            "Postulacion aceptada. Trabajo #${result.data.idTrabajo} creado."
-                    )
-                }
-
-                is ApiResult.Error -> {
-                    uiState = uiState.copy(
-                        updatingApplicationId = null,
-                        applicationsError = result.message
-                    )
-                }
-            }
-        }
+        applicationActions.accept(application)
     }
 
     fun rejectApplication(application: ApplicationDto) {
-        viewModelScope.launch {
-            uiState = uiState.copy(
-                updatingApplicationId = application.idPostulacion,
-                applicationsError = null,
-                applicationActionMessage = null
+        applicationActions.reject(application)
+    }
+
+    fun clearApplicationActionMessage() {
+        applicationActions.clearActionMessage()
+    }
+
+    fun refreshJobs(force: Boolean = false) {
+        if (
+            !refreshPolicy.shouldRefresh(
+                target = RefreshTarget.JOBS,
+                force = force,
+                isLoading = uiState.isLoadingJobs
             )
-            when (
-                val result = repository.rejectApplication(application.idPostulacion)
-            ) {
+        ) {
+            return
+        }
+        viewModelScope.launch {
+            updateState { it.copy(isLoadingJobs = true, jobsError = null) }
+            when (val result = repository.loadJobs()) {
                 is ApiResult.Success -> {
-                    uiState = uiState.copy(
-                        updatingApplicationId = null,
-                        applications = uiState.applications.map {
-                            if (it.idPostulacion == result.data.idPostulacion) {
-                                result.data
-                            } else {
-                                it
-                            }
-                        },
-                        applicationActionMessage = "Postulacion rechazada."
-                    )
+                    refreshPolicy.markSuccessful(RefreshTarget.JOBS)
+                    updateState {
+                        it.copy(
+                            jobs = result.data,
+                            isLoadingJobs = false
+                        )
+                    }
                 }
 
-                is ApiResult.Error -> {
-                    uiState = uiState.copy(
-                        updatingApplicationId = null,
-                        applicationsError = result.message
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        isLoadingJobs = false,
+                        jobsError = result.message
                     )
                 }
             }
         }
     }
 
-    fun clearApplicationActionMessage() {
-        uiState = uiState.copy(applicationActionMessage = null)
+    fun loadDeliveries(jobId: Int, force: Boolean = false) {
+        deliveryActions.load(jobId, force)
+    }
+
+    fun submitDelivery(
+        jobId: Int,
+        description: String,
+        attachments: List<PendingAttachment> = emptyList()
+    ) {
+        deliveryActions.submit(jobId, description, attachments)
+    }
+
+    fun approveDelivery(delivery: DeliveryDto) {
+        deliveryActions.approve(delivery)
+    }
+
+    fun clearDeliveryFeedback() {
+        deliveryActions.clearFeedback()
+    }
+
+    fun loadTaskAttachments(taskId: Int, force: Boolean = false) {
+        attachmentActions.loadForTask(taskId, force)
+    }
+
+    fun loadJobAttachments(jobId: Int, force: Boolean = false) {
+        attachmentActions.loadForJob(jobId, force)
+    }
+
+    fun uploadTaskAttachments(
+        taskId: Int,
+        attachments: List<PendingAttachment>
+    ) {
+        attachmentActions.uploadForTask(taskId, attachments)
+    }
+
+    fun clearAttachmentFeedback() {
+        attachmentActions.clearFeedback()
+    }
+
+    fun uploadStudentVerificationProof(attachment: PendingAttachment) {
+        viewModelScope.launch {
+            updateState {
+                it.copy(
+                    isUploadingStudentProof = true,
+                    studentProofMessage = null,
+                    studentProofError = null
+                )
+            }
+            when (val result = repository.uploadStudentVerificationAttachment(attachment)) {
+                is ApiResult.Success -> updateState {
+                    it.copy(
+                        isUploadingStudentProof = false,
+                        studentProofMessage =
+                            "Documento enviado. Tu perfil quedo pendiente de revision."
+                    )
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        isUploadingStudentProof = false,
+                        studentProofError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun reportTask(
+        taskId: Int,
+        category: String,
+        description: String?
+    ) {
+        viewModelScope.launch {
+            updateState {
+                it.copy(
+                    isReportingTask = true,
+                    reportedTaskId = null,
+                    taskReportMessage = null,
+                    taskReportError = null
+                )
+            }
+            when (
+                val result = repository.createTaskReport(
+                    taskId,
+                    category,
+                    description
+                )
+            ) {
+                is ApiResult.Success -> updateState {
+                    it.copy(
+                        isReportingTask = false,
+                        reportedTaskId = taskId,
+                        taskReportMessage =
+                            "Reporte enviado. El equipo de moderacion lo revisara."
+                    )
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        isReportingTask = false,
+                        taskReportError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearTaskReportFeedback() {
+        updateState {
+            it.copy(
+                reportedTaskId = null,
+                taskReportMessage = null,
+                taskReportError = null
+            )
+        }
+    }
+
+    fun loadAdminDashboard(force: Boolean = false) {
+        if (uiState.isLoadingAdmin || (!force && uiState.adminSummary != null)) {
+            return
+        }
+        viewModelScope.launch {
+            updateState {
+                it.copy(
+                    isLoadingAdmin = true,
+                    adminError = null,
+                    adminMessage = null
+                )
+            }
+            when (val result = repository.loadAdminDashboard()) {
+                is ApiResult.Success -> updateState {
+                    it.copy(
+                        isLoadingAdmin = false,
+                        adminSummary = result.data.summary,
+                        adminTasks = result.data.tasks,
+                        adminReports = result.data.reports,
+                        pendingStudentVerifications = result.data.verifications
+                    )
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        isLoadingAdmin = false,
+                        adminError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun approveStudentVerification(userId: Int) {
+        reviewStudentVerification(userId, approved = true, observation = null)
+    }
+
+    fun rejectStudentVerification(userId: Int, observation: String?) {
+        reviewStudentVerification(userId, approved = false, observation = observation)
+    }
+
+    fun cancelTaskAsAdmin(taskId: Int) {
+        viewModelScope.launch {
+            updateState {
+                it.copy(
+                    adminActionKey = "task:$taskId",
+                    adminError = null,
+                    adminMessage = null
+                )
+            }
+            when (val result = repository.cancelTaskAsAdmin(taskId)) {
+                is ApiResult.Success -> updateState { current ->
+                    current.copy(
+                        adminActionKey = null,
+                        adminTasks = current.adminTasks.map {
+                            if (it.idTarea == taskId) result.data else it
+                        },
+                        adminSummary = current.adminSummary?.copy(
+                            publicacionesActivas =
+                                (current.adminSummary.publicacionesActivas - 1).coerceAtLeast(0)
+                        ),
+                        adminMessage = "Publicacion retirada del marketplace."
+                    )
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        adminActionKey = null,
+                        adminError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun reviewReport(
+        reportId: Int,
+        status: String,
+        observation: String?,
+        removeTask: Boolean
+    ) {
+        viewModelScope.launch {
+            updateState {
+                it.copy(
+                    adminActionKey = "report:$reportId",
+                    adminError = null,
+                    adminMessage = null
+                )
+            }
+            when (
+                val result = repository.reviewReport(
+                    reportId,
+                    status,
+                    observation,
+                    removeTask
+                )
+            ) {
+                is ApiResult.Success -> updateState { current ->
+                    val affectedTaskId = result.data.idTarea
+                    val removedActiveTask = removeTask &&
+                        current.adminTasks.any {
+                            it.idTarea == affectedTaskId &&
+                                it.estadoTarea.equals("PUBLICADA", true)
+                        }
+                    current.copy(
+                        adminActionKey = null,
+                        adminReports = current.adminReports.map {
+                            if (it.idReporte == reportId) result.data else it
+                        },
+                        adminTasks = if (removeTask && affectedTaskId != null) {
+                            current.adminTasks.map {
+                                if (it.idTarea == affectedTaskId) {
+                                    it.copy(estadoTarea = "CANCELADA")
+                                } else {
+                                    it
+                                }
+                            }
+                        } else {
+                            current.adminTasks
+                        },
+                        adminSummary = current.adminSummary?.copy(
+                            reportesPendientes =
+                                (current.adminSummary.reportesPendientes - 1)
+                                    .coerceAtLeast(0),
+                            publicacionesActivas =
+                                if (removedActiveTask) {
+                                    (current.adminSummary.publicacionesActivas - 1)
+                                        .coerceAtLeast(0)
+                                } else {
+                                    current.adminSummary.publicacionesActivas
+                                }
+                        ),
+                        adminMessage = if (removeTask) {
+                            "Reporte resuelto y publicacion retirada."
+                        } else if (status.equals("RESUELTO", true)) {
+                            "Reporte marcado como resuelto."
+                        } else {
+                            "Reporte descartado."
+                        }
+                    )
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        adminActionKey = null,
+                        adminError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearAdminFeedback() {
+        updateState { it.copy(adminMessage = null, adminError = null) }
+    }
+
+    private fun reviewStudentVerification(
+        userId: Int,
+        approved: Boolean,
+        observation: String?
+    ) {
+        viewModelScope.launch {
+            updateState {
+                it.copy(
+                    adminActionKey = "verification:$userId",
+                    adminError = null,
+                    adminMessage = null
+                )
+            }
+            val result = if (approved) {
+                repository.approveStudentVerification(userId, observation)
+            } else {
+                repository.rejectStudentVerification(userId, observation)
+            }
+            when (result) {
+                is ApiResult.Success -> updateState { current ->
+                    current.copy(
+                        adminActionKey = null,
+                        pendingStudentVerifications =
+                            current.pendingStudentVerifications.filterNot {
+                                it.idUsuario == userId
+                            },
+                        adminSummary = current.adminSummary?.copy(
+                            verificacionesPendientes =
+                                (current.adminSummary.verificacionesPendientes - 1)
+                                    .coerceAtLeast(0)
+                        ),
+                        adminMessage = if (approved) {
+                            "Perfil estudiantil aprobado."
+                        } else {
+                            "Solicitud estudiantil rechazada."
+                        }
+                    )
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        adminActionKey = null,
+                        adminError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    private fun updateState(
+        transform: (MarketplaceUiState) -> MarketplaceUiState
+    ) {
+        uiState = transform(uiState)
     }
 }

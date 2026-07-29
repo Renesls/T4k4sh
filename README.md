@@ -33,6 +33,7 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 |---|---|
 | API Spring Boot desplegada en Render | Implementado |
 | PostgreSQL administrado en Supabase | Implementado |
+| Archivos privados en Supabase Storage | Implementado |
 | Documentación Swagger/OpenAPI | Implementado |
 | Marketplace y detalle de oportunidades en Android | Implementado |
 | Publicación de tareas desde Android | Implementado |
@@ -42,10 +43,11 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 | Postulación desde Android | Implementado |
 | Postulaciones, asignaciones y entregas en la API | Implementado |
 | Navegación, carga y manejo visual de errores | Implementado |
-| Autenticación y sesiones reales | Pendiente |
-| Mensajería, pagos y notificaciones push | Pendiente |
+| Registro institucional, verificación y sesiones persistentes | Implementado |
+| Conversaciones, mensajes y notificaciones internas | Implementado |
+| Pagos y notificaciones push | Pendiente |
 
-La versión actual usa usuarios demo para validar el flujo. La publicación desde Android utiliza temporalmente `idCliente = 1` y la postulación utiliza `idEstudiante = 1` hasta integrar autenticación real.
+El registro valida el dominio de la universidad, relaciona la carrera y activa la cuenta después de confirmar un código enviado por correo. Android conserva la sesión iniciada y utiliza el ID de la cuenta autenticada para publicaciones, postulaciones, trabajos y archivos. Las contraseñas se almacenan con BCrypt y la base conserva únicamente el hash de cada token de sesión.
 
 ## Tecnologías
 
@@ -148,7 +150,6 @@ T4k4sh/
     sqlserver-original.sql Referencia histórica del modelo original
   docs/
     diagramas/            Diagramas de base de datos y UML
-    deployment.md         Guía de Render y Supabase
   render.yaml             Configuración del servicio de Render
   README.md               Documentación principal
 ```
@@ -192,27 +193,55 @@ Reglas del sistema:
 - La base exige que ambas coordenadas estén presentes o que ambas sean nulas.
 - La ubicación actual del usuario no se almacena permanentemente.
 
-El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno desde cero. No debe ejecutarse nuevamente sobre la base remota con información importante. Los cambios posteriores deben aplicarse mediante migraciones SQL controladas.
+El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno desde cero. No debe ejecutarse nuevamente sobre la base remota con información importante. Los cambios en Supabase deben aplicarse de forma controlada desde SQL Editor y reflejarse después en este archivo.
 
 ## Endpoints Implementados
 
 | Método | Ruta | Uso |
 |---|---|---|
 | `GET` | `/api/health` | Verificar disponibilidad |
+| `POST` | `/api/auth/register` | Crear una cuenta pendiente y enviar el código |
+| `POST` | `/api/auth/verify-email` | Verificar el código y activar la cuenta |
+| `POST` | `/api/auth/resend-verification` | Enviar un código nuevo |
+| `POST` | `/api/auth/login` | Iniciar sesión |
+| `GET` | `/api/auth/me` | Consultar el usuario autenticado |
+| `POST` | `/api/auth/logout` | Cerrar la sesión actual |
+| `GET` | `/api/identity/universities` | Listar universidades activas |
+| `GET` | `/api/identity/universities/{id}/careers` | Listar carreras de una universidad |
 | `GET` | `/api/categories` | Listar categorías activas |
 | `GET` | `/api/tasks` | Listar oportunidades |
 | `POST` | `/api/tasks` | Crear una oportunidad |
 | `GET` | `/api/tasks/{idTarea}` | Obtener detalle |
 | `GET` | `/api/tasks/{idTarea}/applications` | Listar postulaciones |
 | `POST` | `/api/tasks/{idTarea}/applications` | Crear postulación |
+| `POST` | `/api/tasks/{idTarea}/reports` | Reportar una publicación |
+| `GET` | `/api/reports/me` | Consultar reportes enviados |
 | `POST` | `/api/applications/{idPostulacion}/accept` | Aceptar postulación |
 | `POST` | `/api/applications/{idPostulacion}/reject` | Rechazar postulación |
 | `GET` | `/api/jobs` | Listar trabajos asignados |
 | `GET` | `/api/jobs/{idTrabajo}/deliveries` | Listar entregas |
 | `POST` | `/api/jobs/{idTrabajo}/deliveries` | Registrar entrega |
 | `POST` | `/api/deliveries/{idEntrega}/approve` | Aprobar entrega |
+| `GET` | `/api/conversations` | Listar conversaciones del usuario |
+| `GET` | `/api/conversations/{id}/messages` | Consultar mensajes |
+| `POST` | `/api/conversations/{id}/messages` | Enviar un mensaje |
+| `POST` | `/api/conversations/{id}/read` | Marcar mensajes como leídos |
+| `GET` | `/api/notifications` | Listar notificaciones |
+| `POST` | `/api/notifications/{id}/read` | Marcar una notificación como leída |
+| `POST` | `/api/notifications/read-all` | Marcar todas como leídas |
+| `GET` | `/api/admin/summary` | Consultar resumen administrativo |
+| `GET` | `/api/admin/reports` | Listar reportes de moderación |
+| `POST` | `/api/admin/reports/{idReporte}/review` | Resolver o descartar un reporte |
+| `DELETE` | `/api/admin/tasks/{idTarea}` | Retirar una publicación |
 
-Los endpoints de autenticación todavía no están implementados. El cliente y el estudiante se representan mediante IDs demo durante esta fase.
+Los endpoints privados de identidad, marketplace y archivos requieren el encabezado
+`Authorization: Bearer <token>`. El token completo se entrega únicamente al cliente;
+PostgreSQL almacena su hash SHA-256. El backend obtiene el usuario desde esta sesión y
+no acepta IDs de cliente, estudiante o propietario enviados por Android.
+
+En Swagger, el token se configura desde **Authorize**. Las operaciones protegidas
+muestran un candado y responden `401` cuando la sesión no es válida o `403` cuando
+el usuario no tiene el rol, la propiedad o la participación necesaria.
 
 ### Crear una Tarea Presencial
 
@@ -224,7 +253,6 @@ Los endpoints de autenticación todavía no están implementados. El cliente y e
   "fechaLimitePostulacion": null,
   "fechaLimite": null,
   "idCategoria": 4,
-  "idCliente": 1,
   "tipoOportunidad": "TAREA",
   "modalidad": "PRESENCIAL",
   "visibilidad": "PUBLICA",
@@ -240,13 +268,29 @@ Para una tarea remota se utiliza `"modalidad": "REMOTA"` y se omiten o envían c
 
 ```json
 {
-  "idEstudiante": 1,
   "mensaje": "Tengo experiencia en este tipo de trabajo y disponibilidad esta semana.",
   "precioPropuesto": 25.00
 }
 ```
 
-La solicitud se envía mediante `POST /api/tasks/{idTarea}/applications`. La API rechaza una segunda postulación del mismo estudiante para la misma tarea y devuelve un mensaje que Android muestra en el formulario.
+La solicitud se envía mediante `POST /api/tasks/{idTarea}/applications`. Un estudiante
+puede volver a postularse después de un rechazo hasta completar tres intentos, pero no
+puede mantener dos postulaciones pendientes sobre la misma tarea.
+
+### Reportes y Moderación
+
+Desde el detalle de una oportunidad, un usuario puede seleccionar un motivo y enviar un
+reporte. La API impide reportar publicaciones propias y duplicar un reporte pendiente.
+
+El administrador revisa los reportes desde su panel y puede:
+
+- Marcar el reporte como `RESUELTO`.
+- Marcarlo como `DESCARTADO`.
+- Retirar la publicación cuando exista una infracción.
+
+Las revisiones y los retiros administrativos se registran en `auditoria_sistema` con el
+administrador responsable, la dirección IP, el dispositivo y los estados antes y después
+de la operación.
 
 ## Aplicación Android
 
@@ -281,14 +325,15 @@ Flujo actual de exploración y postulación:
 
 ## Uso del MVP
 
-1. Abrir la aplicación y entrar con el acceso demo.
+1. Abrir la aplicación, registrar una cuenta o iniciar sesión con una cuenta verificada.
 2. Explorar oportunidades desde Inicio o aplicar filtros por categoría.
 3. Abrir una tarea para consultar presupuesto, modalidad, fechas y ubicación.
 4. En tareas presenciales o híbridas, utilizar el mapa para revisar la ubicación.
 5. Pulsar **Postularse**, completar la propuesta y enviarla.
 6. Utilizar la sección **Publicar** para crear una nueva oportunidad.
 
-Las funciones de identidad todavía utilizan IDs temporales. No deben interpretarse como autenticación o autorización definitiva.
+Las operaciones privadas utilizan el usuario autenticado de la sesión. Android no decide
+el propietario de una tarea, postulación, entrega o archivo.
 
 ## Ejecución Local
 
@@ -369,22 +414,47 @@ Las pruebas del backend cubren la normalización de modalidades, la eliminación
 | `SPRING_DATASOURCE_MAX_POOL_SIZE` | Máximo de conexiones | `5` |
 | `SPRING_DATASOURCE_MIN_IDLE` | Conexiones mínimas en reposo | `1` |
 | `APP_CORS_ALLOWED_ORIGINS` | Orígenes permitidos | `*` durante la demo |
+| `SUPABASE_URL` | URL del proyecto usada por Storage | `https://PROJECT_REF.supabase.co` |
+| `SUPABASE_SECRET_KEY` | Clave secreta usada solo por el backend | Configurada en Render |
+| `SUPABASE_STORAGE_BUCKET` | Bucket privado de adjuntos | `t4kash-attachments` |
+| `APP_AUTH_EVALUATOR_EMAILS` | Correos no institucionales autorizados para evaluación | `evaluador@gmail.com` |
+| `APP_AUTH_ADMIN_EMAILS` | Correos que reciben el rol de administrador al iniciar sesión | `admin@ejemplo.com` |
+| `APP_MAIL_ENABLED` | Activa el envío de códigos | `true` |
+| `APP_MAIL_PROVIDER` | Transporte de correo (`brevo` en Render Free, `smtp` en local) | `brevo` |
+| `APP_MAIL_FROM` | Remitente visible de verificación | Remitente verificado en Brevo |
+| `APP_MAIL_FROM_NAME` | Nombre visible del remitente | `T4KASH` |
+| `BREVO_API_KEY` | Clave privada para enviar mediante HTTPS | Configurada en Render |
+| `SMTP_HOST` | Servidor de correo | Servidor del proveedor |
+| `SMTP_PORT` | Puerto SMTP | `587` |
+| `SMTP_USERNAME` | Usuario SMTP | Configurado en Render |
+| `SMTP_PASSWORD` | Contraseña o clave SMTP | Configurada en Render |
 | `T4KASH_API_BASE_URL` | URL consumida por Android | URL de Render |
 
 Las contraseñas, cadenas de conexión y claves privadas no deben guardarse en Git. Render administra las variables del backend y Android solo recibe la URL pública de la API.
+Los servicios gratuitos de Render bloquean los puertos SMTP, por lo que el despliegue usa la API HTTPS de Brevo. La configuración SMTP se conserva para desarrollo local o proveedores que permitan esos puertos.
 
 ## Despliegue
 
-La guía ampliada se encuentra en `docs/deployment.md`.
-
 Orden correcto para publicar cambios:
 
-1. Aplicar primero cualquier migración necesaria en Supabase.
+1. Verificar que el esquema actualizado ya esté aplicado en Supabase.
 2. Subir el backend a GitHub.
 3. Esperar que Render finalice el despliegue y muestre el servicio como `Live`.
 4. Verificar `/api/health` y Swagger.
 5. Compilar o ejecutar Android apuntando a Render.
 6. Probar el flujo completo desde un dispositivo o emulador.
+
+### Archivos Adjuntos
+
+Los archivos de tareas y entregas se guardan en el bucket privado
+`t4kash-attachments`. PostgreSQL conserva solamente el nombre, tipo, tamaño,
+ruta y propietario del archivo.
+
+- Tamaño máximo: 10 MB por archivo.
+- Máximo desde Android: 3 archivos por publicación o entrega.
+- Tipos aceptados: PDF, PNG, JPG, WebP, TXT, DOC, DOCX y ZIP.
+- La clave secreta de Supabase se usa únicamente en el backend.
+- Las descargas pasan por la API; Android no recibe acceso directo al bucket.
 
 ## Diseño y Diagramas
 
@@ -410,6 +480,25 @@ Los diagramas deben reflejar las coordenadas de `tareas` y diferenciar el flujo 
 | Social y Comunicación | mensajes, conversaciones, notificaciones, calificaciones, recomendaciones | Dev 1 |
 | Finanzas y Sistema | pagos, transacciones, reportes, auditoría, archivos | Dev 2 |
 
+## Convenciones de Código
+
+Para evitar mezclar estilos entre módulos, el proyecto seguirá estas reglas:
+
+| Elemento | Convención | Ejemplo |
+|---|---|---|
+| Clases, interfaces y archivos de código | Inglés y `PascalCase` | `AttachmentService`, `JobDetailScreen` |
+| Funciones, propiedades y variables internas | Inglés y `lowerCamelCase` | `loadAttachments`, `selectedFiles` |
+| Constantes | Inglés y `UPPER_SNAKE_CASE` | `MAX_FILE_SIZE` |
+| Paquetes y rutas técnicas | Inglés, minúsculas y nombres breves | `service`, `repository`, `attachments` |
+| Tablas y columnas de PostgreSQL | Español y `snake_case` | `archivos_adjuntos`, `id_tarea` |
+| Campos existentes de la API | Mantener el contrato actual | `idTarea`, `fechaLimite` |
+| Textos visibles, documentación y comentarios | Español claro | `Cargando oportunidades...` |
+
+Los comentarios deben explicar decisiones, límites o motivos que no sean evidentes en el
+código. No deben repetir literalmente lo que hace una instrucción. Los nombres heredados
+de la base de datos o de la API solo se cambiarán mediante una modificación coordinada
+entre PostgreSQL, backend y Android.
+
 ## Control de Versiones
 
 El proyecto utiliza ramas organizadas, Pull Requests y Conventional Commits.
@@ -424,11 +513,39 @@ test: agregar pruebas del flujo marketplace
 chore: ajustar configuración de render
 ```
 
-## Próximos Pasos
+## Etapas Pendientes
 
-1. Implementar autenticación real y eliminar los IDs demo.
-2. Permitir seleccionar manualmente una ubicación en el mapa.
-3. Conectar en Android la aceptación y el rechazo de postulaciones.
-4. Integrar almacenamiento de archivos con Supabase Storage.
-5. Incorporar notificaciones push.
-6. Completar trabajos asignados, entregas, pagos, reputación y mensajería.
+1. **Optimización y estandarización (completada)**
+   - Los formatos de fechas, córdobas y tamaños de archivo están centralizados.
+   - La sesión y el usuario actual se obtienen desde un único punto de la aplicación.
+   - Inicio y trabajos reutilizan datos recientes para evitar solicitudes duplicadas.
+   - Postulaciones, entregas y adjuntos tienen controladores independientes.
+   - Los recursos por tarea o trabajo se reutilizan y admiten actualización forzada.
+   - El estado de la interfaz está separado de las acciones del `ViewModel`.
+2. **Integración de identidad (completada para el MVP)**
+   - Registro e inicio de sesión conectados con la API.
+   - Validación del dominio institucional y selección de carrera.
+   - Activación mediante código enviado por correo y opción de reenvío.
+   - Contraseñas protegidas con BCrypt y tokens almacenados como hash.
+   - Sesión persistente y cierre de sesión desde Android.
+   - El usuario autenticado sustituye al ID demo en todos los flujos.
+   - Los perfiles muestran nombre, correo, estado y roles reales.
+3. **Ubicación y mapa (completada)**
+   - Las tareas presenciales o híbridas pueden usar el GPS o elegir un punto manualmente.
+   - El mapa muestra oportunidades dentro de un radio configurable de 5 a 50 km.
+   - Cada marcador presenta una vista previa con ubicación, distancia y acceso al detalle.
+   - El detalle de una oportunidad permite abrir el mapa enfocado en su ubicación.
+4. **Comunicación (completada para el MVP)**
+   - La conversación se crea al aceptar una postulación.
+   - Cliente y estudiante asignado pueden enviar mensajes.
+   - La aplicación muestra mensajes no leídos y actualiza el chat abierto.
+   - Las postulaciones, asignaciones, entregas y mensajes generan notificaciones internas.
+   - Incorporar notificaciones push con Firebase Cloud Messaging como mejora posterior.
+5. **Finanzas y reputación**
+   - Completar wallet, pagos y movimientos.
+   - Agregar calificaciones y reputación al finalizar trabajos.
+6. **Cierre técnico**
+   - Ejecutar pruebas integrales de Android, backend y PostgreSQL.
+   - Endurecer permisos del backend según rol y propiedad de cada recurso.
+   - Revisar validaciones, manejo de errores y estados de sesión.
+   - Actualizar diagramas, documentación y guía de despliegue final.
