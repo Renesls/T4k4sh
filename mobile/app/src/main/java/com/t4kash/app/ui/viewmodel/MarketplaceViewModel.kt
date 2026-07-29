@@ -309,6 +309,56 @@ class MarketplaceViewModel(
         }
     }
 
+    fun reportTask(
+        taskId: Int,
+        category: String,
+        description: String?
+    ) {
+        viewModelScope.launch {
+            updateState {
+                it.copy(
+                    isReportingTask = true,
+                    reportedTaskId = null,
+                    taskReportMessage = null,
+                    taskReportError = null
+                )
+            }
+            when (
+                val result = repository.createTaskReport(
+                    taskId,
+                    category,
+                    description
+                )
+            ) {
+                is ApiResult.Success -> updateState {
+                    it.copy(
+                        isReportingTask = false,
+                        reportedTaskId = taskId,
+                        taskReportMessage =
+                            "Reporte enviado. El equipo de moderacion lo revisara."
+                    )
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        isReportingTask = false,
+                        taskReportError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearTaskReportFeedback() {
+        updateState {
+            it.copy(
+                reportedTaskId = null,
+                taskReportMessage = null,
+                taskReportError = null
+            )
+        }
+    }
+
     fun loadAdminDashboard(force: Boolean = false) {
         if (uiState.isLoadingAdmin || (!force && uiState.adminSummary != null)) {
             return
@@ -327,6 +377,7 @@ class MarketplaceViewModel(
                         isLoadingAdmin = false,
                         adminSummary = result.data.summary,
                         adminTasks = result.data.tasks,
+                        adminReports = result.data.reports,
                         pendingStudentVerifications = result.data.verifications
                     )
                 }
@@ -370,6 +421,83 @@ class MarketplaceViewModel(
                                 (current.adminSummary.publicacionesActivas - 1).coerceAtLeast(0)
                         ),
                         adminMessage = "Publicacion retirada del marketplace."
+                    )
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        adminActionKey = null,
+                        adminError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun reviewReport(
+        reportId: Int,
+        status: String,
+        observation: String?,
+        removeTask: Boolean
+    ) {
+        viewModelScope.launch {
+            updateState {
+                it.copy(
+                    adminActionKey = "report:$reportId",
+                    adminError = null,
+                    adminMessage = null
+                )
+            }
+            when (
+                val result = repository.reviewReport(
+                    reportId,
+                    status,
+                    observation,
+                    removeTask
+                )
+            ) {
+                is ApiResult.Success -> updateState { current ->
+                    val affectedTaskId = result.data.idTarea
+                    val removedActiveTask = removeTask &&
+                        current.adminTasks.any {
+                            it.idTarea == affectedTaskId &&
+                                it.estadoTarea.equals("PUBLICADA", true)
+                        }
+                    current.copy(
+                        adminActionKey = null,
+                        adminReports = current.adminReports.map {
+                            if (it.idReporte == reportId) result.data else it
+                        },
+                        adminTasks = if (removeTask && affectedTaskId != null) {
+                            current.adminTasks.map {
+                                if (it.idTarea == affectedTaskId) {
+                                    it.copy(estadoTarea = "CANCELADA")
+                                } else {
+                                    it
+                                }
+                            }
+                        } else {
+                            current.adminTasks
+                        },
+                        adminSummary = current.adminSummary?.copy(
+                            reportesPendientes =
+                                (current.adminSummary.reportesPendientes - 1)
+                                    .coerceAtLeast(0),
+                            publicacionesActivas =
+                                if (removedActiveTask) {
+                                    (current.adminSummary.publicacionesActivas - 1)
+                                        .coerceAtLeast(0)
+                                } else {
+                                    current.adminSummary.publicacionesActivas
+                                }
+                        ),
+                        adminMessage = if (removeTask) {
+                            "Reporte resuelto y publicacion retirada."
+                        } else if (status.equals("RESUELTO", true)) {
+                            "Reporte marcado como resuelto."
+                        } else {
+                            "Reporte descartado."
+                        }
                     )
                 }
 

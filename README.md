@@ -213,12 +213,18 @@ El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno 
 | `GET` | `/api/tasks/{idTarea}` | Obtener detalle |
 | `GET` | `/api/tasks/{idTarea}/applications` | Listar postulaciones |
 | `POST` | `/api/tasks/{idTarea}/applications` | Crear postulación |
+| `POST` | `/api/tasks/{idTarea}/reports` | Reportar una publicación |
+| `GET` | `/api/reports/me` | Consultar reportes enviados |
 | `POST` | `/api/applications/{idPostulacion}/accept` | Aceptar postulación |
 | `POST` | `/api/applications/{idPostulacion}/reject` | Rechazar postulación |
 | `GET` | `/api/jobs` | Listar trabajos asignados |
 | `GET` | `/api/jobs/{idTrabajo}/deliveries` | Listar entregas |
 | `POST` | `/api/jobs/{idTrabajo}/deliveries` | Registrar entrega |
 | `POST` | `/api/deliveries/{idEntrega}/approve` | Aprobar entrega |
+| `GET` | `/api/admin/summary` | Consultar resumen administrativo |
+| `GET` | `/api/admin/reports` | Listar reportes de moderación |
+| `POST` | `/api/admin/reports/{idReporte}/review` | Resolver o descartar un reporte |
+| `DELETE` | `/api/admin/tasks/{idTarea}` | Retirar una publicación |
 
 Los endpoints privados de identidad, marketplace y archivos requieren el encabezado
 `Authorization: Bearer <token>`. El token completo se entrega únicamente al cliente;
@@ -259,7 +265,24 @@ Para una tarea remota se utiliza `"modalidad": "REMOTA"` y se omiten o envían c
 }
 ```
 
-La solicitud se envía mediante `POST /api/tasks/{idTarea}/applications`. La API rechaza una segunda postulación del mismo estudiante para la misma tarea y devuelve un mensaje que Android muestra en el formulario.
+La solicitud se envía mediante `POST /api/tasks/{idTarea}/applications`. Un estudiante
+puede volver a postularse después de un rechazo hasta completar tres intentos, pero no
+puede mantener dos postulaciones pendientes sobre la misma tarea.
+
+### Reportes y Moderación
+
+Desde el detalle de una oportunidad, un usuario puede seleccionar un motivo y enviar un
+reporte. La API impide reportar publicaciones propias y duplicar un reporte pendiente.
+
+El administrador revisa los reportes desde su panel y puede:
+
+- Marcar el reporte como `RESUELTO`.
+- Marcarlo como `DESCARTADO`.
+- Retirar la publicación cuando exista una infracción.
+
+Las revisiones y los retiros administrativos se registran en `auditoria_sistema` con el
+administrador responsable, la dirección IP, el dispositivo y los estados antes y después
+de la operación.
 
 ## Aplicación Android
 

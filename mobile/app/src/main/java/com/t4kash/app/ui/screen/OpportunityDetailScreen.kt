@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.School
@@ -32,16 +33,21 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -113,6 +119,8 @@ fun OpportunityDetailScreen(
         else -> "Postularse"
     }
     var showApplicationDialog by rememberSaveable { mutableStateOf(false) }
+    var showReportDialog by rememberSaveable { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(taskId) {
         viewModel.loadTaskAttachments(taskId)
@@ -126,6 +134,13 @@ fun OpportunityDetailScreen(
         if (state.sentApplication != null) {
             showApplicationDialog = false
             onApply()
+        }
+    }
+    LaunchedEffect(state.taskReportMessage) {
+        state.taskReportMessage?.let { message ->
+            showReportDialog = false
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearTaskReportFeedback()
         }
     }
 
@@ -151,6 +166,22 @@ fun OpportunityDetailScreen(
             }
         )
     }
+    if (showReportDialog && task != null) {
+        ReportTaskDialog(
+            taskTitle = task.titulo,
+            isSubmitting = state.isReportingTask,
+            apiError = state.taskReportError,
+            onDismiss = {
+                if (!state.isReportingTask) {
+                    showReportDialog = false
+                    viewModel.clearTaskReportFeedback()
+                }
+            },
+            onSubmit = { category, description ->
+                viewModel.reportTask(task.idTarea, category, description)
+            }
+        )
+    }
 
     Scaffold(
         containerColor = T4Background,
@@ -161,6 +192,7 @@ fun OpportunityDetailScreen(
                 onBack = onBack
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             if (task != null) {
                 DetailActionBar(
@@ -233,6 +265,13 @@ fun OpportunityDetailScreen(
                     isLoadingAttachments = state.isLoadingTaskAttachments,
                     attachmentsError = state.taskAttachmentsError,
                     onOpenMap = onOpenMap,
+                    canReport = sessionUser != null &&
+                        task.idCliente != sessionUser.id &&
+                        !task.estadoTarea.equals("CANCELADA", true),
+                    onReport = {
+                        viewModel.clearTaskReportFeedback()
+                        showReportDialog = true
+                    },
                     modifier = Modifier.padding(innerPadding)
                 )
             }
@@ -246,6 +285,8 @@ private fun OpportunityDetailContent(
     isLoadingAttachments: Boolean,
     attachmentsError: String?,
     onOpenMap: () -> Unit,
+    canReport: Boolean,
+    onReport: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -342,6 +383,21 @@ private fun OpportunityDetailContent(
                         icon = Icons.Filled.Place,
                         onClick = onOpenMap
                     )
+                }
+            }
+        }
+        if (canReport) {
+            item {
+                OutlinedButton(
+                    onClick = onReport,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Flag,
+                        contentDescription = null
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Reportar esta publicacion")
                 }
             }
         }
@@ -636,6 +692,125 @@ private fun ApplicationDialog(
         }
     )
 }
+
+@Composable
+private fun ReportTaskDialog(
+    taskTitle: String,
+    isSubmitting: Boolean,
+    apiError: String?,
+    onDismiss: () -> Unit,
+    onSubmit: (String, String?) -> Unit
+) {
+    val categories = remember {
+        listOf(
+            ReportCategoryOption("POSIBLE_ESTAFA", "Posible estafa"),
+            ReportCategoryOption("INFORMACION_FALSA", "Informacion falsa"),
+            ReportCategoryOption("CONTENIDO_INAPROPIADO", "Contenido"),
+            ReportCategoryOption("PUBLICACION_DUPLICADA", "Duplicada"),
+            ReportCategoryOption("OTRO", "Otro")
+        )
+    }
+    var selectedCategory by rememberSaveable { mutableStateOf<String?>(null) }
+    var description by rememberSaveable { mutableStateOf("") }
+    var validationError by rememberSaveable { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        modifier = Modifier.imePadding(),
+        onDismissRequest = onDismiss,
+        title = { Text("Reportar publicacion") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = taskTitle,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = T4Text
+                )
+                Text(
+                    text = "Selecciona el motivo que mejor describe el problema.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = T4TextMuted
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    categories.take(2).forEach { category ->
+                        FilterChip(
+                            selected = selectedCategory == category.code,
+                            onClick = {
+                                selectedCategory = category.code
+                                validationError = null
+                            },
+                            label = { Text(category.label) }
+                        )
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    categories.drop(2).forEach { category ->
+                        FilterChip(
+                            selected = selectedCategory == category.code,
+                            onClick = {
+                                selectedCategory = category.code
+                                validationError = null
+                            },
+                            label = { Text(category.label) }
+                        )
+                    }
+                }
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it.take(700) },
+                    label = { Text("Detalle opcional") },
+                    minLines = 3,
+                    maxLines = 5,
+                    enabled = !isSubmitting,
+                    supportingText = { Text("${description.length}/700") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                (validationError ?: apiError)?.let { error ->
+                    Text(
+                        text = error,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val category = selectedCategory
+                    if (category == null) {
+                        validationError = "Selecciona un motivo."
+                    } else {
+                        onSubmit(
+                            category,
+                            description.trim().ifBlank { null }
+                        )
+                    }
+                },
+                enabled = !isSubmitting
+            ) {
+                if (isSubmitting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text("Enviar reporte")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isSubmitting) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+private data class ReportCategoryOption(
+    val code: String,
+    val label: String
+)
 
 @Composable
 private fun DetailActionBar(

@@ -2,17 +2,25 @@ package com.t4kash.api.admin.controller;
 
 import com.t4kash.api.admin.dto.AdminSummaryResponse;
 import com.t4kash.api.admin.service.AdminService;
+import com.t4kash.api.identity.dto.AuthenticatedUserResponse;
 import com.t4kash.api.identity.service.AuthenticatedUserService;
 import com.t4kash.api.marketplace.dto.TaskResponse;
+import com.t4kash.api.moderation.dto.ReportResponse;
+import com.t4kash.api.moderation.dto.ReviewReportRequest;
+import com.t4kash.api.moderation.service.ReportService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -24,13 +32,16 @@ import java.util.List;
 public class AdminController {
     private final AuthenticatedUserService authenticatedUserService;
     private final AdminService adminService;
+    private final ReportService reportService;
 
     public AdminController(
             AuthenticatedUserService authenticatedUserService,
-            AdminService adminService
+            AdminService adminService,
+            ReportService reportService
     ) {
         this.authenticatedUserService = authenticatedUserService;
         this.adminService = adminService;
+        this.reportService = reportService;
     }
 
     @GetMapping("/summary")
@@ -58,9 +69,54 @@ public class AdminController {
     public TaskResponse cancelTask(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
             String authorization,
-            @PathVariable Integer taskId
+            @PathVariable Integer taskId,
+            HttpServletRequest servletRequest
+    ) {
+        AuthenticatedUserResponse admin =
+                authenticatedUserService.requireRole(authorization, "ADMIN");
+        return adminService.cancelTask(
+                admin.idUsuario(),
+                taskId,
+                clientIp(servletRequest),
+                servletRequest.getHeader(HttpHeaders.USER_AGENT)
+        );
+    }
+
+    @GetMapping("/reports")
+    @Operation(summary = "Listar reportes de moderacion")
+    public List<ReportResponse> listReports(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
+            String authorization
     ) {
         authenticatedUserService.requireRole(authorization, "ADMIN");
-        return adminService.cancelTask(taskId);
+        return reportService.listAll();
+    }
+
+    @PostMapping("/reports/{reportId}/review")
+    @Operation(summary = "Resolver o descartar un reporte")
+    public ReportResponse reviewReport(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
+            String authorization,
+            @PathVariable Integer reportId,
+            @Valid @RequestBody ReviewReportRequest request,
+            HttpServletRequest servletRequest
+    ) {
+        AuthenticatedUserResponse admin =
+                authenticatedUserService.requireRole(authorization, "ADMIN");
+        return reportService.review(
+                admin.idUsuario(),
+                reportId,
+                request,
+                clientIp(servletRequest),
+                servletRequest.getHeader(HttpHeaders.USER_AGENT)
+        );
+    }
+
+    private String clientIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 }

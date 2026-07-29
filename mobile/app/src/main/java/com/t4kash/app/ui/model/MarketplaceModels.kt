@@ -107,6 +107,7 @@ data class MarketplaceHomeData(
 data class AdminSummaryDto(
     val usuarios: Long,
     val verificacionesPendientes: Long,
+    val reportesPendientes: Long,
     val publicacionesActivas: Long,
     val trabajosAsignados: Long
 )
@@ -128,5 +129,33 @@ data class ReviewStudentVerificationRequest(
 data class AdminDashboardData(
     val summary: AdminSummaryDto,
     val verifications: List<StudentVerificationDto>,
+    val reports: List<ReportDto>,
     val tasks: List<TaskDto>
+)
+
+data class CreateTaskReportRequest(
+    val categoriaReporte: String,
+    val descripcion: String?
+)
+
+data class ReviewReportRequest(
+    val estadoReporte: String,
+    val observacion: String?,
+    val retirarPublicacion: Boolean
+)
+
+data class ReportDto(
+    val idReporte: Int,
+    val idUsuarioReporta: Int,
+    val correoReporta: String?,
+    val idUsuarioReportado: Int?,
+    val correoReportado: String?,
+    val idTarea: Int?,
+    val tituloTarea: String?,
+    val motivo: String,
+    val descripcion: String?,
+    val estadoReporte: String,
+    val fechaReporte: String,
+    val tipoReporte: String,
+    val categoriaReporte: String
 )

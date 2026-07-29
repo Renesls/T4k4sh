@@ -7,9 +7,12 @@ import com.t4kash.app.ui.model.CategoryDto
 import com.t4kash.app.ui.model.CreateApplicationRequest
 import com.t4kash.app.ui.model.CreateDeliveryRequest
 import com.t4kash.app.ui.model.CreateTaskRequest
+import com.t4kash.app.ui.model.CreateTaskReportRequest
 import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.ReviewStudentVerificationRequest
+import com.t4kash.app.ui.model.ReviewReportRequest
+import com.t4kash.app.ui.model.ReportDto
 import com.t4kash.app.ui.model.StudentVerificationDto
 import com.t4kash.app.ui.model.TaskDto
 import retrofit2.http.Body
@@ -114,16 +117,34 @@ interface MarketplaceApiService {
         @Part file: MultipartBody.Part
     ): AttachmentDto
 
+    @POST("tasks/{taskId}/reports")
+    suspend fun createTaskReport(
+        @Path("taskId") taskId: Int,
+        @Body request: CreateTaskReportRequest
+    ): ReportDto
+
+    @GET("reports/me")
+    suspend fun getMyReports(): List<ReportDto>
+
     @GET("admin/summary")
     suspend fun getAdminSummary(): AdminSummaryDto
 
     @GET("admin/tasks")
     suspend fun getAdminTasks(): List<TaskDto>
 
+    @GET("admin/reports")
+    suspend fun getAdminReports(): List<ReportDto>
+
     @DELETE("admin/tasks/{taskId}")
     suspend fun cancelTaskAsAdmin(
         @Path("taskId") taskId: Int
     ): TaskDto
+
+    @POST("admin/reports/{reportId}/review")
+    suspend fun reviewReport(
+        @Path("reportId") reportId: Int,
+        @Body request: ReviewReportRequest
+    ): ReportDto
 
     @GET("student-verifications/pending")
     suspend fun getPendingStudentVerifications(): List<StudentVerificationDto>

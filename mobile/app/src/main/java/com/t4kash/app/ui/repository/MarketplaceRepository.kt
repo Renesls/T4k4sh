@@ -6,11 +6,14 @@ import com.t4kash.app.ui.model.AttachmentDto
 import com.t4kash.app.ui.model.CreateApplicationRequest
 import com.t4kash.app.ui.model.CreateDeliveryRequest
 import com.t4kash.app.ui.model.CreateTaskRequest
+import com.t4kash.app.ui.model.CreateTaskReportRequest
 import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.MarketplaceHomeData
 import com.t4kash.app.ui.model.PendingAttachment
 import com.t4kash.app.ui.model.ReviewStudentVerificationRequest
+import com.t4kash.app.ui.model.ReviewReportRequest
+import com.t4kash.app.ui.model.ReportDto
 import com.t4kash.app.ui.model.StudentVerificationDto
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.service.ApiResult
@@ -185,12 +188,30 @@ class MarketplaceRepository(
         }
     }
 
+    suspend fun createTaskReport(
+        taskId: Int,
+        category: String,
+        description: String?
+    ): ApiResult<ReportDto> {
+        return try {
+            ApiResult.Success(
+                api.createTaskReport(
+                    taskId,
+                    CreateTaskReportRequest(category, description)
+                )
+            )
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudo enviar el reporte."))
+        }
+    }
+
     suspend fun loadAdminDashboard(): ApiResult<AdminDashboardData> {
         return try {
             ApiResult.Success(
                 AdminDashboardData(
                     summary = api.getAdminSummary(),
                     verifications = api.getPendingStudentVerifications(),
+                    reports = api.getAdminReports(),
                     tasks = api.getAdminTasks()
                 )
             )
@@ -236,6 +257,28 @@ class MarketplaceRepository(
             ApiResult.Success(api.cancelTaskAsAdmin(taskId))
         } catch (e: Exception) {
             ApiResult.Error(e.apiMessage("No se pudo retirar la publicacion."))
+        }
+    }
+
+    suspend fun reviewReport(
+        reportId: Int,
+        status: String,
+        observation: String?,
+        removeTask: Boolean
+    ): ApiResult<ReportDto> {
+        return try {
+            ApiResult.Success(
+                api.reviewReport(
+                    reportId,
+                    ReviewReportRequest(
+                        estadoReporte = status,
+                        observacion = observation,
+                        retirarPublicacion = removeTask
+                    )
+                )
+            )
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudo revisar el reporte."))
         }
     }
 

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.TaskAlt
@@ -25,6 +26,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -56,6 +58,7 @@ import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
 import com.t4kash.app.ui.model.AdminSummaryDto
+import com.t4kash.app.ui.model.ReportDto
 import com.t4kash.app.ui.model.StudentVerificationDto
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.theme.T4Background
@@ -67,6 +70,7 @@ import com.t4kash.app.ui.theme.T4Surface
 import com.t4kash.app.ui.theme.T4Text
 import com.t4kash.app.ui.theme.T4TextMuted
 import com.t4kash.app.ui.viewmodel.MarketplaceViewModel
+import com.t4kash.app.ui.formatApiDateTime
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -81,6 +85,7 @@ fun AdminScreen(
     var approvalTarget by remember { mutableStateOf<StudentVerificationDto?>(null) }
     var rejectionTarget by remember { mutableStateOf<StudentVerificationDto?>(null) }
     var cancellationTarget by remember { mutableStateOf<TaskDto?>(null) }
+    var reportReviewTarget by remember { mutableStateOf<ReportReviewTarget?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.loadAdminDashboard()
@@ -158,6 +163,22 @@ fun AdminScreen(
             }
         )
     }
+    reportReviewTarget?.let { target ->
+        ReviewReportDialog(
+            report = target.report,
+            resolved = target.resolved,
+            onDismiss = { reportReviewTarget = null },
+            onConfirm = { observation, removeTask ->
+                viewModel.reviewReport(
+                    reportId = target.report.idReporte,
+                    status = if (target.resolved) "RESUELTO" else "DESCARTADO",
+                    observation = observation,
+                    removeTask = removeTask
+                )
+                reportReviewTarget = null
+            }
+        )
+    }
 
     Scaffold(
         containerColor = T4Background,
@@ -212,8 +233,9 @@ fun AdminScreen(
                         contentColor = T4Primary
                     ) {
                         listOf(
-                            "Validaciones (${state.pendingStudentVerifications.size})",
-                            "Publicaciones"
+                            "Perfiles",
+                            "Reportes",
+                            "Tareas"
                         ).forEachIndexed { index, label ->
                             Tab(
                                 selected = selectedTab == index,
@@ -244,6 +266,38 @@ fun AdminScreen(
                                         "verification:${verification.idUsuario}",
                                 onApprove = { approvalTarget = verification },
                                 onReject = { rejectionTarget = verification }
+                            )
+                        }
+                    }
+                } else if (selectedTab == 1) {
+                    if (state.adminReports.isEmpty()) {
+                        item {
+                            EmptyState(
+                                title = "Sin reportes",
+                                message = "Los reportes del marketplace apareceran aqui."
+                            )
+                        }
+                    } else {
+                        items(
+                            items = state.adminReports.sortedWith(
+                                compareByDescending<ReportDto> {
+                                    it.estadoReporte.equals("PENDIENTE", true)
+                                }.thenByDescending { it.fechaReporte }
+                            ),
+                            key = { it.idReporte }
+                        ) { report ->
+                            ReportAdminCard(
+                                report = report,
+                                isWorking =
+                                    state.adminActionKey == "report:${report.idReporte}",
+                                onResolve = {
+                                    reportReviewTarget =
+                                        ReportReviewTarget(report, resolved = true)
+                                },
+                                onDismiss = {
+                                    reportReviewTarget =
+                                        ReportReviewTarget(report, resolved = false)
+                                }
                             )
                         }
                     }
@@ -329,18 +383,24 @@ private fun AdminSummary(summary: AdminSummaryDto) {
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AdminMetric(
+                label = "Reportes",
+                value = summary.reportesPendientes,
+                icon = Icons.Filled.Flag,
+                modifier = Modifier.weight(1f)
+            )
+            AdminMetric(
                 label = "Publicadas",
                 value = summary.publicacionesActivas,
                 icon = Icons.Filled.TaskAlt,
                 modifier = Modifier.weight(1f)
             )
-            AdminMetric(
-                label = "Asignadas",
-                value = summary.trabajosAsignados,
-                icon = Icons.Filled.CheckCircle,
-                modifier = Modifier.weight(1f)
-            )
         }
+        AdminMetric(
+            label = "Trabajos asignados",
+            value = summary.trabajosAsignados,
+            icon = Icons.Filled.CheckCircle,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
@@ -451,6 +511,194 @@ private fun VerificationAdminCard(
         }
     }
 }
+
+@Composable
+private fun ReportAdminCard(
+    report: ReportDto,
+    isWorking: Boolean,
+    onResolve: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val pending = report.estadoReporte.equals("PENDIENTE", true)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = T4Surface),
+        border = BorderStroke(1.dp, T4Border)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Flag,
+                    contentDescription = null,
+                    tint = T4Primary
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = report.motivo,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = T4Text
+                    )
+                    Text(
+                        text = report.tituloTarea ?: "Publicacion no disponible",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = T4TextMuted,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                StatusChip(
+                    text = report.estadoReporte.lowercase()
+                        .replaceFirstChar(Char::uppercase),
+                    selected = pending
+                )
+            }
+            report.descripcion?.let { description ->
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = T4Text
+                )
+            }
+            Text(
+                text = "Reporta: ${report.correoReporta ?: "#${report.idUsuarioReporta}"}",
+                style = MaterialTheme.typography.bodySmall,
+                color = T4TextMuted
+            )
+            Text(
+                text = "Reportado: ${report.correoReportado ?: "#${report.idUsuarioReportado}"}",
+                style = MaterialTheme.typography.bodySmall,
+                color = T4TextMuted
+            )
+            Text(
+                text = formatApiDateTime(report.fechaReporte),
+                style = MaterialTheme.typography.labelMedium,
+                color = T4TextMuted
+            )
+            if (pending) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        enabled = !isWorking,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Descartar")
+                    }
+                    Button(
+                        onClick = onResolve,
+                        enabled = !isWorking,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        if (isWorking) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text("Resolver")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReviewReportDialog(
+    report: ReportDto,
+    resolved: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (String?, Boolean) -> Unit
+) {
+    var observation by remember { mutableStateOf("") }
+    var removeTask by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(if (resolved) "Resolver reporte" else "Descartar reporte")
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = report.tituloTarea ?: report.motivo,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = if (resolved) {
+                        "Confirma la accion tomada por moderacion."
+                    } else {
+                        "El reporte quedara cerrado sin retirar la publicacion."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = T4TextMuted
+                )
+                OutlinedTextField(
+                    value = observation,
+                    onValueChange = { observation = it.take(700) },
+                    label = { Text("Observacion administrativa") },
+                    minLines = 3,
+                    maxLines = 5,
+                    supportingText = { Text("${observation.length}/700") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (resolved && report.idTarea != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = removeTask,
+                            onCheckedChange = { removeTask = it }
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Retirar publicacion",
+                                fontWeight = FontWeight.SemiBold,
+                                color = T4Text
+                            )
+                            Text(
+                                text = "Cancela la tarea y sus postulaciones pendientes.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = T4TextMuted
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onConfirm(
+                        observation.trim().ifBlank { null },
+                        resolved && removeTask
+                    )
+                }
+            ) {
+                Text(if (resolved) "Resolver" else "Descartar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+private data class ReportReviewTarget(
+    val report: ReportDto,
+    val resolved: Boolean
+)
 
 @Composable
 private fun AdminTaskCard(

@@ -8,6 +8,7 @@ import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.model.StudentVerificationDto
+import com.t4kash.app.ui.model.ReportDto
 
 data class MarketplaceUiState(
     val isLoading: Boolean = false,
@@ -61,8 +62,13 @@ data class MarketplaceUiState(
     val isUploadingStudentProof: Boolean = false,
     val studentProofMessage: String? = null,
     val studentProofError: String? = null,
+    val isReportingTask: Boolean = false,
+    val reportedTaskId: Int? = null,
+    val taskReportMessage: String? = null,
+    val taskReportError: String? = null,
     val adminSummary: AdminSummaryDto? = null,
     val adminTasks: List<TaskDto> = emptyList(),
+    val adminReports: List<ReportDto> = emptyList(),
     val pendingStudentVerifications: List<StudentVerificationDto> = emptyList(),
     val isLoadingAdmin: Boolean = false,
     val adminActionKey: String? = null,
