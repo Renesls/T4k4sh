@@ -28,12 +28,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AddBox
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Warning
@@ -89,7 +89,7 @@ val T4BottomDestinations = listOf(
     BottomDestination(Routes.NETWORK, "Network", Icons.Filled.Group),
     BottomDestination(Routes.POST, "Post", Icons.Filled.AddBox),
     BottomDestination(Routes.CHAT, "Chat", Icons.Filled.ChatBubble),
-    BottomDestination(Routes.WALLET, "Wallet", Icons.Filled.AccountBalanceWallet)
+    BottomDestination(Routes.PROFILE, "Perfil", Icons.Filled.Person)
 )
 
 data class T4CategoryColors(
@@ -459,8 +459,8 @@ private fun DrawScope.drawTriangle(
 @Composable
 fun StatusChip(
     text: String,
-    selected: Boolean = false,
     modifier: Modifier = Modifier,
+    selected: Boolean = false,
     containerColor: Color? = null,
     contentColor: Color? = null
 ) {

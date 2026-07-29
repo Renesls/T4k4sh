@@ -36,6 +36,9 @@ public class Postulacion {
     @Column(name = "estado_postulacion", nullable = false, length = 30)
     private String estadoPostulacion;
 
+    @Column(name = "numero_intento", nullable = false)
+    private Integer numeroIntento;
+
     public Integer getIdPostulacion() {
         return idPostulacion;
     }
@@ -90,5 +93,13 @@ public class Postulacion {
 
     public void setEstadoPostulacion(String estadoPostulacion) {
         this.estadoPostulacion = estadoPostulacion;
+    }
+
+    public Integer getNumeroIntento() {
+        return numeroIntento;
+    }
+
+    public void setNumeroIntento(Integer numeroIntento) {
+        this.numeroIntento = numeroIntento;
     }
 }

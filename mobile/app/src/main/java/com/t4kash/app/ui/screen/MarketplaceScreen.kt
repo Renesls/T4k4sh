@@ -27,6 +27,8 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -60,7 +62,10 @@ import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4BottomBar
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.components.isSoftwareKeyboardVisible
+import com.t4kash.app.ui.components.keepVisibleAboveKeyboard
 import com.t4kash.app.ui.components.t4CategoryColors
+import com.t4kash.app.ui.formatNioCurrency
 import com.t4kash.app.ui.model.CategoryDto
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.navigation.Routes
@@ -82,19 +87,23 @@ fun MarketplaceScreen(
     onNavigate: (String) -> Unit = {},
     onTaskSelected: (TaskDto) -> Unit = {},
     onCreateTask: () -> Unit = {},
-    onOpenMap: () -> Unit = {}
+    onOpenMap: () -> Unit = {},
+    onOpenNotifications: () -> Unit = {},
+    unreadNotifications: Int = 0
 ) {
     val state = viewModel.uiState
+    val keyboardVisible = isSoftwareKeyboardVisible()
     var query by remember { mutableStateOf("") }
     var selectedCategoryId by remember { mutableIntStateOf(0) }
 
     val filteredTasks = remember(state.tasks, query, selectedCategoryId) {
         state.tasks.filter { task ->
+            val isAvailable = task.estadoTarea.equals("PUBLICADA", ignoreCase = true)
             val matchesQuery = query.isBlank() ||
                 task.titulo.contains(query, ignoreCase = true) ||
                 task.descripcion.contains(query, ignoreCase = true)
             val matchesCategory = selectedCategoryId == 0 || task.idCategoria == selectedCategoryId
-            matchesQuery && matchesCategory
+            isAvailable && matchesQuery && matchesCategory
         }
     }
     val categoriesById = remember(state.categories) {
@@ -114,43 +123,61 @@ fun MarketplaceScreen(
                             contentDescription = "Explorar en el mapa"
                         )
                     }
-                    IconButton(onClick = {}) {
-                        Icon(
-                            imageVector = Icons.Filled.Notifications,
-                            contentDescription = "Notificaciones"
-                        )
+                    IconButton(onClick = onOpenNotifications) {
+                        BadgedBox(
+                            badge = {
+                                if (unreadNotifications > 0) {
+                                    Badge {
+                                        Text(
+                                            unreadNotifications
+                                                .coerceAtMost(99)
+                                                .toString()
+                                        )
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Notifications,
+                                contentDescription = "Notificaciones"
+                            )
+                        }
                     }
                 }
             )
         },
         bottomBar = {
-            T4BottomBar(
-                currentRoute = currentRoute,
-                onNavigate = onNavigate,
-                onReselect = { route ->
-                    if (route == Routes.MARKETPLACE && !state.isLoading) {
-                        viewModel.refresh()
+            if (!keyboardVisible) {
+                T4BottomBar(
+                    currentRoute = currentRoute,
+                    onNavigate = onNavigate,
+                    onReselect = { route ->
+                        if (route == Routes.MARKETPLACE && !state.isLoading) {
+                            viewModel.refresh(force = true)
+                        }
                     }
-                }
-            )
+                )
+            }
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onCreateTask,
-                containerColor = T4Primary,
-                contentColor = Color.White,
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Add,
-                    contentDescription = "Crear oportunidad"
-                )
+            if (!keyboardVisible) {
+                FloatingActionButton(
+                    onClick = onCreateTask,
+                    containerColor = T4Primary,
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = "Crear oportunidad"
+                    )
+                }
             }
         }
     ) { innerPadding ->
         PullToRefreshBox(
             isRefreshing = state.isLoading && state.tasks.isNotEmpty(),
-            onRefresh = viewModel::refresh,
+            onRefresh = { viewModel.refresh(force = true) },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
@@ -189,7 +216,9 @@ fun MarketplaceScreen(
                         OutlinedTextField(
                             value = query,
                             onValueChange = { query = it },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .keepVisibleAboveKeyboard(),
                             placeholder = { Text("Buscar tareas o estudiantes...") },
                             singleLine = true,
                             shape = RoundedCornerShape(16.dp),
@@ -260,7 +289,7 @@ fun MarketplaceScreen(
                     item {
                         ConnectionErrorState(
                             message = state.errorMessage,
-                            onRetry = viewModel::refresh
+                            onRetry = { viewModel.refresh(force = true) }
                         )
                     }
                 }
@@ -370,7 +399,7 @@ private fun TaskCard(
                     contentColor = categoryColors.content
                 )
                 Text(
-                    text = "$${"%.2f".format(task.presupuesto)}",
+                    text = formatNioCurrency(task.presupuesto),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = T4MintDark

@@ -12,7 +12,8 @@ public record ApplicationResponse(
         String mensaje,
         BigDecimal precioPropuesto,
         LocalDateTime fechaPostulacion,
-        String estadoPostulacion
+        String estadoPostulacion,
+        Integer numeroIntento
 ) {
     public static ApplicationResponse fromEntity(Postulacion postulacion) {
         return new ApplicationResponse(
@@ -22,7 +23,8 @@ public record ApplicationResponse(
                 postulacion.getMensaje(),
                 postulacion.getPrecioPropuesto(),
                 postulacion.getFechaPostulacion(),
-                postulacion.getEstadoPostulacion()
+                postulacion.getEstadoPostulacion(),
+                postulacion.getNumeroIntento()
         );
     }
 }

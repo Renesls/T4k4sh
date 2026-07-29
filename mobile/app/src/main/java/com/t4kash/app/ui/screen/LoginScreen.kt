@@ -10,11 +10,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -23,11 +26,10 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -42,13 +44,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4BrandMark
+import com.t4kash.app.ui.components.keepVisibleAboveKeyboard
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
 import com.t4kash.app.ui.theme.T4Primary
@@ -56,23 +62,37 @@ import com.t4kash.app.ui.theme.T4PrimarySoft
 import com.t4kash.app.ui.theme.T4Surface
 import com.t4kash.app.ui.theme.T4Text
 import com.t4kash.app.ui.theme.T4TextMuted
+import com.t4kash.app.ui.viewmodel.AuthViewModel
 
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit
+    viewModel: AuthViewModel,
+    onLoginVerification: (String) -> Unit,
+    onRegister: () -> Unit,
+    onVerifyEmail: () -> Unit,
+    onForgotPassword: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var validationError by remember { mutableStateOf<String?>(null) }
+    val focusManager = LocalFocusManager.current
+    val uiState = viewModel.uiState
 
     fun submit() {
-        errorMessage = when {
-            email.isBlank() || password.isBlank() -> "Completa tu correo y contraseña para continuar."
-            !email.contains("@") -> "Ingresa un correo universitario válido."
+        validationError = when {
+            email.isBlank() || password.isBlank() ->
+                "Completa tu correo y contraseña para continuar."
+
+            !email.contains("@") ->
+                "Ingresa un correo válido."
+
             else -> null
         }
-        if (errorMessage == null) onLoginSuccess()
+        if (validationError == null) {
+            focusManager.clearFocus()
+            viewModel.login(email, password, onLoginVerification)
+        }
     }
 
     Scaffold(
@@ -98,8 +118,9 @@ fun LoginScreen(
                         colors = listOf(T4Background, Color(0xFFF2F2ED))
                     )
                 )
+                .imePadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 24.dp),
+                .padding(horizontal = 16.dp, vertical = 20.dp),
             contentAlignment = Alignment.TopCenter
         ) {
             Column(
@@ -109,13 +130,13 @@ fun LoginScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(28.dp))
+                        .clip(RoundedCornerShape(8.dp))
                         .background(
                             Brush.linearGradient(
                                 colors = listOf(Color(0xFF3D2FE0), T4PrimarySoft, T4Primary)
                             )
                         )
-                        .padding(24.dp)
+                        .padding(22.dp)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
@@ -125,9 +146,9 @@ fun LoginScreen(
                             color = Color.White
                         )
                         Text(
-                            text = "Accede a oportunidades, publica trabajos y sigue tus entregas desde un mismo lugar.",
+                            text = "Tu cuenta conecta publicaciones, postulaciones y trabajos.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White.copy(alpha = 0.86f)
+                            color = Color.White.copy(alpha = 0.88f)
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             StatusChip(
@@ -147,7 +168,6 @@ fun LoginScreen(
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
-
                 Text(
                     text = "Ingresa a tu cuenta",
                     style = MaterialTheme.typography.headlineSmall,
@@ -156,17 +176,17 @@ fun LoginScreen(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Usa tu correo universitario para continuar.",
+                    text = "Continúa con las oportunidades asociadas a tu perfil.",
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                     color = T4TextMuted
                 )
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = T4Surface),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, T4Border.copy(alpha = 0.60f)),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
@@ -178,29 +198,44 @@ fun LoginScreen(
                             value = email,
                             onValueChange = {
                                 email = it
-                                errorMessage = null
+                                validationError = null
+                                viewModel.clearError()
                             },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Correo universitario") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .keepVisibleAboveKeyboard(),
+                            label = { Text("Correo") },
                             singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
-                            isError = errorMessage != null
+                            shape = RoundedCornerShape(8.dp),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Email,
+                                imeAction = ImeAction.Next
+                            ),
+                            isError = validationError != null
                         )
                         OutlinedTextField(
                             value = password,
                             onValueChange = {
                                 password = it
-                                errorMessage = null
+                                validationError = null
+                                viewModel.clearError()
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .keepVisibleAboveKeyboard(),
                             label = { Text("Contraseña") },
                             singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(8.dp),
                             visualTransformation = if (passwordVisible) {
                                 VisualTransformation.None
                             } else {
                                 PasswordVisualTransformation()
                             },
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Password,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(onDone = { submit() }),
                             trailingIcon = {
                                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                     Icon(
@@ -209,25 +244,21 @@ fun LoginScreen(
                                         } else {
                                             Icons.Filled.Visibility
                                         },
-                                        contentDescription = "Mostrar contraseña"
+                                        contentDescription = if (passwordVisible) {
+                                            "Ocultar contraseña"
+                                        } else {
+                                            "Mostrar contraseña"
+                                        }
                                     )
                                 }
                             },
-                            isError = errorMessage != null
+                            isError = validationError != null
                         )
 
-                        TextButton(
-                            onClick = {
-                                errorMessage = "La recuperacion de contrasena se conectara al modulo de identidad."
-                            },
-                            modifier = Modifier.align(Alignment.End)
-                        ) {
-                            Text("Olvidaste tu contraseña?")
-                        }
-
-                        if (errorMessage != null) {
+                        val error = validationError ?: uiState.errorMessage
+                        if (error != null) {
                             Text(
-                                text = errorMessage.orEmpty(),
+                                text = error,
                                 color = MaterialTheme.colorScheme.error,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -235,55 +266,53 @@ fun LoginScreen(
 
                         Button(
                             onClick = ::submit,
+                            enabled = !uiState.isLoading,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(56.dp)
+                                .height(52.dp)
                         ) {
-                            Text("Entrar")
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = null
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            HorizontalDivider(modifier = Modifier.weight(1f))
-                            Text(
-                                text = "o continuar con",
-                                color = T4TextMuted,
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                            HorizontalDivider(modifier = Modifier.weight(1f))
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = onLoginSuccess,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Google")
-                            }
-                            OutlinedButton(
-                                onClick = onLoginSuccess,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("EDU Login")
+                            if (uiState.isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.height(22.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color.White
+                                )
+                            } else {
+                                Text("Entrar")
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = null
+                                )
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-                TextButton(onClick = onLoginSuccess) {
-                    Text("Entrar como usuario demo")
+                Spacer(modifier = Modifier.height(12.dp))
+                TextButton(
+                    onClick = {
+                        viewModel.clearError()
+                        onForgotPassword()
+                    }
+                ) {
+                    Text("Olvidaste tu contrasena?")
+                }
+                TextButton(
+                    onClick = {
+                        viewModel.clearError()
+                        onRegister()
+                    }
+                ) {
+                    Text("Crear una cuenta")
+                }
+                TextButton(
+                    onClick = {
+                        viewModel.clearError()
+                        onVerifyEmail()
+                    }
+                ) {
+                    Text("Ya tengo un código de verificación")
                 }
             }
         }

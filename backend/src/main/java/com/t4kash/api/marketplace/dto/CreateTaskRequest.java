@@ -26,9 +26,6 @@ public record CreateTaskRequest(
         @NotNull
         Integer idCategoria,
 
-        @NotNull
-        Integer idCliente,
-
         @NotBlank @Size(max = 50)
         String tipoOportunidad,
 
