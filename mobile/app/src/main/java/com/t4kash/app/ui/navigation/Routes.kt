@@ -19,6 +19,7 @@ object Routes {
     const val NETWORK = "network"
     const val POST = "post"
     const val CHAT = "chat"
+    const val NOTIFICATIONS = "notifications"
     const val PROFILE = "profile"
     const val WALLET = "wallet"
     const val ASSIGNED_JOBS = "profile/jobs"
@@ -34,6 +35,8 @@ object Routes {
     const val TASK_APPLICATIONS = "opportunity/{$TASK_ID_ARG}/applications"
     const val MY_PUBLICATIONS = "profile/publications/{$PUBLICATION_FILTER_ARG}"
     const val JOB_DETAILS = "profile/jobs/{$JOB_ID_ARG}"
+    const val CONVERSATION_ID_ARG = "conversationId"
+    const val CONVERSATION = "chat/{$CONVERSATION_ID_ARG}"
 
     fun taskDetails(taskId: Int): String = "opportunity/$taskId"
     fun editTask(taskId: Int): String = "opportunity/$taskId/edit"
@@ -41,6 +44,8 @@ object Routes {
     fun taskApplications(taskId: Int): String = "opportunity/$taskId/applications"
     fun myPublications(filter: String = "ALL"): String = "profile/publications/$filter"
     fun jobDetails(jobId: Int): String = "profile/jobs/$jobId"
+    fun conversation(conversationId: Int): String =
+        "chat/$conversationId"
     fun verifyEmail(email: String = ""): String {
         return "verify-email?email=${Uri.encode(email)}"
     }

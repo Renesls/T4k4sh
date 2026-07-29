@@ -63,6 +63,7 @@ import com.t4kash.app.ui.components.EmptyState
 import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.components.keepVisibleAboveKeyboard
 import com.t4kash.app.ui.components.t4CategoryColors
 import com.t4kash.app.ui.session.UserSession
 import com.t4kash.app.ui.formatApiDateTime
@@ -619,7 +620,9 @@ private fun ApplicationDialog(
                             message = it
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .keepVisibleAboveKeyboard(),
                     label = { Text("Mensaje opcional") },
                     minLines = 3,
                     maxLines = 5,
@@ -634,7 +637,9 @@ private fun ApplicationDialog(
                         proposedPrice = it
                         validationError = null
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .keepVisibleAboveKeyboard(),
                     label = { Text("Precio propuesto") },
                     prefix = { Text("C\$") },
                     singleLine = true,
@@ -763,7 +768,9 @@ private fun ReportTaskDialog(
                     maxLines = 5,
                     enabled = !isSubmitting,
                     supportingText = { Text("${description.length}/700") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .keepVisibleAboveKeyboard()
                 )
                 (validationError ?: apiError)?.let { error ->
                     Text(

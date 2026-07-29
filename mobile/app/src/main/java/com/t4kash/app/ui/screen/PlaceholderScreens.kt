@@ -60,7 +60,7 @@ fun NetworkScreen(
 }
 
 @Composable
-fun ChatScreen(
+fun ChatPlaceholderScreen(
     onNavigate: (String) -> Unit
 ) {
     FeatureScreen(

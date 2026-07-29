@@ -56,6 +56,7 @@ import com.t4kash.app.ui.components.EmptyState
 import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.components.keepVisibleAboveKeyboard
 import com.t4kash.app.ui.session.UserSession
 import com.t4kash.app.ui.formatApiDateTime
 import com.t4kash.app.ui.formatNioCurrency
@@ -519,7 +520,9 @@ private fun DeliveryForm(
             OutlinedTextField(
                 value = description,
                 onValueChange = onDescriptionChange,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .keepVisibleAboveKeyboard(),
                 label = { Text("Descripcion de la entrega") },
                 supportingText = {
                     Text(

@@ -17,11 +17,13 @@ import com.t4kash.app.ui.screen.AdminScreen
 import com.t4kash.app.ui.screen.AssignedJobsScreen
 import com.t4kash.app.ui.screen.JobDetailScreen
 import com.t4kash.app.ui.screen.ChatScreen
+import com.t4kash.app.ui.screen.ConversationScreen
 import com.t4kash.app.ui.screen.LoginScreen
 import com.t4kash.app.ui.screen.LoginVerificationScreen
 import com.t4kash.app.ui.screen.MarketplaceScreen
 import com.t4kash.app.ui.screen.MyPublicationsScreen
 import com.t4kash.app.ui.screen.NetworkScreen
+import com.t4kash.app.ui.screen.NotificationsScreen
 import com.t4kash.app.ui.screen.OpportunityDetailScreen
 import com.t4kash.app.ui.screen.OpportunityMapScreen
 import com.t4kash.app.ui.screen.PostTaskScreen
@@ -34,6 +36,7 @@ import com.t4kash.app.ui.screen.WalletScreen
 import com.t4kash.app.ui.screen.VerifyEmailScreen
 import com.t4kash.app.ui.viewmodel.MarketplaceViewModel
 import com.t4kash.app.ui.viewmodel.AuthViewModel
+import com.t4kash.app.ui.viewmodel.CommunicationViewModel
 import com.t4kash.app.ui.session.UserSession
 
 @Composable
@@ -42,6 +45,7 @@ fun NavGraph(
 ) {
     val authViewModel: AuthViewModel = viewModel()
     val marketplaceViewModel: MarketplaceViewModel = viewModel()
+    val communicationViewModel: CommunicationViewModel = viewModel()
     val session by UserSession.session.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -51,9 +55,19 @@ fun NavGraph(
             }
         }
     }
+    LaunchedEffect(session?.token) {
+        if (session == null) {
+            communicationViewModel.clearSession()
+        } else {
+            communicationViewModel.refreshOverview()
+        }
+    }
     val onBottomNavigate: (String) -> Unit = { route ->
         if (route == Routes.MARKETPLACE) {
             marketplaceViewModel.refresh(force = true)
+        }
+        if (route == Routes.CHAT) {
+            communicationViewModel.refreshOverview()
         }
         navController.navigateBottom(route)
     }
@@ -183,7 +197,12 @@ fun NavGraph(
                 onNavigate = onBottomNavigate,
                 onTaskSelected = { task -> navController.navigate(Routes.taskDetails(task.idTarea)) },
                 onCreateTask = { navController.navigateBottom(Routes.POST) },
-                onOpenMap = { navController.navigate(Routes.OPPORTUNITY_MAP) }
+                onOpenMap = { navController.navigate(Routes.OPPORTUNITY_MAP) },
+                onOpenNotifications = {
+                    navController.navigate(Routes.NOTIFICATIONS)
+                },
+                unreadNotifications =
+                    communicationViewModel.uiState.unreadNotifications
             )
         }
         composable(Routes.OPPORTUNITY_MAP) {
@@ -257,7 +276,41 @@ fun NavGraph(
             )
         }
         composable(Routes.CHAT) {
-            ChatScreen(onNavigate = onBottomNavigate)
+            ChatScreen(
+                viewModel = communicationViewModel,
+                onNavigate = onBottomNavigate,
+                onOpenConversation = { conversationId ->
+                    navController.navigate(
+                        Routes.conversation(conversationId)
+                    )
+                },
+                onOpenNotifications = {
+                    navController.navigate(Routes.NOTIFICATIONS)
+                }
+            )
+        }
+        composable(
+            route = Routes.CONVERSATION,
+            arguments = listOf(
+                navArgument(Routes.CONVERSATION_ID_ARG) {
+                    type = NavType.IntType
+                }
+            )
+        ) { backStackEntry ->
+            val conversationId = backStackEntry.arguments
+                ?.getInt(Routes.CONVERSATION_ID_ARG)
+                ?: 0
+            ConversationScreen(
+                conversationId = conversationId,
+                viewModel = communicationViewModel,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Routes.NOTIFICATIONS) {
+            NotificationsScreen(
+                viewModel = communicationViewModel,
+                onBack = { navController.popBackStack() }
+            )
         }
         composable(
             route = Routes.TASK_EDIT,

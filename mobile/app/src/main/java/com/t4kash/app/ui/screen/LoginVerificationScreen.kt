@@ -39,6 +39,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.components.keepVisibleAboveKeyboard
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
 import com.t4kash.app.ui.theme.T4Mint
@@ -134,7 +135,9 @@ fun LoginVerificationScreen(
                                 validationError = null
                                 viewModel.clearError()
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .keepVisibleAboveKeyboard(),
                             label = { Text("Codigo de 6 digitos") },
                             singleLine = true,
                             shape = RoundedCornerShape(8.dp),

@@ -1,5 +1,7 @@
 package com.t4kash.api.marketplace.service;
 
+import com.t4kash.api.communication.service.ConversationService;
+import com.t4kash.api.communication.service.NotificationService;
 import com.t4kash.api.exception.ForbiddenOperationException;
 import com.t4kash.api.exception.ResourceConflictException;
 import com.t4kash.api.marketplace.dto.CreateApplicationRequest;
@@ -52,6 +54,10 @@ class MarketplaceServiceTest {
     private EntregaRepository entregaRepository;
     @Mock
     private UsuarioEstudianteRepository estudianteRepository;
+    @Mock
+    private ConversationService conversationService;
+    @Mock
+    private NotificationService notificationService;
 
     private MarketplaceService service;
 
@@ -63,7 +69,9 @@ class MarketplaceServiceTest {
                 postulacionRepository,
                 trabajoRepository,
                 entregaRepository,
-                estudianteRepository
+                estudianteRepository,
+                conversationService,
+                notificationService
         );
         lenient().when(categoriaRepository.existsById(1)).thenReturn(true);
     }
@@ -301,6 +309,11 @@ class MarketplaceServiceTest {
     void creatingDeliveryRegistersItAsSent() {
         TrabajoAsignado job = job(50, "EN_PROCESO");
         when(trabajoRepository.findById(50)).thenReturn(Optional.of(job));
+        when(tareaRepository.findById(10)).thenReturn(Optional.of(task(
+                10,
+                "ASIGNADA",
+                LocalDateTime.now().plusDays(1)
+        )));
         when(entregaRepository.save(any(Entrega.class))).thenAnswer(invocation -> {
             Entrega delivery = invocation.getArgument(0);
             delivery.setIdEntrega(200);

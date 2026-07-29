@@ -50,6 +50,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.components.keepVisibleAboveKeyboard
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
 import com.t4kash.app.ui.theme.T4Surface
@@ -209,7 +210,9 @@ fun RegisterScreen(
                                 validationError = null
                                 viewModel.clearError()
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .keepVisibleAboveKeyboard(),
                             label = { Text("Nombre") },
                             singleLine = true,
                             shape = RoundedCornerShape(8.dp)
@@ -221,7 +224,9 @@ fun RegisterScreen(
                                 validationError = null
                                 viewModel.clearError()
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .keepVisibleAboveKeyboard(),
                             label = { Text("Apellido") },
                             singleLine = true,
                             shape = RoundedCornerShape(8.dp)
@@ -233,7 +238,9 @@ fun RegisterScreen(
                                 validationError = null
                                 viewModel.clearError()
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .keepVisibleAboveKeyboard(),
                             label = { Text("Correo") },
                             singleLine = true,
                             shape = RoundedCornerShape(8.dp),
@@ -302,7 +309,9 @@ fun RegisterScreen(
                                     validationError = null
                                     viewModel.clearError()
                                 },
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .keepVisibleAboveKeyboard(),
                                 label = { Text("Numero de carnet") },
                                 singleLine = true,
                                 shape = RoundedCornerShape(8.dp)
@@ -315,7 +324,9 @@ fun RegisterScreen(
                                 validationError = null
                                 viewModel.clearError()
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .keepVisibleAboveKeyboard(),
                             label = { Text("Contraseña") },
                             singleLine = true,
                             shape = RoundedCornerShape(8.dp),
@@ -352,7 +363,9 @@ fun RegisterScreen(
                                 validationError = null
                                 viewModel.clearError()
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .keepVisibleAboveKeyboard(),
                             label = { Text("Confirmar contraseña") },
                             singleLine = true,
                             shape = RoundedCornerShape(8.dp),

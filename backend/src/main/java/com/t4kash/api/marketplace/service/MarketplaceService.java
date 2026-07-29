@@ -1,5 +1,7 @@
 package com.t4kash.api.marketplace.service;
 
+import com.t4kash.api.communication.service.ConversationService;
+import com.t4kash.api.communication.service.NotificationService;
 import com.t4kash.api.exception.ForbiddenOperationException;
 import com.t4kash.api.exception.ResourceConflictException;
 import com.t4kash.api.exception.ResourceNotFoundException;
@@ -56,6 +58,8 @@ public class MarketplaceService {
     private final TrabajoAsignadoRepository trabajoRepository;
     private final EntregaRepository entregaRepository;
     private final UsuarioEstudianteRepository estudianteRepository;
+    private final ConversationService conversationService;
+    private final NotificationService notificationService;
 
     public MarketplaceService(
             CategoriaTareaRepository categoriaRepository,
@@ -63,7 +67,9 @@ public class MarketplaceService {
             PostulacionRepository postulacionRepository,
             TrabajoAsignadoRepository trabajoRepository,
             EntregaRepository entregaRepository,
-            UsuarioEstudianteRepository estudianteRepository
+            UsuarioEstudianteRepository estudianteRepository,
+            ConversationService conversationService,
+            NotificationService notificationService
     ) {
         this.categoriaRepository = categoriaRepository;
         this.tareaRepository = tareaRepository;
@@ -71,6 +77,8 @@ public class MarketplaceService {
         this.trabajoRepository = trabajoRepository;
         this.entregaRepository = entregaRepository;
         this.estudianteRepository = estudianteRepository;
+        this.conversationService = conversationService;
+        this.notificationService = notificationService;
     }
 
     @Transactional(readOnly = true)
@@ -304,7 +312,13 @@ public class MarketplaceService {
         postulacion.setEstadoPostulacion(ESTADO_POSTULACION_PENDIENTE);
         postulacion.setNumeroIntento(attemptNumber);
 
-        return ApplicationResponse.fromEntity(postulacionRepository.save(postulacion));
+        Postulacion savedApplication = postulacionRepository.save(postulacion);
+        notificationService.create(
+                tarea.getIdCliente(),
+                "Nueva postulacion",
+                "Recibiste una postulacion para " + tarea.getTitulo() + "."
+        );
+        return ApplicationResponse.fromEntity(savedApplication);
     }
 
     @Transactional
@@ -349,6 +363,15 @@ public class MarketplaceService {
                     postulacion.getIdPostulacion()
             );
         }
+        conversationService.ensureForAcceptedApplication(
+                postulacion,
+                savedJob
+        );
+        notificationService.create(
+                postulacion.getIdEstudiante(),
+                "Postulacion aceptada",
+                "Fuiste seleccionado para " + tarea.getTitulo() + "."
+        );
         return JobResponse.fromEntity(savedJob);
     }
 
@@ -489,7 +512,15 @@ public class MarketplaceService {
             throw new ResourceConflictException("Solo se pueden rechazar postulaciones pendientes.");
         }
         postulacion.setEstadoPostulacion(ESTADO_POSTULACION_RECHAZADA);
-        return ApplicationResponse.fromEntity(postulacionRepository.save(postulacion));
+        Postulacion savedApplication = postulacionRepository.save(postulacion);
+        notificationService.create(
+                postulacion.getIdEstudiante(),
+                "Postulacion no seleccionada",
+                "Tu postulacion para " +
+                        findTask(postulacion.getIdTarea()).getTitulo() +
+                        " fue rechazada."
+        );
+        return ApplicationResponse.fromEntity(savedApplication);
     }
 
     @Transactional(readOnly = true)
@@ -518,7 +549,14 @@ public class MarketplaceService {
         entrega.setFechaEntrega(LocalDateTime.now());
         entrega.setEstadoEntrega(ESTADO_ENTREGA_ENVIADA);
 
-        return DeliveryResponse.fromEntity(entregaRepository.save(entrega));
+        Entrega savedDelivery = entregaRepository.save(entrega);
+        Tarea task = findTask(trabajo.getIdTarea());
+        notificationService.create(
+                task.getIdCliente(),
+                "Nueva entrega",
+                "Recibiste una entrega para " + task.getTitulo() + "."
+        );
+        return DeliveryResponse.fromEntity(savedDelivery);
     }
 
     @Transactional(readOnly = true)
@@ -544,7 +582,15 @@ public class MarketplaceService {
         trabajo.setEstadoTrabajo(ESTADO_TRABAJO_FINALIZADO);
 
         trabajoRepository.save(trabajo);
-        return DeliveryResponse.fromEntity(entregaRepository.save(entrega));
+        Entrega savedDelivery = entregaRepository.save(entrega);
+        notificationService.create(
+                trabajo.getIdEstudiante(),
+                "Entrega aprobada",
+                "Tu entrega para " +
+                        findTask(trabajo.getIdTarea()).getTitulo() +
+                        " fue aprobada."
+        );
+        return DeliveryResponse.fromEntity(savedDelivery);
     }
 
     private Tarea findTask(Integer idTarea) {

@@ -40,6 +40,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.components.keepVisibleAboveKeyboard
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
 import com.t4kash.app.ui.theme.T4Mint
@@ -81,7 +82,9 @@ fun ForgotPasswordScreen(
                 validationError = null
                 viewModel.clearError()
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .keepVisibleAboveKeyboard(),
             label = { Text("Correo") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
@@ -141,7 +144,9 @@ fun ResetPasswordScreen(
                 validationError = null
                 viewModel.clearError()
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .keepVisibleAboveKeyboard(),
             label = { Text("Codigo de 6 digitos") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(
@@ -259,7 +264,9 @@ private fun PasswordField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .keepVisibleAboveKeyboard(),
         label = { Text(label) },
         singleLine = true,
         visualTransformation = if (visible) {

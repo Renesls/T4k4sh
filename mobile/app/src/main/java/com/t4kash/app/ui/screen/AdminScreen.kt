@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -57,6 +58,7 @@ import com.t4kash.app.ui.components.EmptyState
 import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.components.keepVisibleAboveKeyboard
 import com.t4kash.app.ui.model.AdminSummaryDto
 import com.t4kash.app.ui.model.ReportDto
 import com.t4kash.app.ui.model.StudentVerificationDto
@@ -621,6 +623,7 @@ private fun ReviewReportDialog(
     var observation by remember { mutableStateOf("") }
     var removeTask by remember { mutableStateOf(false) }
     AlertDialog(
+        modifier = Modifier.imePadding(),
         onDismissRequest = onDismiss,
         title = {
             Text(if (resolved) "Resolver reporte" else "Descartar reporte")
@@ -648,7 +651,9 @@ private fun ReviewReportDialog(
                     minLines = 3,
                     maxLines = 5,
                     supportingText = { Text("${observation.length}/700") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .keepVisibleAboveKeyboard()
                 )
                 if (resolved && report.idTarea != null) {
                     Row(
@@ -773,6 +778,7 @@ private fun RejectVerificationDialog(
 ) {
     var observation by remember { mutableStateOf("") }
     AlertDialog(
+        modifier = Modifier.imePadding(),
         onDismissRequest = onDismiss,
         title = { Text("Rechazar solicitud") },
         text = {
@@ -783,7 +789,9 @@ private fun RejectVerificationDialog(
                     onValueChange = { observation = it.take(300) },
                     label = { Text("Observacion") },
                     minLines = 3,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .keepVisibleAboveKeyboard()
                 )
             }
         },

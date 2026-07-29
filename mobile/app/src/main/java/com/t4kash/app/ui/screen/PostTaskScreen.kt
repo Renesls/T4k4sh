@@ -70,6 +70,8 @@ import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4BottomBar
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.components.isSoftwareKeyboardVisible
+import com.t4kash.app.ui.components.keepVisibleAboveKeyboard
 import com.t4kash.app.ui.components.t4CategoryColors
 import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.model.PendingAttachment
@@ -303,6 +305,8 @@ fun PostTaskScreen(
         }
     }
 
+    val keyboardVisible = isSoftwareKeyboardVisible()
+
     Scaffold(
         containerColor = T4Background,
         topBar = {
@@ -317,7 +321,7 @@ fun PostTaskScreen(
             )
         },
         bottomBar = {
-            if (editTaskId == null) {
+            if (editTaskId == null && !keyboardVisible) {
                 T4BottomBar(
                     currentRoute = currentRoute,
                     onNavigate = onNavigate
@@ -400,7 +404,9 @@ fun PostTaskScreen(
                                 title = it
                                 validationError = null
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .keepVisibleAboveKeyboard(),
                             label = { Text("Título") },
                             singleLine = true,
                             shape = RoundedCornerShape(16.dp),
@@ -419,7 +425,9 @@ fun PostTaskScreen(
                                 description = it
                                 validationError = null
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .keepVisibleAboveKeyboard(),
                             label = { Text("Descripción") },
                             minLines = 4,
                             shape = RoundedCornerShape(16.dp)
@@ -430,7 +438,9 @@ fun PostTaskScreen(
                                 budget = it
                                 validationError = null
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .keepVisibleAboveKeyboard(),
                             label = { Text("Presupuesto") },
                             prefix = { Text("C\$") },
                             singleLine = true,
@@ -566,7 +576,9 @@ fun PostTaskScreen(
                             OutlinedTextField(
                                 value = addressReference,
                                 onValueChange = { addressReference = it },
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .keepVisibleAboveKeyboard(),
                                 label = { Text("Referencia del lugar") },
                                 singleLine = true,
                                 shape = RoundedCornerShape(16.dp),

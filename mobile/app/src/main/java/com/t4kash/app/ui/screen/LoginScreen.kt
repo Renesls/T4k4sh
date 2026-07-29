@@ -54,6 +54,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4BrandMark
+import com.t4kash.app.ui.components.keepVisibleAboveKeyboard
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
 import com.t4kash.app.ui.theme.T4Primary
@@ -200,7 +201,9 @@ fun LoginScreen(
                                 validationError = null
                                 viewModel.clearError()
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .keepVisibleAboveKeyboard(),
                             label = { Text("Correo") },
                             singleLine = true,
                             shape = RoundedCornerShape(8.dp),
@@ -217,7 +220,9 @@ fun LoginScreen(
                                 validationError = null
                                 viewModel.clearError()
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .keepVisibleAboveKeyboard(),
                             label = { Text("Contraseña") },
                             singleLine = true,
                             shape = RoundedCornerShape(8.dp),

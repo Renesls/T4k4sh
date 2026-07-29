@@ -44,7 +44,8 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 | Postulaciones, asignaciones y entregas en la API | Implementado |
 | Navegación, carga y manejo visual de errores | Implementado |
 | Registro institucional, verificación y sesiones persistentes | Implementado |
-| Mensajería, pagos y notificaciones push | Pendiente |
+| Conversaciones, mensajes y notificaciones internas | Implementado |
+| Pagos y notificaciones push | Pendiente |
 
 El registro valida el dominio de la universidad, relaciona la carrera y activa la cuenta después de confirmar un código enviado por correo. Android conserva la sesión iniciada y utiliza el ID de la cuenta autenticada para publicaciones, postulaciones, trabajos y archivos. Las contraseñas se almacenan con BCrypt y la base conserva únicamente el hash de cada token de sesión.
 
@@ -221,6 +222,13 @@ El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno 
 | `GET` | `/api/jobs/{idTrabajo}/deliveries` | Listar entregas |
 | `POST` | `/api/jobs/{idTrabajo}/deliveries` | Registrar entrega |
 | `POST` | `/api/deliveries/{idEntrega}/approve` | Aprobar entrega |
+| `GET` | `/api/conversations` | Listar conversaciones del usuario |
+| `GET` | `/api/conversations/{id}/messages` | Consultar mensajes |
+| `POST` | `/api/conversations/{id}/messages` | Enviar un mensaje |
+| `POST` | `/api/conversations/{id}/read` | Marcar mensajes como leídos |
+| `GET` | `/api/notifications` | Listar notificaciones |
+| `POST` | `/api/notifications/{id}/read` | Marcar una notificación como leída |
+| `POST` | `/api/notifications/read-all` | Marcar todas como leídas |
 | `GET` | `/api/admin/summary` | Consultar resumen administrativo |
 | `GET` | `/api/admin/reports` | Listar reportes de moderación |
 | `POST` | `/api/admin/reports/{idReporte}/review` | Resolver o descartar un reporte |
@@ -527,9 +535,12 @@ chore: ajustar configuración de render
    - El mapa muestra oportunidades dentro de un radio configurable de 5 a 50 km.
    - Cada marcador presenta una vista previa con ubicación, distancia y acceso al detalle.
    - El detalle de una oportunidad permite abrir el mapa enfocado en su ubicación.
-4. **Comunicación**
-   - Implementar conversaciones y mensajes.
-   - Incorporar notificaciones push con Firebase Cloud Messaging.
+4. **Comunicación (completada para el MVP)**
+   - La conversación se crea al aceptar una postulación.
+   - Cliente y estudiante asignado pueden enviar mensajes.
+   - La aplicación muestra mensajes no leídos y actualiza el chat abierto.
+   - Las postulaciones, asignaciones, entregas y mensajes generan notificaciones internas.
+   - Incorporar notificaciones push con Firebase Cloud Messaging como mejora posterior.
 5. **Finanzas y reputación**
    - Completar wallet, pagos y movimientos.
    - Agregar calificaciones y reputación al finalizar trabajos.
