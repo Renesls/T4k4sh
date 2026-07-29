@@ -1,6 +1,7 @@
 package com.t4kash.app.ui.service
 
 import com.t4kash.app.ui.model.ApplicationDto
+import com.t4kash.app.ui.model.AdminSummaryDto
 import com.t4kash.app.ui.model.AttachmentDto
 import com.t4kash.app.ui.model.CategoryDto
 import com.t4kash.app.ui.model.CreateApplicationRequest
@@ -8,6 +9,8 @@ import com.t4kash.app.ui.model.CreateDeliveryRequest
 import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.JobDto
+import com.t4kash.app.ui.model.ReviewStudentVerificationRequest
+import com.t4kash.app.ui.model.StudentVerificationDto
 import com.t4kash.app.ui.model.TaskDto
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -110,4 +113,30 @@ interface MarketplaceApiService {
     suspend fun uploadStudentVerificationAttachment(
         @Part file: MultipartBody.Part
     ): AttachmentDto
+
+    @GET("admin/summary")
+    suspend fun getAdminSummary(): AdminSummaryDto
+
+    @GET("admin/tasks")
+    suspend fun getAdminTasks(): List<TaskDto>
+
+    @DELETE("admin/tasks/{taskId}")
+    suspend fun cancelTaskAsAdmin(
+        @Path("taskId") taskId: Int
+    ): TaskDto
+
+    @GET("student-verifications/pending")
+    suspend fun getPendingStudentVerifications(): List<StudentVerificationDto>
+
+    @POST("student-verifications/{userId}/approve")
+    suspend fun approveStudentVerification(
+        @Path("userId") userId: Int,
+        @Body request: ReviewStudentVerificationRequest
+    ): StudentVerificationDto
+
+    @POST("student-verifications/{userId}/reject")
+    suspend fun rejectStudentVerification(
+        @Path("userId") userId: Int,
+        @Body request: ReviewStudentVerificationRequest
+    ): StudentVerificationDto
 }

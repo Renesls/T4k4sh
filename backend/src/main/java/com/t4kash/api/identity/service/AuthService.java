@@ -63,6 +63,7 @@ public class AuthService {
     private final VerificationEmailService emailService;
     private final LoginSecurityService loginSecurityService;
     private final RegistrationPolicyService registrationPolicyService;
+    private final AdminEmailPolicyService adminEmailPolicyService;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(12);
     private final int verificationMinutes;
     private final int resendSeconds;
@@ -83,6 +84,7 @@ public class AuthService {
             VerificationEmailService emailService,
             LoginSecurityService loginSecurityService,
             RegistrationPolicyService registrationPolicyService,
+            AdminEmailPolicyService adminEmailPolicyService,
             @Value("${app.auth.verification-minutes:15}") int verificationMinutes,
             @Value("${app.auth.verification-resend-seconds:60}") int resendSeconds,
             @Value("${app.auth.two-factor-minutes:10}") int twoFactorMinutes,
@@ -101,6 +103,7 @@ public class AuthService {
         this.emailService = emailService;
         this.loginSecurityService = loginSecurityService;
         this.registrationPolicyService = registrationPolicyService;
+        this.adminEmailPolicyService = adminEmailPolicyService;
         this.verificationMinutes = verificationMinutes;
         this.resendSeconds = resendSeconds;
         this.twoFactorMinutes = twoFactorMinutes;
@@ -622,6 +625,7 @@ public class AuthService {
             String ipOrigen,
             String userAgent
     ) {
+        assignConfiguredAdminRole(usuario);
         String rawToken = tokenService.generateToken();
         LocalDateTime now = now();
 
@@ -640,6 +644,12 @@ public class AuthService {
                 sesion.getFechaExpiracion(),
                 toUserResponse(usuario)
         );
+    }
+
+    private void assignConfiguredAdminRole(Usuario usuario) {
+        if (adminEmailPolicyService.isAdmin(usuario.getCorreo())) {
+            usuarioRolRepository.assignRole(usuario.getIdUsuario(), "ADMIN");
+        }
     }
 
     private SesionUsuario requireActiveSession(String rawToken) {

@@ -92,6 +92,11 @@ public class MarketplaceService {
     }
 
     @Transactional
+    public List<TaskResponse> listTasksForAdmin() {
+        return listTasks();
+    }
+
+    @Transactional
     public TaskResponse getTask(Integer idTarea) {
         Tarea tarea = findTask(idTarea);
         closeExpiredTask(tarea, LocalDateTime.now());
@@ -161,10 +166,29 @@ public class MarketplaceService {
         Tarea tarea = findTask(idTarea);
         requireTaskOwner(tarea, currentUserId);
         requireEditableTask(tarea);
+        return cancelTaskAndApplications(tarea);
+    }
+
+    @Transactional
+    public TaskResponse cancelTaskAsAdmin(Integer idTarea) {
+        Tarea tarea = findTask(idTarea);
+        if (ESTADO_TAREA_CANCELADA.equals(tarea.getEstadoTarea())) {
+            throw new ResourceConflictException("La publicacion ya se encuentra cancelada.");
+        }
+        if (ESTADO_TAREA_ASIGNADA.equals(tarea.getEstadoTarea())
+                || trabajoRepository.findByIdTarea(idTarea).isPresent()) {
+            throw new ResourceConflictException(
+                    "No se puede retirar una publicacion con un trabajo asignado."
+            );
+        }
+        return cancelTaskAndApplications(tarea);
+    }
+
+    private TaskResponse cancelTaskAndApplications(Tarea tarea) {
         tarea.setEstadoTarea(ESTADO_TAREA_CANCELADA);
         List<Postulacion> pending = postulacionRepository
                 .findByIdTareaAndEstadoPostulacion(
-                        idTarea,
+                        tarea.getIdTarea(),
                         ESTADO_POSTULACION_PENDIENTE
                 );
         pending.forEach(application ->

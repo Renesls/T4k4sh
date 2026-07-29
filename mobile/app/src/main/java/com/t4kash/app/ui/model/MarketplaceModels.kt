@@ -103,3 +103,30 @@ data class MarketplaceHomeData(
     val categories: List<CategoryDto>,
     val tasks: List<TaskDto>
 )
+
+data class AdminSummaryDto(
+    val usuarios: Long,
+    val verificacionesPendientes: Long,
+    val publicacionesActivas: Long,
+    val trabajosAsignados: Long
+)
+
+data class StudentVerificationDto(
+    val idVerificacion: Int,
+    val idUsuario: Int,
+    val correo: String,
+    val estado: String,
+    val observacion: String?,
+    val fechaSolicitud: String,
+    val archivos: List<AttachmentDto>
+)
+
+data class ReviewStudentVerificationRequest(
+    val observacion: String?
+)
+
+data class AdminDashboardData(
+    val summary: AdminSummaryDto,
+    val verifications: List<StudentVerificationDto>,
+    val tasks: List<TaskDto>
+)

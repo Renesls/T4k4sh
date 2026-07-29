@@ -115,6 +115,14 @@ public class StudentVerificationService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public long countPending() {
+        return verificationRepository.countByTipoVerificacionAndEstadoVerificacion(
+                VERIFICATION_TYPE,
+                REVIEW_PENDING
+        );
+    }
+
     @Transactional
     public StudentVerificationResponse approve(Integer userId, String observation) {
         VerificacionUsuario verification = requireReviewPending(userId);

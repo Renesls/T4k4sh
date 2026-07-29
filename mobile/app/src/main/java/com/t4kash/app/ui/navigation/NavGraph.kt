@@ -13,6 +13,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.t4kash.app.ui.screen.ApplicationSentScreen
 import com.t4kash.app.ui.screen.ApplicationManagementScreen
+import com.t4kash.app.ui.screen.AdminScreen
 import com.t4kash.app.ui.screen.AssignedJobsScreen
 import com.t4kash.app.ui.screen.JobDetailScreen
 import com.t4kash.app.ui.screen.ChatScreen
@@ -294,6 +295,7 @@ fun NavGraph(
                 },
                 onOpenJobs = { navController.navigate(Routes.ASSIGNED_JOBS) },
                 onOpenWallet = { navController.navigate(Routes.WALLET) },
+                onOpenAdmin = { navController.navigate(Routes.ADMIN) },
                 onLogout = {
                     authViewModel.logout {
                         navController.navigate(Routes.LOGIN) {
@@ -301,6 +303,19 @@ fun NavGraph(
                         }
                     }
                 }
+            )
+        }
+        composable(Routes.ADMIN) {
+            val currentUser = session?.user
+            if (currentUser?.roles?.contains("ADMIN") != true) {
+                LaunchedEffect(Unit) {
+                    navController.popBackStack()
+                }
+                return@composable
+            }
+            AdminScreen(
+                viewModel = marketplaceViewModel,
+                onBack = { navController.popBackStack() }
             )
         }
         composable(
@@ -350,8 +365,19 @@ fun NavGraph(
             )
         }
         composable(Routes.APPLICATION_SENT) {
+            val application = marketplaceViewModel.uiState.sentApplication
+            val task = marketplaceViewModel.uiState.tasks.firstOrNull {
+                it.idTarea == application?.idTarea
+            }
             ApplicationSentScreen(
-                onBackHome = {
+                application = application,
+                task = task,
+                onViewOpportunity = {
+                    marketplaceViewModel.clearApplicationFeedback()
+                    navController.popBackStack()
+                },
+                onExplore = {
+                    marketplaceViewModel.clearApplicationFeedback()
                     navController.navigate(Routes.MARKETPLACE) {
                         popUpTo(Routes.MARKETPLACE) { inclusive = false }
                         launchSingleTop = true

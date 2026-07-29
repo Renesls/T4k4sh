@@ -387,6 +387,7 @@ Las pruebas del backend cubren la normalización de modalidades, la eliminación
 | `SUPABASE_SECRET_KEY` | Clave secreta usada solo por el backend | Configurada en Render |
 | `SUPABASE_STORAGE_BUCKET` | Bucket privado de adjuntos | `t4kash-attachments` |
 | `APP_AUTH_EVALUATOR_EMAILS` | Correos no institucionales autorizados para evaluación | `evaluador@gmail.com` |
+| `APP_AUTH_ADMIN_EMAILS` | Correos que reciben el rol de administrador al iniciar sesión | `admin@ejemplo.com` |
 | `APP_MAIL_ENABLED` | Activa el envío de códigos | `true` |
 | `APP_MAIL_PROVIDER` | Transporte de correo (`brevo` en Render Free, `smtp` en local) | `brevo` |
 | `APP_MAIL_FROM` | Remitente visible de verificación | Remitente verificado en Brevo |

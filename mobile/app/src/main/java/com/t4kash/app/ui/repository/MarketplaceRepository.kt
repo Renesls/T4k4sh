@@ -1,6 +1,7 @@
 package com.t4kash.app.ui.repository
 
 import com.t4kash.app.ui.model.ApplicationDto
+import com.t4kash.app.ui.model.AdminDashboardData
 import com.t4kash.app.ui.model.AttachmentDto
 import com.t4kash.app.ui.model.CreateApplicationRequest
 import com.t4kash.app.ui.model.CreateDeliveryRequest
@@ -9,6 +10,8 @@ import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.MarketplaceHomeData
 import com.t4kash.app.ui.model.PendingAttachment
+import com.t4kash.app.ui.model.ReviewStudentVerificationRequest
+import com.t4kash.app.ui.model.StudentVerificationDto
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.service.ApiResult
 import com.t4kash.app.ui.service.MarketplaceApiService
@@ -179,6 +182,60 @@ class MarketplaceRepository(
     ): ApiResult<AttachmentDto> {
         return uploadAttachment(attachment) { file ->
             api.uploadStudentVerificationAttachment(file)
+        }
+    }
+
+    suspend fun loadAdminDashboard(): ApiResult<AdminDashboardData> {
+        return try {
+            ApiResult.Success(
+                AdminDashboardData(
+                    summary = api.getAdminSummary(),
+                    verifications = api.getPendingStudentVerifications(),
+                    tasks = api.getAdminTasks()
+                )
+            )
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudo cargar el panel administrativo."))
+        }
+    }
+
+    suspend fun approveStudentVerification(
+        userId: Int,
+        observation: String?
+    ): ApiResult<StudentVerificationDto> {
+        return try {
+            ApiResult.Success(
+                api.approveStudentVerification(
+                    userId,
+                    ReviewStudentVerificationRequest(observation)
+                )
+            )
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudo aprobar la verificacion."))
+        }
+    }
+
+    suspend fun rejectStudentVerification(
+        userId: Int,
+        observation: String?
+    ): ApiResult<StudentVerificationDto> {
+        return try {
+            ApiResult.Success(
+                api.rejectStudentVerification(
+                    userId,
+                    ReviewStudentVerificationRequest(observation)
+                )
+            )
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudo rechazar la verificacion."))
+        }
+    }
+
+    suspend fun cancelTaskAsAdmin(taskId: Int): ApiResult<TaskDto> {
+        return try {
+            ApiResult.Success(api.cancelTaskAsAdmin(taskId))
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudo retirar la publicacion."))
         }
     }
 

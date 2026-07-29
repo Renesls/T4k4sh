@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface TareaRepository extends JpaRepository<Tarea, Integer> {
     List<Tarea> findAllByOrderByFechaPublicacionDesc();
+
+    long countByEstadoTareaIgnoreCase(String estadoTarea);
 }

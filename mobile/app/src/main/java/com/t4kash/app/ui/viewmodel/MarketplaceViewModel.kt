@@ -309,6 +309,133 @@ class MarketplaceViewModel(
         }
     }
 
+    fun loadAdminDashboard(force: Boolean = false) {
+        if (uiState.isLoadingAdmin || (!force && uiState.adminSummary != null)) {
+            return
+        }
+        viewModelScope.launch {
+            updateState {
+                it.copy(
+                    isLoadingAdmin = true,
+                    adminError = null,
+                    adminMessage = null
+                )
+            }
+            when (val result = repository.loadAdminDashboard()) {
+                is ApiResult.Success -> updateState {
+                    it.copy(
+                        isLoadingAdmin = false,
+                        adminSummary = result.data.summary,
+                        adminTasks = result.data.tasks,
+                        pendingStudentVerifications = result.data.verifications
+                    )
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        isLoadingAdmin = false,
+                        adminError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun approveStudentVerification(userId: Int) {
+        reviewStudentVerification(userId, approved = true, observation = null)
+    }
+
+    fun rejectStudentVerification(userId: Int, observation: String?) {
+        reviewStudentVerification(userId, approved = false, observation = observation)
+    }
+
+    fun cancelTaskAsAdmin(taskId: Int) {
+        viewModelScope.launch {
+            updateState {
+                it.copy(
+                    adminActionKey = "task:$taskId",
+                    adminError = null,
+                    adminMessage = null
+                )
+            }
+            when (val result = repository.cancelTaskAsAdmin(taskId)) {
+                is ApiResult.Success -> updateState { current ->
+                    current.copy(
+                        adminActionKey = null,
+                        adminTasks = current.adminTasks.map {
+                            if (it.idTarea == taskId) result.data else it
+                        },
+                        adminSummary = current.adminSummary?.copy(
+                            publicacionesActivas =
+                                (current.adminSummary.publicacionesActivas - 1).coerceAtLeast(0)
+                        ),
+                        adminMessage = "Publicacion retirada del marketplace."
+                    )
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        adminActionKey = null,
+                        adminError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearAdminFeedback() {
+        updateState { it.copy(adminMessage = null, adminError = null) }
+    }
+
+    private fun reviewStudentVerification(
+        userId: Int,
+        approved: Boolean,
+        observation: String?
+    ) {
+        viewModelScope.launch {
+            updateState {
+                it.copy(
+                    adminActionKey = "verification:$userId",
+                    adminError = null,
+                    adminMessage = null
+                )
+            }
+            val result = if (approved) {
+                repository.approveStudentVerification(userId, observation)
+            } else {
+                repository.rejectStudentVerification(userId, observation)
+            }
+            when (result) {
+                is ApiResult.Success -> updateState { current ->
+                    current.copy(
+                        adminActionKey = null,
+                        pendingStudentVerifications =
+                            current.pendingStudentVerifications.filterNot {
+                                it.idUsuario == userId
+                            },
+                        adminSummary = current.adminSummary?.copy(
+                            verificacionesPendientes =
+                                (current.adminSummary.verificacionesPendientes - 1)
+                                    .coerceAtLeast(0)
+                        ),
+                        adminMessage = if (approved) {
+                            "Perfil estudiantil aprobado."
+                        } else {
+                            "Solicitud estudiantil rechazada."
+                        }
+                    )
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        adminActionKey = null,
+                        adminError = result.message
+                    )
+                }
+            }
+        }
+    }
+
     private fun updateState(
         transform: (MarketplaceUiState) -> MarketplaceUiState
     ) {

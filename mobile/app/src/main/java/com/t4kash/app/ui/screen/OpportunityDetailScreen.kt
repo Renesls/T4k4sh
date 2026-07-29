@@ -125,7 +125,6 @@ fun OpportunityDetailScreen(
     LaunchedEffect(state.sentApplication?.idPostulacion) {
         if (state.sentApplication != null) {
             showApplicationDialog = false
-            viewModel.clearApplicationFeedback()
             onApply()
         }
     }

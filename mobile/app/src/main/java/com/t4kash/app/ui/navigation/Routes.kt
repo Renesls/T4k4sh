@@ -23,6 +23,7 @@ object Routes {
     const val WALLET = "wallet"
     const val ASSIGNED_JOBS = "profile/jobs"
     const val APPLICATION_SENT = "application-sent"
+    const val ADMIN = "profile/admin"
 
     const val TASK_ID_ARG = "taskId"
     const val JOB_ID_ARG = "jobId"

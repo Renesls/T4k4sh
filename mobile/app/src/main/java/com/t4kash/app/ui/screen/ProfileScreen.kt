@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Mail
 import androidx.compose.material.icons.filled.School
@@ -68,6 +69,7 @@ fun ProfileScreen(
     onOpenPublications: (String) -> Unit,
     onOpenJobs: () -> Unit,
     onOpenWallet: () -> Unit,
+    onOpenAdmin: () -> Unit,
     onLogout: () -> Unit
 ) {
     var verificationFiles by remember {
@@ -77,6 +79,7 @@ fun ProfileScreen(
     val needsStudentVerification =
         user.universityName != null &&
             user.roles.none { it.equals("ESTUDIANTE", ignoreCase = true) }
+    val isAdmin = user.roles.any { it.equals("ADMIN", ignoreCase = true) }
     val ownTasks = viewModel.uiState.tasks.filter { it.idCliente == user.id }
     val activeTasks = ownTasks.count {
         it.estadoTarea.equals("PUBLICADA", ignoreCase = true)
@@ -282,6 +285,59 @@ fun ProfileScreen(
                             label = "Correo",
                             value = user.email
                         )
+                    }
+                }
+            }
+
+            if (isAdmin) {
+                item {
+                    Text(
+                        text = "Administracion",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = T4Text
+                    )
+                }
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onOpenAdmin),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = CardDefaults.cardColors(containerColor = T4Surface),
+                        border = BorderStroke(1.dp, T4Border.copy(alpha = 0.65f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(18.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.AdminPanelSettings,
+                                contentDescription = null,
+                                tint = T4Primary,
+                                modifier = Modifier.size(26.dp)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Panel administrativo",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = T4Text
+                                )
+                                Text(
+                                    text = "Validaciones y moderacion",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = T4TextMuted
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = "Abrir administracion",
+                                tint = T4TextMuted
+                            )
+                        }
                     }
                 }
             }

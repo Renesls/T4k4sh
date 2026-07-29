@@ -28,4 +28,9 @@ public interface VerificacionUsuarioRepository
             String tipoVerificacion,
             String estadoVerificacion
     );
+
+    long countByTipoVerificacionAndEstadoVerificacion(
+            String tipoVerificacion,
+            String estadoVerificacion
+    );
 }
