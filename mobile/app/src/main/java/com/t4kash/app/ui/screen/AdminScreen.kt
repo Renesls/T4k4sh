@@ -52,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
 import com.t4kash.app.ui.components.ConnectionErrorState
 import com.t4kash.app.ui.components.EmptyState
@@ -624,6 +625,7 @@ private fun ReviewReportDialog(
     var removeTask by remember { mutableStateOf(false) }
     AlertDialog(
         modifier = Modifier.imePadding(),
+        properties = DialogProperties(decorFitsSystemWindows = false),
         onDismissRequest = onDismiss,
         title = {
             Text(if (resolved) "Resolver reporte" else "Descartar reporte")
@@ -779,6 +781,7 @@ private fun RejectVerificationDialog(
     var observation by remember { mutableStateOf("") }
     AlertDialog(
         modifier = Modifier.imePadding(),
+        properties = DialogProperties(decorFitsSystemWindows = false),
         onDismissRequest = onDismiss,
         title = { Text("Rechazar solicitud") },
         text = {

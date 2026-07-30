@@ -43,7 +43,10 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 | Postulación desde Android | Implementado |
 | Postulaciones, asignaciones y entregas en la API | Implementado |
 | Navegación, carga y manejo visual de errores | Implementado |
-| Registro institucional, verificación y sesiones persistentes | Implementado |
+| Registro institucional, verificación por correo y sesiones persistentes | Implementado |
+| Autenticación en dos pasos (segundo código al iniciar sesión) | Implementado |
+| Recuperación de contraseña por código | Implementado |
+| Verificación de perfil estudiantil con adjunto y revisión administrativa | Implementado |
 | Conversaciones, mensajes y notificaciones internas | Implementado |
 | Pagos y notificaciones push | Pendiente |
 
@@ -202,18 +205,30 @@ El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno 
 | `GET` | `/api/health` | Verificar disponibilidad |
 | `POST` | `/api/auth/register` | Crear una cuenta pendiente y enviar el código |
 | `POST` | `/api/auth/verify-email` | Verificar el código y activar la cuenta |
-| `POST` | `/api/auth/resend-verification` | Enviar un código nuevo |
-| `POST` | `/api/auth/login` | Iniciar sesión |
+| `POST` | `/api/auth/resend-verification` | Enviar un código nuevo de activación |
+| `POST` | `/api/auth/login` | Validar correo y contraseña, y enviar el código del segundo paso |
+| `POST` | `/api/auth/login/verify` | Confirmar el código del segundo paso y crear la sesión |
+| `POST` | `/api/auth/login/resend` | Reenviar el código del segundo paso |
+| `POST` | `/api/auth/password/forgot` | Solicitar código de recuperación de contraseña |
+| `POST` | `/api/auth/password/reset` | Confirmar código y establecer una contraseña nueva |
 | `GET` | `/api/auth/me` | Consultar el usuario autenticado |
 | `POST` | `/api/auth/logout` | Cerrar la sesión actual |
 | `GET` | `/api/identity/universities` | Listar universidades activas |
 | `GET` | `/api/identity/universities/{id}/careers` | Listar carreras de una universidad |
+| `GET` | `/api/student-verifications/me` | Consultar mi validación estudiantil |
+| `POST` | `/api/student-verifications/me/attachments` | Enviar carnet o constancia universitaria |
+| `GET` | `/api/student-verifications/pending` | Listar validaciones pendientes (admin) |
+| `POST` | `/api/student-verifications/{userId}/approve` | Aprobar perfil estudiantil (admin) |
+| `POST` | `/api/student-verifications/{userId}/reject` | Rechazar perfil estudiantil (admin) |
 | `GET` | `/api/categories` | Listar categorías activas |
 | `GET` | `/api/tasks` | Listar oportunidades |
 | `POST` | `/api/tasks` | Crear una oportunidad |
+| `PUT` | `/api/tasks/{idTarea}` | Editar una oportunidad activa |
+| `DELETE` | `/api/tasks/{idTarea}` | Cancelar una oportunidad activa (propietario) |
 | `GET` | `/api/tasks/{idTarea}` | Obtener detalle |
 | `GET` | `/api/tasks/{idTarea}/applications` | Listar postulaciones |
 | `POST` | `/api/tasks/{idTarea}/applications` | Crear postulación |
+| `GET` | `/api/applications/me` | Listar mis postulaciones |
 | `POST` | `/api/tasks/{idTarea}/reports` | Reportar una publicación |
 | `GET` | `/api/reports/me` | Consultar reportes enviados |
 | `POST` | `/api/applications/{idPostulacion}/accept` | Aceptar postulación |
@@ -222,6 +237,12 @@ El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno 
 | `GET` | `/api/jobs/{idTrabajo}/deliveries` | Listar entregas |
 | `POST` | `/api/jobs/{idTrabajo}/deliveries` | Registrar entrega |
 | `POST` | `/api/deliveries/{idEntrega}/approve` | Aprobar entrega |
+| `GET` | `/api/tasks/{taskId}/attachments` | Listar archivos adjuntos de una tarea |
+| `POST` | `/api/tasks/{taskId}/attachments` | Adjuntar archivo a una tarea |
+| `GET` | `/api/deliveries/{deliveryId}/attachments` | Listar archivos adjuntos de una entrega |
+| `POST` | `/api/deliveries/{deliveryId}/attachments` | Adjuntar archivo a una entrega |
+| `GET` | `/api/jobs/{jobId}/attachments` | Listar archivos de las entregas de un trabajo |
+| `GET` | `/api/attachments/{attachmentId}/download` | Descargar un archivo adjunto privado |
 | `GET` | `/api/conversations` | Listar conversaciones del usuario |
 | `GET` | `/api/conversations/{id}/messages` | Consultar mensajes |
 | `POST` | `/api/conversations/{id}/messages` | Enviar un mensaje |
@@ -230,9 +251,10 @@ El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno 
 | `POST` | `/api/notifications/{id}/read` | Marcar una notificación como leída |
 | `POST` | `/api/notifications/read-all` | Marcar todas como leídas |
 | `GET` | `/api/admin/summary` | Consultar resumen administrativo |
+| `GET` | `/api/admin/tasks` | Listar publicaciones para moderación |
+| `DELETE` | `/api/admin/tasks/{idTarea}` | Retirar una publicación (admin) |
 | `GET` | `/api/admin/reports` | Listar reportes de moderación |
 | `POST` | `/api/admin/reports/{idReporte}/review` | Resolver o descartar un reporte |
-| `DELETE` | `/api/admin/tasks/{idTarea}` | Retirar una publicación |
 
 Los endpoints privados de identidad, marketplace y archivos requieren el encabezado
 `Authorization: Bearer <token>`. El token completo se entrega únicamente al cliente;
@@ -242,6 +264,57 @@ no acepta IDs de cliente, estudiante o propietario enviados por Android.
 En Swagger, el token se configura desde **Authorize**. Las operaciones protegidas
 muestran un candado y responden `401` cuando la sesión no es válida o `403` cuando
 el usuario no tiene el rol, la propiedad o la participación necesaria.
+
+### Inicio de Sesión en Dos Pasos
+
+`POST /api/auth/login` valida correo y contraseña, y envía un código temporal por
+correo mediante Brevo; no crea la sesión todavía. La sesión y el token Bearer se
+generan al confirmar ese código con `POST /api/auth/login/verify`.
+
+`POST /api/auth/login`:
+
+```json
+{
+  "correo": "estudiante.demo@unidemo.edu",
+  "password": "••••••••"
+}
+```
+
+`POST /api/auth/login/verify`:
+
+```json
+{
+  "correo": "estudiante.demo@unidemo.edu",
+  "codigo": "123456"
+}
+```
+
+El código vence a los 10 minutos y `POST /api/auth/login/resend` permite pedir uno
+nuevo respetando un mínimo de 60 segundos entre reenvíos. Después de 5 intentos
+fallidos en una ventana de 15 minutos, la cuenta queda bloqueada temporalmente.
+
+### Recuperar Contraseña
+
+`POST /api/auth/password/forgot` envía un código de recuperación al correo
+registrado. `POST /api/auth/password/reset` confirma ese código junto con la nueva
+contraseña:
+
+```json
+{
+  "correo": "estudiante.demo@unidemo.edu",
+  "codigo": "123456",
+  "nuevaPassword": "unaContrasenaNueva123"
+}
+```
+
+### Verificación de Perfil Estudiantil
+
+Un estudiante consulta el estado de su validación con `GET /api/student-verifications/me`
+y envía su carnet o constancia con `POST /api/student-verifications/me/attachments`
+(`multipart/form-data`, campo `file`). Un administrador revisa las solicitudes pendientes
+desde `GET /api/student-verifications/pending` y las aprueba o rechaza con
+`POST /api/student-verifications/{userId}/approve` o `.../reject`, indicando una
+observación opcional.
 
 ### Crear una Tarea Presencial
 
@@ -401,6 +474,17 @@ cd mobile
 ```
 
 Las pruebas del backend cubren la normalización de modalidades, la eliminación de coordenadas en tareas remotas y la obligación de ubicación para tareas presenciales. La compilación y las pruebas unitarias de Android se ejecutan antes de cerrar cada etapa funcional.
+
+## Problemas Comunes
+
+| Situación | Causa habitual | Solución |
+|---|---|---|
+| `mvnw.cmd` o `gradlew.bat` fallan con `JAVA_HOME is not set` | No hay un JDK configurado en el `PATH` del entorno | Instalar JDK 21 o usar el JBR incluido con Android Studio y exportar `JAVA_HOME` antes de ejecutar el comando |
+| `docker compose up -d --build` no responde o falla al iniciar | Docker Desktop no está abierto o el puerto 5432/8080 ya está en uso | Iniciar Docker Desktop y liberar el puerto, o cambiar `SERVER_PORT` |
+| Android no conecta con el backend local desde el emulador | Se usó `localhost` en vez de la dirección del host del emulador | Compilar con `-PT4KASH_API_BASE_URL=http://10.0.2.2:8080/api/` |
+| La primera solicitud a la API en Render tarda o falla | El plan gratuito suspende el servicio por inactividad | Reintentar después de 30-90 segundos mientras el contenedor reinicia |
+| El código de verificación o de dos pasos no llega | El correo cae en Spam/Promociones, o se reenvía antes de la espera mínima | Revisar esas carpetas y esperar 60 segundos entre reenvíos |
+| `401` al llamar un endpoint privado desde Swagger | El token no se configuró desde **Authorize** o ya expiró | Repetir el login completo (dos pasos) y volver a autorizar el token |
 
 ## Variables de Entorno
 

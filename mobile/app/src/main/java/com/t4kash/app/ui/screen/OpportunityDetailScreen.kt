@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
 import com.t4kash.app.ui.components.ConnectionErrorState
 import com.t4kash.app.ui.components.EmptyState
@@ -598,6 +599,7 @@ private fun ApplicationDialog(
 
     AlertDialog(
         modifier = Modifier.imePadding(),
+        properties = DialogProperties(decorFitsSystemWindows = false),
         onDismissRequest = onDismiss,
         title = {
             Text(
@@ -721,6 +723,7 @@ private fun ReportTaskDialog(
 
     AlertDialog(
         modifier = Modifier.imePadding(),
+        properties = DialogProperties(decorFitsSystemWindows = false),
         onDismissRequest = onDismiss,
         title = { Text("Reportar publicacion") },
         text = {
