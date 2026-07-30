@@ -1,6 +1,7 @@
 package com.t4kash.app.ui
 
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -36,6 +37,32 @@ fun parseApiDateTime(value: String?): Date? {
             isLenient = false
         }.parse(normalized)
     }.getOrNull()
+}
+
+fun formatDaySeparator(value: String?): String {
+    val parsed = parseApiDateTime(value) ?: return "Fecha desconocida"
+    val target = Calendar.getInstance().apply { time = parsed }
+    val today = Calendar.getInstance()
+    val yesterday = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+    return when {
+        isSameDay(target, today) -> "Hoy"
+        isSameDay(target, yesterday) -> "Ayer"
+        else -> SimpleDateFormat("dd 'de' MMMM 'de' yyyy", Locale("es", "NI")).format(parsed)
+    }
+}
+
+fun isSameApiDay(first: String?, second: String?): Boolean {
+    val firstDate = parseApiDateTime(first) ?: return false
+    val secondDate = parseApiDateTime(second) ?: return false
+    return isSameDay(
+        Calendar.getInstance().apply { time = firstDate },
+        Calendar.getInstance().apply { time = secondDate }
+    )
+}
+
+private fun isSameDay(a: Calendar, b: Calendar): Boolean {
+    return a.get(Calendar.YEAR) == b.get(Calendar.YEAR) &&
+        a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR)
 }
 
 fun formatFileSize(bytes: Long): String {

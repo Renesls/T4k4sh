@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -47,9 +50,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -62,6 +67,8 @@ import com.t4kash.app.ui.components.T4TopBar
 import com.t4kash.app.ui.components.isSoftwareKeyboardVisible
 import com.t4kash.app.ui.components.keepVisibleAboveKeyboard
 import com.t4kash.app.ui.formatApiDateTime
+import com.t4kash.app.ui.formatDaySeparator
+import com.t4kash.app.ui.isSameApiDay
 import com.t4kash.app.ui.model.ConversationDto
 import com.t4kash.app.ui.model.MessageDto
 import com.t4kash.app.ui.model.NotificationDto
@@ -259,8 +266,10 @@ fun ConversationScreen(
     val messages = state.messages.filter {
         it.idConversacion == conversationId
     }
+    val chatItems = remember(messages) { buildChatItems(messages) }
     val listState = rememberLazyListState()
     var draft by remember(conversationId) { mutableStateOf("") }
+    var stickToBottom by remember(conversationId) { mutableStateOf(true) }
 
     LaunchedEffect(conversationId) {
         viewModel.loadMessages(conversationId)
@@ -269,14 +278,27 @@ fun ConversationScreen(
             viewModel.loadMessages(conversationId, silent = true)
         }
     }
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.lastIndex)
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.isScrollInProgress to isNearBottom(listState)
+        }.collect { (scrolling, nearBottom) ->
+            if (scrolling) {
+                stickToBottom = nearBottom
+            }
+        }
+    }
+    LaunchedEffect(chatItems.size) {
+        if (chatItems.isNotEmpty() && stickToBottom) {
+            listState.animateScrollToItem(chatItems.lastIndex)
         }
     }
     LaunchedEffect(state.sentMessageId) {
         if (state.sentMessageId != null) {
             draft = ""
+            stickToBottom = true
+            if (chatItems.isNotEmpty()) {
+                listState.animateScrollToItem(chatItems.lastIndex)
+            }
             viewModel.clearSendFeedback()
         }
     }
@@ -334,11 +356,19 @@ fun ConversationScreen(
                     )
                 }
             } else {
-                items(
-                    items = messages,
-                    key = { it.idMensaje }
-                ) { message ->
-                    MessageBubble(message = message)
+                itemsIndexed(
+                    items = chatItems,
+                    key = { index, chatItem ->
+                        when (chatItem) {
+                            is ChatListItem.DateHeader -> "date-header-$index"
+                            is ChatListItem.MessageItem -> chatItem.message.idMensaje
+                        }
+                    }
+                ) { _, chatItem ->
+                    when (chatItem) {
+                        is ChatListItem.DateHeader -> DateSeparator(chatItem.label)
+                        is ChatListItem.MessageItem -> MessageBubble(message = chatItem.message)
+                    }
                 }
             }
 
@@ -443,6 +473,53 @@ fun NotificationsScreen(
     }
 }
 
+private sealed interface ChatListItem {
+    data class DateHeader(val label: String) : ChatListItem
+    data class MessageItem(val message: MessageDto) : ChatListItem
+}
+
+private fun buildChatItems(messages: List<MessageDto>): List<ChatListItem> {
+    val items = mutableListOf<ChatListItem>()
+    var previous: MessageDto? = null
+    for (message in messages) {
+        if (previous == null || !isSameApiDay(previous.fechaEnvio, message.fechaEnvio)) {
+            items += ChatListItem.DateHeader(formatDaySeparator(message.fechaEnvio))
+        }
+        items += ChatListItem.MessageItem(message)
+        previous = message
+    }
+    return items
+}
+
+private const val NEAR_BOTTOM_SLOP_PX = 24
+
+private fun isNearBottom(listState: LazyListState): Boolean {
+    val info = listState.layoutInfo
+    val last = info.visibleItemsInfo.lastOrNull() ?: return true
+    return last.index >= info.totalItemsCount - 1 &&
+        last.offset + last.size <= info.viewportEndOffset + NEAR_BOTTOM_SLOP_PX
+}
+
+@Composable
+private fun DateSeparator(label: String) {
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = T4SurfaceVariant
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = T4TextMuted,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+            )
+        }
+    }
+}
+
 @Composable
 private fun LoadingBlock() {
     Box(
@@ -465,6 +542,9 @@ private fun ConversationCard(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = T4Surface),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (conversation.mensajesNoLeidos > 0) 3.dp else 1.dp
+        ),
         border = BorderStroke(
             1.dp,
             if (conversation.mensajesNoLeidos > 0) T4Mint else T4Border
@@ -559,6 +639,7 @@ private fun ConversationCard(
 
 @Composable
 private fun MessageBubble(message: MessageDto) {
+    val maxBubbleWidth = (LocalConfiguration.current.screenWidthDp * 0.78f).dp
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (message.propio) {
@@ -568,7 +649,7 @@ private fun MessageBubble(message: MessageDto) {
         }
     ) {
         Surface(
-            modifier = Modifier.widthIn(max = 300.dp),
+            modifier = Modifier.widthIn(max = maxBubbleWidth),
             shape = RoundedCornerShape(
                 topStart = 16.dp,
                 topEnd = 16.dp,
@@ -576,6 +657,7 @@ private fun MessageBubble(message: MessageDto) {
                 bottomEnd = if (message.propio) 4.dp else 16.dp
             ),
             color = if (message.propio) T4Primary else T4Surface,
+            shadowElevation = 1.dp,
             border = if (message.propio) {
                 null
             } else {
@@ -639,15 +721,16 @@ private fun MessageComposer(
     isSending: Boolean,
     onSend: () -> Unit
 ) {
+    val canSend = value.isNotBlank() && !isSending
     Surface(
         color = T4Surface,
-        border = BorderStroke(1.dp, T4Border)
+        shadowElevation = 10.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.Bottom
         ) {
             OutlinedTextField(
@@ -657,25 +740,38 @@ private fun MessageComposer(
                     .weight(1f)
                     .keepVisibleAboveKeyboard(),
                 placeholder = { Text("Escribe un mensaje") },
+                shape = RoundedCornerShape(24.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedBorderColor = T4Primary,
+                    unfocusedContainerColor = T4SurfaceVariant,
+                    focusedContainerColor = T4SurfaceVariant
+                ),
                 minLines = 1,
                 maxLines = 4
             )
-            IconButton(
-                onClick = onSend,
-                enabled = value.isNotBlank() && !isSending
+            Surface(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clickable(enabled = canSend, onClick = onSend),
+                shape = CircleShape,
+                color = if (canSend) T4Primary else T4SurfaceVariant
             ) {
-                if (isSending) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        strokeWidth = 2.dp,
-                        color = T4Primary
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Enviar mensaje",
-                        tint = T4Primary
-                    )
+                Box(contentAlignment = Alignment.Center) {
+                    if (isSending) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = Color.White
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Enviar mensaje",
+                            tint = if (canSend) Color.White else T4TextMuted,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }
