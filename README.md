@@ -24,8 +24,9 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 4. Los estudiantes revisan y se postulan.
 5. El cliente acepta o rechaza postulaciones.
 6. Una postulación aceptada se convierte en trabajo asignado.
-7. El estudiante registra una entrega.
-8. El cliente revisa y aprueba el trabajo.
+7. Cliente y estudiante coordinan el trabajo mediante la conversación interna.
+8. El estudiante registra una entrega.
+9. El cliente revisa y aprueba el trabajo.
 
 ## Estado del MVP
 
@@ -48,7 +49,10 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 | Recuperación de contraseña por código | Implementado |
 | Verificación de perfil estudiantil con adjunto y revisión administrativa | Implementado |
 | Conversaciones, mensajes y notificaciones internas | Implementado |
-| Pagos y notificaciones push | Pendiente |
+| Formularios adaptados al teclado y manejo visual de errores | Implementado |
+| Wallet y pagos reales | Pendiente |
+| Calificaciones y reputación | Pendiente |
+| Notificaciones push con Firebase Cloud Messaging | Pendiente |
 
 El registro valida el dominio de la universidad, relaciona la carrera y activa la cuenta después de confirmar un código enviado por correo. Android conserva la sesión iniciada y utiliza el ID de la cuenta autenticada para publicaciones, postulaciones, trabajos y archivos. Las contraseñas se almacenan con BCrypt y la base conserva únicamente el hash de cada token de sesión.
 
@@ -95,16 +99,18 @@ Aplicación Android
    | HTTPS / REST
    v
 API Spring Boot en Render
-   |
-   | JDBC / JPA + SSL
-   v
-PostgreSQL en Supabase
+   |\
+   | +-- JDBC / JPA + SSL --> PostgreSQL en Supabase
+   | +-- HTTPS -------------> Supabase Storage
+   | +-- HTTPS -------------> Brevo Email API
 ```
 
 - Android nunca se conecta directamente a PostgreSQL.
 - Las credenciales de Supabase solo se configuran en Render.
 - La aplicación consulta y publica tareas mediante la API.
 - OpenFreeMap proporciona el estilo y las teselas del mapa sin requerir una clave privada.
+- Supabase Storage conserva los archivos privados y solo el backend utiliza su clave secreta.
+- Brevo envía por HTTPS los códigos de activación, segundo paso y recuperación.
 - El backend normaliza y valida los datos antes de persistirlos.
 
 ## Entornos
@@ -396,6 +402,18 @@ Flujo actual de exploración y postulación:
 7. El estudiante completa un mensaje y un precio propuesto.
 8. Android envía la postulación al backend y muestra el resultado real.
 
+Flujo actual de comunicación:
+
+1. La API crea una conversación cuando una postulación es aceptada.
+2. El cliente y el estudiante asignado consultan sus conversaciones y mensajes.
+3. El chat abierto se actualiza periódicamente sin bloquear la interfaz.
+4. Los mensajes se separan por fecha y conservan el estado de lectura.
+5. Las postulaciones, asignaciones, entregas y mensajes generan notificaciones internas.
+
+La mensajería pertenece al trabajo asignado: otros usuarios no pueden consultar ni
+enviar mensajes dentro de esa conversación. El MVP utiliza actualización periódica;
+Firebase Cloud Messaging queda reservado para notificaciones push posteriores.
+
 ## Uso del MVP
 
 1. Abrir la aplicación, registrar una cuenta o iniciar sesión con una cuenta verificada.
@@ -404,6 +422,9 @@ Flujo actual de exploración y postulación:
 4. En tareas presenciales o híbridas, utilizar el mapa para revisar la ubicación.
 5. Pulsar **Postularse**, completar la propuesta y enviarla.
 6. Utilizar la sección **Publicar** para crear una nueva oportunidad.
+7. Consultar postulaciones, publicaciones y trabajos desde **Perfil**.
+8. Abrir el chat de un trabajo asignado y enviar mensajes al otro participante.
+9. Revisar las notificaciones internas y marcar elementos como leídos.
 
 Las operaciones privadas utilizan el usuario autenticado de la sesión. Android no decide
 el propietario de una tarea, postulación, entrega o archivo.
@@ -469,11 +490,19 @@ Android:
 
 ```powershell
 cd mobile
-.\gradlew.bat :app:assembleDebug
 .\gradlew.bat :app:testDebugUnitTest
+.\gradlew.bat :app:lintDebug
+.\gradlew.bat :app:assembleDebug
 ```
 
-Las pruebas del backend cubren la normalización de modalidades, la eliminación de coordenadas en tareas remotas y la obligación de ubicación para tareas presenciales. La compilación y las pruebas unitarias de Android se ejecutan antes de cerrar cada etapa funcional.
+| Capa | Cantidad actual | Cobertura principal |
+|---|---:|---|
+| Backend | 46 pruebas | Identidad, sesiones, intentos de acceso, correo, marketplace, adjuntos, reportes, conversaciones y arranque de Spring Boot |
+| Android | 17 pruebas unitarias | Formatos, fechas, moneda, distancias, ubicación y políticas de carga/actualización |
+
+Además de las pruebas unitarias, `lintDebug` revisa problemas estáticos y
+`assembleDebug` confirma que el APK puede generarse. Antes de una entrega se deben
+ejecutar los cuatro comandos sobre una copia limpia del repositorio.
 
 ## Problemas Comunes
 
@@ -597,39 +626,41 @@ test: agregar pruebas del flujo marketplace
 chore: ajustar configuración de render
 ```
 
-## Etapas Pendientes
+## Próximas Etapas
 
-1. **Optimización y estandarización (completada)**
-   - Los formatos de fechas, córdobas y tamaños de archivo están centralizados.
-   - La sesión y el usuario actual se obtienen desde un único punto de la aplicación.
-   - Inicio y trabajos reutilizan datos recientes para evitar solicitudes duplicadas.
-   - Postulaciones, entregas y adjuntos tienen controladores independientes.
-   - Los recursos por tarea o trabajo se reutilizan y admiten actualización forzada.
-   - El estado de la interfaz está separado de las acciones del `ViewModel`.
-2. **Integración de identidad (completada para el MVP)**
-   - Registro e inicio de sesión conectados con la API.
-   - Validación del dominio institucional y selección de carrera.
-   - Activación mediante código enviado por correo y opción de reenvío.
-   - Contraseñas protegidas con BCrypt y tokens almacenados como hash.
-   - Sesión persistente y cierre de sesión desde Android.
-   - El usuario autenticado sustituye al ID demo en todos los flujos.
-   - Los perfiles muestran nombre, correo, estado y roles reales.
-3. **Ubicación y mapa (completada)**
-   - Las tareas presenciales o híbridas pueden usar el GPS o elegir un punto manualmente.
-   - El mapa muestra oportunidades dentro de un radio configurable de 5 a 50 km.
-   - Cada marcador presenta una vista previa con ubicación, distancia y acceso al detalle.
-   - El detalle de una oportunidad permite abrir el mapa enfocado en su ubicación.
-4. **Comunicación (completada para el MVP)**
-   - La conversación se crea al aceptar una postulación.
-   - Cliente y estudiante asignado pueden enviar mensajes.
-   - La aplicación muestra mensajes no leídos y actualiza el chat abierto.
-   - Las postulaciones, asignaciones, entregas y mensajes generan notificaciones internas.
-   - Incorporar notificaciones push con Firebase Cloud Messaging como mejora posterior.
-5. **Finanzas y reputación**
-   - Completar wallet, pagos y movimientos.
-   - Agregar calificaciones y reputación al finalizar trabajos.
-6. **Cierre técnico**
-   - Ejecutar pruebas integrales de Android, backend y PostgreSQL.
-   - Endurecer permisos del backend según rol y propiedad de cada recurso.
-   - Revisar validaciones, manejo de errores y estados de sesión.
-   - Actualizar diagramas, documentación y guía de despliegue final.
+El flujo principal del MVP ya está implementado. El trabajo restante se separa entre el
+cierre obligatorio del hackathon y mejoras que pueden desarrollarse después.
+
+### Cierre del Hackathon
+
+1. **Pruebas integrales**
+   - Probar registro, segundo paso, recuperación y cierre de sesión desde un teléfono real.
+   - Ejecutar el ciclo completo con dos cuentas: publicar, postular, aceptar, conversar,
+     entregar y aprobar.
+   - Probar verificación estudiantil, reportes y moderación con una cuenta administradora.
+   - Ejecutar las 46 pruebas del backend, las 17 de Android, `lintDebug` y `assembleDebug`.
+2. **Integración final**
+   - Resolver diferencias entre ramas y completar los Pull Requests pendientes.
+   - Integrar la versión validada en `main` y comprobar el despliegue automático de Render.
+   - Generar y conservar el APK final utilizado durante la demostración.
+3. **Documentación y evidencias**
+   - Actualizar los diagramas para reflejar identidad, moderación y comunicación.
+   - Revisar README, guía del evaluador y documentación de despliegue.
+   - Sustituir prototipos antiguos por capturas actuales de T4KASH.
+   - Preparar el video explicativo, accesos del evaluador y enlaces finales del tablero.
+
+### Mejoras Posteriores al MVP
+
+1. **Finanzas y reputación**
+   - Implementar movimientos reales del wallet y el ciclo de pagos.
+   - Agregar calificaciones y recomendaciones al finalizar trabajos.
+2. **Perfil profesional y networking**
+   - Completar habilidades, portafolio y conexiones entre usuarios.
+   - Mostrar experiencia y reputación verificable en los perfiles.
+3. **Notificaciones push**
+   - Integrar Firebase Cloud Messaging para avisos fuera de la aplicación.
+   - Mantener las notificaciones internas como historial persistente.
+4. **Endurecimiento para producción**
+   - Restringir CORS, rotar secretos y revisar dependencias vulnerables.
+   - Incorporar monitoreo, copias de seguridad y pruebas end-to-end automatizadas.
+   - Evaluar servicios con disponibilidad garantizada para sustituir los planes gratuitos.
