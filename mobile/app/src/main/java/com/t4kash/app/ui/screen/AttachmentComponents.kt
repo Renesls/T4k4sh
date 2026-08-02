@@ -2,6 +2,7 @@ package com.t4kash.app.ui.screen
 
 import android.app.DownloadManager
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.database.Cursor
 import android.net.Uri
@@ -25,18 +26,26 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,6 +60,9 @@ import com.t4kash.app.ui.theme.T4Primary
 import com.t4kash.app.ui.theme.T4Surface
 import com.t4kash.app.ui.theme.T4Text
 import com.t4kash.app.ui.theme.T4TextMuted
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun AttachmentPickerSection(
@@ -62,6 +74,8 @@ fun AttachmentPickerSection(
     title: String = "Archivos adjuntos"
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var isReading by remember { mutableStateOf(false) }
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris ->
@@ -70,17 +84,28 @@ fun AttachmentPickerSection(
             onError("Puedes agregar hasta $MAX_ATTACHMENTS_PER_ACTION archivos.")
             return@rememberLauncherForActivityResult
         }
-        val selected = mutableListOf<PendingAttachment>()
-        for (uri in uris.take(availableSlots)) {
-            when (val result = context.readPendingAttachment(uri)) {
-                is AttachmentReadResult.Success -> selected += result.attachment
-                is AttachmentReadResult.Error -> {
-                    onError(result.message)
-                    return@rememberLauncherForActivityResult
+        isReading = true
+        scope.launch {
+            val selected = mutableListOf<PendingAttachment>()
+            var readError: String? = null
+            withContext(Dispatchers.IO) {
+                for (uri in uris.take(availableSlots)) {
+                    when (val result = context.readPendingAttachment(uri)) {
+                        is AttachmentReadResult.Success -> selected += result.attachment
+                        is AttachmentReadResult.Error -> {
+                            readError = result.message
+                            return@withContext
+                        }
+                    }
                 }
             }
+            isReading = false
+            if (readError != null) {
+                onError(readError)
+            } else {
+                onAttachmentsChange(attachments + selected)
+            }
         }
-        onAttachmentsChange(attachments + selected)
     }
 
     Card(
@@ -120,18 +145,22 @@ fun AttachmentPickerSection(
             }
             OutlinedButton(
                 onClick = { launcher.launch(arrayOf("*/*")) },
-                enabled = enabled && attachments.size < MAX_ATTACHMENTS_PER_ACTION,
+                enabled = enabled && !isReading && attachments.size < MAX_ATTACHMENTS_PER_ACTION,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(
-                    imageVector = Icons.Filled.AttachFile,
-                    contentDescription = null
-                )
+                if (isReading) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.AttachFile,
+                        contentDescription = null
+                    )
+                }
                 Text(
-                    text = if (attachments.isEmpty()) {
-                        "Seleccionar archivos"
-                    } else {
-                        "Agregar otro archivo"
+                    text = when {
+                        isReading -> "Leyendo archivo..."
+                        attachments.isEmpty() -> "Seleccionar archivos"
+                        else -> "Agregar otro archivo"
                     }
                 )
             }
@@ -145,20 +174,29 @@ private fun PendingAttachmentRow(
     onRemove: () -> Unit,
     enabled: Boolean
 ) {
-    val imagePreview = remember(attachment.content, attachment.mimeType) {
-        attachment.content
-            .takeIf { attachment.mimeType.startsWith("image/") }
-            ?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
-            ?.asImageBitmap()
+    val thumbnailPx = with(LocalDensity.current) { 56.dp.roundToPx() }
+    val imagePreview by produceState<ImageBitmap?>(
+        initialValue = null,
+        attachment.content,
+        attachment.mimeType
+    ) {
+        value = if (attachment.mimeType.startsWith("image/")) {
+            withContext(Dispatchers.Default) {
+                decodeSampledBitmap(attachment.content, thumbnailPx)?.asImageBitmap()
+            }
+        } else {
+            null
+        }
     }
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (imagePreview != null) {
+        val preview = imagePreview
+        if (preview != null) {
             Image(
-                bitmap = imagePreview,
+                bitmap = preview,
                 contentDescription = "Vista previa de ${attachment.name}",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
@@ -299,6 +337,20 @@ private fun Context.downloadAttachment(attachment: AttachmentDto) {
     }
     val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
     manager.enqueue(request)
+}
+
+private fun decodeSampledBitmap(bytes: ByteArray, targetSizePx: Int): Bitmap? {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+    var sampleSize = 1
+    while (
+        bounds.outWidth / sampleSize > targetSizePx * 2 ||
+        bounds.outHeight / sampleSize > targetSizePx * 2
+    ) {
+        sampleSize *= 2
+    }
+    val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+    return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
 }
 
 private data class AttachmentMetadata(val name: String, val size: Long)
