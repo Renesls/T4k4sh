@@ -1,7 +1,7 @@
 package com.t4kash.api.marketplace.controller;
 
 import com.t4kash.api.identity.dto.AuthenticatedUserResponse;
-import com.t4kash.api.identity.service.AuthenticatedUserService;
+import com.t4kash.api.identity.web.CurrentUser;
 import com.t4kash.api.marketplace.dto.AttachmentResponse;
 import com.t4kash.api.marketplace.service.AttachmentService;
 import com.t4kash.api.marketplace.service.DownloadedAttachment;
@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,24 +29,17 @@ import java.util.List;
 @SecurityRequirement(name = "bearerAuth")
 public class AttachmentController {
     private final AttachmentService attachmentService;
-    private final AuthenticatedUserService authenticatedUserService;
 
-    public AttachmentController(
-            AttachmentService attachmentService,
-            AuthenticatedUserService authenticatedUserService
-    ) {
+    public AttachmentController(AttachmentService attachmentService) {
         this.attachmentService = attachmentService;
-        this.authenticatedUserService = authenticatedUserService;
     }
 
     @GetMapping("/tasks/{taskId}/attachments")
     @Operation(summary = "Listar archivos adjuntos de una tarea")
     public List<AttachmentResponse> listTaskAttachments(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization,
+            @CurrentUser AuthenticatedUserResponse user,
             @PathVariable Integer taskId
     ) {
-        authenticatedUserService.requireUser(authorization);
         return attachmentService.listTaskAttachments(taskId);
     }
 
@@ -57,35 +49,28 @@ public class AttachmentController {
     )
     @Operation(summary = "Adjuntar archivo a una tarea")
     public AttachmentResponse attachToTask(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization,
+            @CurrentUser(role = "CLIENTE") AuthenticatedUserResponse user,
             @PathVariable Integer taskId,
             @RequestParam("file") MultipartFile file
     ) {
-        AuthenticatedUserResponse user =
-                authenticatedUserService.requireRole(authorization, "CLIENTE");
         return attachmentService.attachToTask(taskId, user.idUsuario(), file);
     }
 
     @GetMapping("/deliveries/{deliveryId}/attachments")
     @Operation(summary = "Listar archivos adjuntos de una entrega")
     public List<AttachmentResponse> listDeliveryAttachments(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization,
+            @CurrentUser AuthenticatedUserResponse user,
             @PathVariable Integer deliveryId
     ) {
-        AuthenticatedUserResponse user = authenticatedUserService.requireUser(authorization);
         return attachmentService.listDeliveryAttachments(deliveryId, user.idUsuario());
     }
 
     @GetMapping("/jobs/{jobId}/attachments")
     @Operation(summary = "Listar archivos de las entregas de un trabajo")
     public List<AttachmentResponse> listJobAttachments(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization,
+            @CurrentUser AuthenticatedUserResponse user,
             @PathVariable Integer jobId
     ) {
-        AuthenticatedUserResponse user = authenticatedUserService.requireUser(authorization);
         return attachmentService.listJobAttachments(jobId, user.idUsuario());
     }
 
@@ -95,24 +80,19 @@ public class AttachmentController {
     )
     @Operation(summary = "Adjuntar archivo a una entrega")
     public AttachmentResponse attachToDelivery(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization,
+            @CurrentUser(role = "ESTUDIANTE") AuthenticatedUserResponse user,
             @PathVariable Integer deliveryId,
             @RequestParam("file") MultipartFile file
     ) {
-        AuthenticatedUserResponse user =
-                authenticatedUserService.requireRole(authorization, "ESTUDIANTE");
         return attachmentService.attachToDelivery(deliveryId, user.idUsuario(), file);
     }
 
     @GetMapping("/attachments/{attachmentId}/download")
     @Operation(summary = "Descargar un archivo adjunto privado")
     public ResponseEntity<byte[]> download(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization,
+            @CurrentUser AuthenticatedUserResponse user,
             @PathVariable Integer attachmentId
     ) {
-        AuthenticatedUserResponse user = authenticatedUserService.requireUser(authorization);
         DownloadedAttachment attachment = attachmentService.download(
                 attachmentId,
                 user.idUsuario(),

@@ -13,7 +13,11 @@ import com.t4kash.api.identity.dto.ResendVerificationRequest;
 import com.t4kash.api.identity.dto.ResetPasswordRequest;
 import com.t4kash.api.identity.dto.VerifyEmailRequest;
 import com.t4kash.api.identity.dto.VerifyLoginRequest;
-import com.t4kash.api.identity.service.AuthService;
+import com.t4kash.api.identity.service.AuthSessionService;
+import com.t4kash.api.identity.service.LoginService;
+import com.t4kash.api.identity.service.PasswordResetService;
+import com.t4kash.api.identity.service.RegistrationService;
+import com.t4kash.api.identity.web.CurrentUser;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
@@ -30,17 +34,28 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/auth")
 public class AuthController {
     private static final String BEARER_PREFIX = "Bearer ";
-    private final AuthService authService;
+    private final RegistrationService registrationService;
+    private final LoginService loginService;
+    private final PasswordResetService passwordResetService;
+    private final AuthSessionService authSessionService;
 
-    public AuthController(AuthService authService) {
-        this.authService = authService;
+    public AuthController(
+            RegistrationService registrationService,
+            LoginService loginService,
+            PasswordResetService passwordResetService,
+            AuthSessionService authSessionService
+    ) {
+        this.registrationService = registrationService;
+        this.loginService = loginService;
+        this.passwordResetService = passwordResetService;
+        this.authSessionService = authSessionService;
     }
 
     @PostMapping("/register")
     public ResponseEntity<RegistrationResponse> register(
             @Valid @RequestBody RegisterRequest request
     ) {
-        RegistrationResponse response = authService.register(request);
+        RegistrationResponse response = registrationService.register(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -49,7 +64,7 @@ public class AuthController {
             @Valid @RequestBody VerifyEmailRequest request,
             HttpServletRequest httpRequest
     ) {
-        return authService.verifyEmail(
+        return registrationService.verifyEmail(
                 request,
                 clientIp(httpRequest),
                 httpRequest.getHeader(HttpHeaders.USER_AGENT)
@@ -60,7 +75,7 @@ public class AuthController {
     public RegistrationResponse resendVerification(
             @Valid @RequestBody ResendVerificationRequest request
     ) {
-        return authService.resendVerification(request.correo());
+        return registrationService.resendVerification(request.correo());
     }
 
     @PostMapping("/login")
@@ -68,7 +83,7 @@ public class AuthController {
             @Valid @RequestBody LoginRequest request,
             HttpServletRequest httpRequest
     ) {
-        return authService.login(
+        return loginService.login(
                 request,
                 clientIp(httpRequest),
                 httpRequest.getHeader(HttpHeaders.USER_AGENT)
@@ -80,7 +95,7 @@ public class AuthController {
             @Valid @RequestBody VerifyLoginRequest request,
             HttpServletRequest httpRequest
     ) {
-        return authService.verifyLogin(
+        return loginService.verifyLogin(
                 request,
                 clientIp(httpRequest),
                 httpRequest.getHeader(HttpHeaders.USER_AGENT)
@@ -91,14 +106,14 @@ public class AuthController {
     public LoginChallengeResponse resendLoginVerification(
             @Valid @RequestBody ResendVerificationRequest request
     ) {
-        return authService.resendLoginVerification(request.correo());
+        return loginService.resendLoginVerification(request.correo());
     }
 
     @PostMapping("/password/forgot")
     public MessageResponse forgotPassword(
             @Valid @RequestBody ForgotPasswordRequest request
     ) {
-        return authService.requestPasswordReset(request.correo());
+        return passwordResetService.requestPasswordReset(request.correo());
     }
 
     @PostMapping("/password/reset")
@@ -106,7 +121,7 @@ public class AuthController {
             @Valid @RequestBody ResetPasswordRequest request,
             HttpServletRequest httpRequest
     ) {
-        return authService.resetPassword(
+        return passwordResetService.resetPassword(
                 request,
                 clientIp(httpRequest),
                 httpRequest.getHeader(HttpHeaders.USER_AGENT)
@@ -114,11 +129,8 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public AuthenticatedUserResponse me(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization
-    ) {
-        return authService.getCurrentUser(bearerToken(authorization));
+    public AuthenticatedUserResponse me(@CurrentUser AuthenticatedUserResponse user) {
+        return user;
     }
 
     @PostMapping("/logout")
@@ -126,7 +138,7 @@ public class AuthController {
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
             String authorization
     ) {
-        authService.logout(bearerToken(authorization));
+        authSessionService.logout(bearerToken(authorization));
         return ResponseEntity.noContent().build();
     }
 
