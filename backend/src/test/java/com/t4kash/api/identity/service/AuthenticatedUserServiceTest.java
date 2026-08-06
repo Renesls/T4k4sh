@@ -18,24 +18,24 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class AuthenticatedUserServiceTest {
     @Mock
-    private AuthService authService;
+    private AuthSessionService authSessionService;
 
     @Test
     void resolvesBearerTokenAndReturnsAuthenticatedUser() {
         AuthenticatedUserResponse user = userWithRoles("CLIENTE");
-        when(authService.getCurrentUser("token-seguro")).thenReturn(user);
-        AuthenticatedUserService service = new AuthenticatedUserService(authService);
+        when(authSessionService.getCurrentUser("token-seguro")).thenReturn(user);
+        AuthenticatedUserService service = new AuthenticatedUserService(authSessionService);
 
         AuthenticatedUserResponse response =
                 service.requireUser("Bearer token-seguro");
 
         assertEquals(12, response.idUsuario());
-        verify(authService).getCurrentUser("token-seguro");
+        verify(authSessionService).getCurrentUser("token-seguro");
     }
 
     @Test
     void rejectsRequestsWithoutBearerToken() {
-        AuthenticatedUserService service = new AuthenticatedUserService(authService);
+        AuthenticatedUserService service = new AuthenticatedUserService(authSessionService);
 
         assertThrows(
                 InvalidCredentialsException.class,
@@ -45,9 +45,9 @@ class AuthenticatedUserServiceTest {
 
     @Test
     void rejectsUsersWithoutRequiredRole() {
-        when(authService.getCurrentUser("token-seguro"))
+        when(authSessionService.getCurrentUser("token-seguro"))
                 .thenReturn(userWithRoles("ESTUDIANTE"));
-        AuthenticatedUserService service = new AuthenticatedUserService(authService);
+        AuthenticatedUserService service = new AuthenticatedUserService(authSessionService);
 
         assertThrows(
                 ForbiddenOperationException.class,
