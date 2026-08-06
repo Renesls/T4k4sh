@@ -5,7 +5,7 @@ import com.t4kash.api.exception.ResourceConflictException;
 import com.t4kash.api.marketplace.entity.Tarea;
 import com.t4kash.api.marketplace.repository.TareaRepository;
 import com.t4kash.api.marketplace.repository.UsuarioRepository;
-import com.t4kash.api.marketplace.service.MarketplaceService;
+import com.t4kash.api.marketplace.service.TaskService;
 import com.t4kash.api.moderation.dto.CreateTaskReportRequest;
 import com.t4kash.api.moderation.dto.ReportResponse;
 import com.t4kash.api.moderation.dto.ReviewReportRequest;
@@ -34,7 +34,7 @@ class ReportServiceTest {
     @Mock
     private UsuarioRepository userRepository;
     @Mock
-    private MarketplaceService marketplaceService;
+    private TaskService taskService;
     @Mock
     private AuditService auditService;
 
@@ -46,7 +46,7 @@ class ReportServiceTest {
                 reportRepository,
                 taskRepository,
                 userRepository,
-                marketplaceService,
+                taskService,
                 auditService
         );
     }

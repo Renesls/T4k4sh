@@ -1,7 +1,7 @@
 package com.t4kash.api.marketplace.controller;
 
 import com.t4kash.api.identity.dto.AuthenticatedUserResponse;
-import com.t4kash.api.identity.service.AuthenticatedUserService;
+import com.t4kash.api.identity.web.CurrentUser;
 import com.t4kash.api.marketplace.dto.ApplicationResponse;
 import com.t4kash.api.marketplace.dto.CategoriaResponse;
 import com.t4kash.api.marketplace.dto.CreateApplicationRequest;
@@ -10,13 +10,15 @@ import com.t4kash.api.marketplace.dto.CreateTaskRequest;
 import com.t4kash.api.marketplace.dto.DeliveryResponse;
 import com.t4kash.api.marketplace.dto.JobResponse;
 import com.t4kash.api.marketplace.dto.TaskResponse;
-import com.t4kash.api.marketplace.service.MarketplaceService;
+import com.t4kash.api.marketplace.service.ApplicationService;
+import com.t4kash.api.marketplace.service.DeliveryService;
+import com.t4kash.api.marketplace.service.JobService;
+import com.t4kash.api.marketplace.service.TaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,7 +26,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -34,27 +35,33 @@ import java.util.List;
 @RequestMapping("/api")
 @Tag(name = "Marketplace", description = "Oportunidades, postulaciones, trabajos asignados y entregas")
 public class MarketplaceController {
-    private final MarketplaceService marketplaceService;
-    private final AuthenticatedUserService authenticatedUserService;
+    private final TaskService taskService;
+    private final ApplicationService applicationService;
+    private final JobService jobService;
+    private final DeliveryService deliveryService;
 
     public MarketplaceController(
-            MarketplaceService marketplaceService,
-            AuthenticatedUserService authenticatedUserService
+            TaskService taskService,
+            ApplicationService applicationService,
+            JobService jobService,
+            DeliveryService deliveryService
     ) {
-        this.marketplaceService = marketplaceService;
-        this.authenticatedUserService = authenticatedUserService;
+        this.taskService = taskService;
+        this.applicationService = applicationService;
+        this.jobService = jobService;
+        this.deliveryService = deliveryService;
     }
 
     @GetMapping("/categories")
     @Operation(summary = "Listar categorias activas")
     public List<CategoriaResponse> listCategories() {
-        return marketplaceService.listCategories();
+        return taskService.listCategories();
     }
 
     @GetMapping("/tasks")
     @Operation(summary = "Listar oportunidades")
     public List<TaskResponse> listTasks() {
-        return marketplaceService.listTasks();
+        return taskService.listTasks();
     }
 
     @PostMapping("/tasks")
@@ -62,59 +69,47 @@ public class MarketplaceController {
     @Operation(summary = "Crear oportunidad")
     @SecurityRequirement(name = "bearerAuth")
     public TaskResponse createTask(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization,
+            @CurrentUser(role = "CLIENTE") AuthenticatedUserResponse user,
             @Valid @RequestBody CreateTaskRequest request
     ) {
-        AuthenticatedUserResponse user =
-                authenticatedUserService.requireRole(authorization, "CLIENTE");
-        return marketplaceService.createTask(user.idUsuario(), request);
+        return taskService.createTask(user.idUsuario(), request);
     }
 
     @PutMapping("/tasks/{idTarea}")
     @Operation(summary = "Editar una oportunidad activa")
     @SecurityRequirement(name = "bearerAuth")
     public TaskResponse updateTask(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization,
+            @CurrentUser(role = "CLIENTE") AuthenticatedUserResponse user,
             @PathVariable Integer idTarea,
             @Valid @RequestBody CreateTaskRequest request
     ) {
-        AuthenticatedUserResponse user =
-                authenticatedUserService.requireRole(authorization, "CLIENTE");
-        return marketplaceService.updateTask(user.idUsuario(), idTarea, request);
+        return taskService.updateTask(user.idUsuario(), idTarea, request);
     }
 
     @DeleteMapping("/tasks/{idTarea}")
     @Operation(summary = "Cancelar una oportunidad activa")
     @SecurityRequirement(name = "bearerAuth")
     public TaskResponse cancelTask(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization,
+            @CurrentUser(role = "CLIENTE") AuthenticatedUserResponse user,
             @PathVariable Integer idTarea
     ) {
-        AuthenticatedUserResponse user =
-                authenticatedUserService.requireRole(authorization, "CLIENTE");
-        return marketplaceService.cancelTask(user.idUsuario(), idTarea);
+        return taskService.cancelTask(user.idUsuario(), idTarea);
     }
 
     @GetMapping("/tasks/{idTarea}")
     @Operation(summary = "Obtener detalle de una oportunidad")
     public TaskResponse getTask(@PathVariable Integer idTarea) {
-        return marketplaceService.getTask(idTarea);
+        return taskService.getTask(idTarea);
     }
 
     @GetMapping("/tasks/{idTarea}/applications")
     @Operation(summary = "Listar postulaciones de una oportunidad")
     @SecurityRequirement(name = "bearerAuth")
     public List<ApplicationResponse> listApplications(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization,
+            @CurrentUser(role = "CLIENTE") AuthenticatedUserResponse user,
             @PathVariable Integer idTarea
     ) {
-        AuthenticatedUserResponse user =
-                authenticatedUserService.requireRole(authorization, "CLIENTE");
-        return marketplaceService.listApplications(user.idUsuario(), idTarea);
+        return applicationService.listApplications(user.idUsuario(), idTarea);
     }
 
     @PostMapping("/tasks/{idTarea}/applications")
@@ -122,75 +117,57 @@ public class MarketplaceController {
     @Operation(summary = "Postularse a una oportunidad")
     @SecurityRequirement(name = "bearerAuth")
     public ApplicationResponse applyToTask(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization,
+            @CurrentUser(role = "ESTUDIANTE") AuthenticatedUserResponse user,
             @PathVariable Integer idTarea,
             @Valid @RequestBody CreateApplicationRequest request
     ) {
-        AuthenticatedUserResponse user =
-                authenticatedUserService.requireRole(authorization, "ESTUDIANTE");
-        return marketplaceService.applyToTask(user.idUsuario(), idTarea, request);
+        return applicationService.applyToTask(user.idUsuario(), idTarea, request);
     }
 
     @GetMapping("/applications/me")
     @Operation(summary = "Listar mis postulaciones")
     @SecurityRequirement(name = "bearerAuth")
     public List<ApplicationResponse> listMyApplications(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization
+            @CurrentUser(role = "ESTUDIANTE") AuthenticatedUserResponse user
     ) {
-        AuthenticatedUserResponse user =
-                authenticatedUserService.requireRole(authorization, "ESTUDIANTE");
-        return marketplaceService.listMyApplications(user.idUsuario());
+        return applicationService.listMyApplications(user.idUsuario());
     }
 
     @PostMapping("/applications/{idPostulacion}/accept")
     @Operation(summary = "Aceptar postulacion y crear trabajo asignado")
     @SecurityRequirement(name = "bearerAuth")
     public JobResponse acceptApplication(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization,
+            @CurrentUser(role = "CLIENTE") AuthenticatedUserResponse user,
             @PathVariable Integer idPostulacion
     ) {
-        AuthenticatedUserResponse user =
-                authenticatedUserService.requireRole(authorization, "CLIENTE");
-        return marketplaceService.acceptApplication(user.idUsuario(), idPostulacion);
+        return applicationService.acceptApplication(user.idUsuario(), idPostulacion);
     }
 
     @PostMapping("/applications/{idPostulacion}/reject")
     @Operation(summary = "Rechazar postulacion")
     @SecurityRequirement(name = "bearerAuth")
     public ApplicationResponse rejectApplication(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization,
+            @CurrentUser(role = "CLIENTE") AuthenticatedUserResponse user,
             @PathVariable Integer idPostulacion
     ) {
-        AuthenticatedUserResponse user =
-                authenticatedUserService.requireRole(authorization, "CLIENTE");
-        return marketplaceService.rejectApplication(user.idUsuario(), idPostulacion);
+        return applicationService.rejectApplication(user.idUsuario(), idPostulacion);
     }
 
     @GetMapping("/jobs")
     @Operation(summary = "Listar trabajos asignados")
     @SecurityRequirement(name = "bearerAuth")
-    public List<JobResponse> listJobs(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization
-    ) {
-        AuthenticatedUserResponse user = authenticatedUserService.requireUser(authorization);
-        return marketplaceService.listJobs(user.idUsuario());
+    public List<JobResponse> listJobs(@CurrentUser AuthenticatedUserResponse user) {
+        return jobService.listJobs(user.idUsuario());
     }
 
     @GetMapping("/jobs/{idTrabajo}/deliveries")
     @Operation(summary = "Listar entregas de un trabajo")
     @SecurityRequirement(name = "bearerAuth")
     public List<DeliveryResponse> listDeliveries(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization,
+            @CurrentUser AuthenticatedUserResponse user,
             @PathVariable Integer idTrabajo
     ) {
-        AuthenticatedUserResponse user = authenticatedUserService.requireUser(authorization);
-        return marketplaceService.listDeliveries(user.idUsuario(), idTrabajo);
+        return deliveryService.listDeliveries(user.idUsuario(), idTrabajo);
     }
 
     @PostMapping("/jobs/{idTrabajo}/deliveries")
@@ -198,26 +175,20 @@ public class MarketplaceController {
     @Operation(summary = "Enviar entrega de trabajo")
     @SecurityRequirement(name = "bearerAuth")
     public DeliveryResponse createDelivery(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization,
+            @CurrentUser(role = "ESTUDIANTE") AuthenticatedUserResponse user,
             @PathVariable Integer idTrabajo,
             @Valid @RequestBody CreateDeliveryRequest request
     ) {
-        AuthenticatedUserResponse user =
-                authenticatedUserService.requireRole(authorization, "ESTUDIANTE");
-        return marketplaceService.createDelivery(user.idUsuario(), idTrabajo, request);
+        return deliveryService.createDelivery(user.idUsuario(), idTrabajo, request);
     }
 
     @PostMapping("/deliveries/{idEntrega}/approve")
     @Operation(summary = "Aprobar entrega")
     @SecurityRequirement(name = "bearerAuth")
     public DeliveryResponse approveDelivery(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
-            String authorization,
+            @CurrentUser(role = "CLIENTE") AuthenticatedUserResponse user,
             @PathVariable Integer idEntrega
     ) {
-        AuthenticatedUserResponse user =
-                authenticatedUserService.requireRole(authorization, "CLIENTE");
-        return marketplaceService.approveDelivery(user.idUsuario(), idEntrega);
+        return deliveryService.approveDelivery(user.idUsuario(), idEntrega);
     }
 }

@@ -5,18 +5,12 @@ import com.t4kash.api.communication.service.NotificationService;
 import com.t4kash.api.exception.ForbiddenOperationException;
 import com.t4kash.api.exception.ResourceConflictException;
 import com.t4kash.api.marketplace.dto.CreateApplicationRequest;
-import com.t4kash.api.marketplace.dto.CreateDeliveryRequest;
-import com.t4kash.api.marketplace.dto.CreateTaskRequest;
-import com.t4kash.api.marketplace.dto.DeliveryResponse;
 import com.t4kash.api.marketplace.dto.JobResponse;
-import com.t4kash.api.marketplace.dto.TaskResponse;
-import com.t4kash.api.marketplace.entity.Entrega;
 import com.t4kash.api.marketplace.entity.Postulacion;
 import com.t4kash.api.marketplace.entity.Tarea;
 import com.t4kash.api.marketplace.entity.TrabajoAsignado;
 import com.t4kash.api.marketplace.entity.UsuarioEstudiante;
 import com.t4kash.api.marketplace.repository.CategoriaTareaRepository;
-import com.t4kash.api.marketplace.repository.EntregaRepository;
 import com.t4kash.api.marketplace.repository.PostulacionRepository;
 import com.t4kash.api.marketplace.repository.TareaRepository;
 import com.t4kash.api.marketplace.repository.TrabajoAsignadoRepository;
@@ -33,15 +27,13 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class MarketplaceServiceTest {
+class ApplicationServiceTest {
     @Mock
     private CategoriaTareaRepository categoriaRepository;
     @Mock
@@ -51,95 +43,30 @@ class MarketplaceServiceTest {
     @Mock
     private TrabajoAsignadoRepository trabajoRepository;
     @Mock
-    private EntregaRepository entregaRepository;
-    @Mock
     private UsuarioEstudianteRepository estudianteRepository;
     @Mock
     private ConversationService conversationService;
     @Mock
     private NotificationService notificationService;
 
-    private MarketplaceService service;
+    private ApplicationService service;
 
     @BeforeEach
     void setUp() {
-        service = new MarketplaceService(
+        TaskService taskService = new TaskService(
                 categoriaRepository,
                 tareaRepository,
                 postulacionRepository,
+                trabajoRepository
+        );
+        service = new ApplicationService(
+                postulacionRepository,
                 trabajoRepository,
-                entregaRepository,
                 estudianteRepository,
+                taskService,
                 conversationService,
                 notificationService
         );
-        lenient().when(categoriaRepository.existsById(1)).thenReturn(true);
-    }
-
-    @Test
-    void remoteTaskDiscardsCoordinates() {
-        mockTaskSave();
-        TaskResponse response = service.createTask(1, request(
-                "REMOTA",
-                "Referencia que no debe guardarse",
-                new BigDecimal("12.114990"),
-                new BigDecimal("-86.236170")
-        ));
-
-        assertEquals("REMOTA", response.modalidad());
-        assertNull(response.direccionReferencia());
-        assertNull(response.latitud());
-        assertNull(response.longitud());
-    }
-
-    @Test
-    void presencialTaskKeepsCoordinates() {
-        mockTaskSave();
-        TaskResponse response = service.createTask(1, request(
-                "presencial",
-                "Entrada principal del campus",
-                new BigDecimal("12.114990"),
-                new BigDecimal("-86.236170")
-        ));
-
-        assertEquals("PRESENCIAL", response.modalidad());
-        assertEquals("Entrada principal del campus", response.direccionReferencia());
-        assertEquals(new BigDecimal("12.114990"), response.latitud());
-        assertEquals(new BigDecimal("-86.236170"), response.longitud());
-    }
-
-    @Test
-    void presencialTaskRequiresBothCoordinates() {
-        IllegalArgumentException error = assertThrows(
-                IllegalArgumentException.class,
-                () -> service.createTask(1, request(
-                        "PRESENCIAL",
-                        "Campus",
-                        null,
-                        null
-                ))
-        );
-
-        assertEquals(
-                "Las tareas presenciales o hibridas requieren latitud y longitud.",
-                error.getMessage()
-        );
-    }
-
-    @Test
-    void listingTasksClosesExpiredPublications() {
-        Tarea expiredTask = task(
-                10,
-                "PUBLICADA",
-                LocalDateTime.now().minusMinutes(1)
-        );
-        when(tareaRepository.findAllByOrderByFechaPublicacionDesc())
-                .thenReturn(List.of(expiredTask));
-
-        List<TaskResponse> response = service.listTasks();
-
-        assertEquals("CERRADA", expiredTask.getEstadoTarea());
-        assertEquals("CERRADA", response.getFirst().estadoTarea());
     }
 
     @Test
@@ -306,53 +233,6 @@ class MarketplaceServiceTest {
     }
 
     @Test
-    void creatingDeliveryRegistersItAsSent() {
-        TrabajoAsignado job = job(50, "EN_PROCESO");
-        when(trabajoRepository.findById(50)).thenReturn(Optional.of(job));
-        when(tareaRepository.findById(10)).thenReturn(Optional.of(task(
-                10,
-                "ASIGNADA",
-                LocalDateTime.now().plusDays(1)
-        )));
-        when(entregaRepository.save(any(Entrega.class))).thenAnswer(invocation -> {
-            Entrega delivery = invocation.getArgument(0);
-            delivery.setIdEntrega(200);
-            return delivery;
-        });
-
-        DeliveryResponse response = service.createDelivery(
-                1,
-                50,
-                new CreateDeliveryRequest("Entrega funcional del trabajo.")
-        );
-
-        assertEquals(200, response.idEntrega());
-        assertEquals(50, response.idTrabajo());
-        assertEquals("ENVIADA", response.estadoEntrega());
-        assertEquals("Entrega funcional del trabajo.", response.descripcionEntrega());
-    }
-
-    @Test
-    void approvingDeliveryFinalizesAssignedJob() {
-        TrabajoAsignado job = job(50, "EN_PROCESO");
-        Entrega delivery = delivery(200, 50, "ENVIADA");
-        when(entregaRepository.findById(200)).thenReturn(Optional.of(delivery));
-        when(trabajoRepository.findById(50)).thenReturn(Optional.of(job));
-        when(tareaRepository.findById(10)).thenReturn(Optional.of(task(
-                10,
-                "ASIGNADA",
-                LocalDateTime.now().plusDays(1)
-        )));
-        when(entregaRepository.save(delivery)).thenReturn(delivery);
-
-        DeliveryResponse response = service.approveDelivery(1, 200);
-
-        assertEquals("APROBADA", response.estadoEntrega());
-        assertEquals("FINALIZADO", job.getEstadoTrabajo());
-        verify(trabajoRepository).save(job);
-    }
-
-    @Test
     void acceptingApplicationRejectsUsersWhoDoNotOwnTheTask() {
         Postulacion application = application(100, 10, 2);
         when(postulacionRepository.findById(100)).thenReturn(Optional.of(application));
@@ -371,51 +251,6 @@ class MarketplaceServiceTest {
                 "Solo el propietario de la tarea puede realizar esta accion.",
                 error.getMessage()
         );
-    }
-
-    @Test
-    void creatingDeliveryRejectsUsersWhoAreNotAssigned() {
-        TrabajoAsignado job = job(50, "EN_PROCESO");
-        when(trabajoRepository.findById(50)).thenReturn(Optional.of(job));
-
-        assertThrows(
-                ForbiddenOperationException.class,
-                () -> service.createDelivery(
-                        99,
-                        50,
-                        new CreateDeliveryRequest("Entrega ajena.")
-                )
-        );
-    }
-
-    private CreateTaskRequest request(
-            String modalidad,
-            String direccion,
-            BigDecimal latitud,
-            BigDecimal longitud
-    ) {
-        return new CreateTaskRequest(
-                "Diseñar una pantalla",
-                "Crear una pantalla completa para una aplicación universitaria.",
-                new BigDecimal("25.00"),
-                null,
-                null,
-                1,
-                "TAREA",
-                modalidad,
-                "PUBLICA",
-                direccion,
-                latitud,
-                longitud
-        );
-    }
-
-    private void mockTaskSave() {
-        when(tareaRepository.save(any(Tarea.class))).thenAnswer(invocation -> {
-            Tarea tarea = invocation.getArgument(0);
-            tarea.setIdTarea(10);
-            return tarea;
-        });
     }
 
     private Tarea task(
@@ -455,26 +290,5 @@ class MarketplaceServiceTest {
         application.setEstadoPostulacion("PENDIENTE");
         application.setNumeroIntento(1);
         return application;
-    }
-
-    private TrabajoAsignado job(Integer id, String status) {
-        TrabajoAsignado job = new TrabajoAsignado();
-        job.setIdTrabajo(id);
-        job.setIdTarea(10);
-        job.setIdEstudiante(1);
-        job.setFechaInicio(LocalDateTime.now().minusHours(1));
-        job.setFechaEntregaEsperada(LocalDateTime.now().plusDays(2));
-        job.setEstadoTrabajo(status);
-        return job;
-    }
-
-    private Entrega delivery(Integer id, Integer jobId, String status) {
-        Entrega delivery = new Entrega();
-        delivery.setIdEntrega(id);
-        delivery.setIdTrabajo(jobId);
-        delivery.setDescripcionEntrega("Entrega funcional del trabajo.");
-        delivery.setFechaEntrega(LocalDateTime.now());
-        delivery.setEstadoEntrega(status);
-        return delivery;
     }
 }

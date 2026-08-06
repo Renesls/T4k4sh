@@ -8,7 +8,7 @@ import com.t4kash.api.marketplace.entity.Tarea;
 import com.t4kash.api.marketplace.repository.TareaRepository;
 import com.t4kash.api.marketplace.repository.TrabajoAsignadoRepository;
 import com.t4kash.api.marketplace.repository.UsuarioRepository;
-import com.t4kash.api.marketplace.service.MarketplaceService;
+import com.t4kash.api.marketplace.service.TaskService;
 import com.t4kash.api.moderation.service.AuditService;
 import com.t4kash.api.moderation.service.ReportService;
 import org.springframework.stereotype.Service;
@@ -23,7 +23,7 @@ public class AdminService {
     private final TareaRepository tareaRepository;
     private final TrabajoAsignadoRepository trabajoRepository;
     private final StudentVerificationService verificationService;
-    private final MarketplaceService marketplaceService;
+    private final TaskService taskService;
     private final ReportService reportService;
     private final AuditService auditService;
 
@@ -32,7 +32,7 @@ public class AdminService {
             TareaRepository tareaRepository,
             TrabajoAsignadoRepository trabajoRepository,
             StudentVerificationService verificationService,
-            MarketplaceService marketplaceService,
+            TaskService taskService,
             ReportService reportService,
             AuditService auditService
     ) {
@@ -40,7 +40,7 @@ public class AdminService {
         this.tareaRepository = tareaRepository;
         this.trabajoRepository = trabajoRepository;
         this.verificationService = verificationService;
-        this.marketplaceService = marketplaceService;
+        this.taskService = taskService;
         this.reportService = reportService;
         this.auditService = auditService;
     }
@@ -58,7 +58,7 @@ public class AdminService {
 
     @Transactional
     public List<TaskResponse> listTasks() {
-        return marketplaceService.listTasksForAdmin();
+        return taskService.listTasksForAdmin();
     }
 
     @Transactional
@@ -73,7 +73,7 @@ public class AdminService {
                         "La publicacion indicada no existe."
                 ));
         String previousStatus = task.getEstadoTarea();
-        TaskResponse cancelled = marketplaceService.cancelTaskAsAdmin(taskId);
+        TaskResponse cancelled = taskService.cancelTaskAsAdmin(taskId);
         auditService.record(
                 adminUserId,
                 "RETIRAR_PUBLICACION",

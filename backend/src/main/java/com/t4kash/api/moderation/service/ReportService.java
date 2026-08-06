@@ -8,7 +8,7 @@ import com.t4kash.api.marketplace.entity.Tarea;
 import com.t4kash.api.marketplace.entity.Usuario;
 import com.t4kash.api.marketplace.repository.TareaRepository;
 import com.t4kash.api.marketplace.repository.UsuarioRepository;
-import com.t4kash.api.marketplace.service.MarketplaceService;
+import com.t4kash.api.marketplace.service.TaskService;
 import com.t4kash.api.moderation.dto.CreateTaskReportRequest;
 import com.t4kash.api.moderation.dto.ReportResponse;
 import com.t4kash.api.moderation.dto.ReviewReportRequest;
@@ -44,20 +44,20 @@ public class ReportService {
     private final ReporteRepository reportRepository;
     private final TareaRepository taskRepository;
     private final UsuarioRepository userRepository;
-    private final MarketplaceService marketplaceService;
+    private final TaskService taskService;
     private final AuditService auditService;
 
     public ReportService(
             ReporteRepository reportRepository,
             TareaRepository taskRepository,
             UsuarioRepository userRepository,
-            MarketplaceService marketplaceService,
+            TaskService taskService,
             AuditService auditService
     ) {
         this.reportRepository = reportRepository;
         this.taskRepository = taskRepository;
         this.userRepository = userRepository;
-        this.marketplaceService = marketplaceService;
+        this.taskService = taskService;
         this.auditService = auditService;
     }
 
@@ -172,7 +172,7 @@ public class ReportService {
             Tarea task = requireTask(report.getIdTarea());
             previousTaskStatus = task.getEstadoTarea();
             if (!TASK_CANCELLED.equalsIgnoreCase(previousTaskStatus)) {
-                cancelledTask = marketplaceService.cancelTaskAsAdmin(
+                cancelledTask = taskService.cancelTaskAsAdmin(
                         report.getIdTarea()
                 );
             }

@@ -9,14 +9,14 @@ import org.springframework.stereotype.Service;
 public class AuthenticatedUserService {
     private static final String BEARER_PREFIX = "Bearer ";
 
-    private final AuthService authService;
+    private final AuthSessionService authSessionService;
 
-    public AuthenticatedUserService(AuthService authService) {
-        this.authService = authService;
+    public AuthenticatedUserService(AuthSessionService authSessionService) {
+        this.authSessionService = authSessionService;
     }
 
     public AuthenticatedUserResponse requireUser(String authorization) {
-        return authService.getCurrentUser(resolveToken(authorization));
+        return authSessionService.getCurrentUser(resolveToken(authorization));
     }
 
     public AuthenticatedUserResponse requireRole(String authorization, String requiredRole) {
