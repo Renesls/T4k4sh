@@ -23,7 +23,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 
-/** Owns account creation and email-verification of a new account. */
+/** Gestiona la creacion de cuentas y la verificacion inicial por correo. */
 @Service
 public class RegistrationService {
     private static final String ACTIVE_USER = "ACTIVO";

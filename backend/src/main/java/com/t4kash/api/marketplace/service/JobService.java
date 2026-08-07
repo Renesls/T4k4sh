@@ -12,9 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 /**
- * Owns TrabajoAsignado (assigned job) lookups shared by DeliveryService.
- * Job creation itself happens in ApplicationService.acceptApplication, since
- * it's one step of accepting an application, not a standalone operation.
+ * Centraliza las consultas de TrabajoAsignado que utiliza DeliveryService.
+ * La creacion permanece en ApplicationService.acceptApplication porque forma
+ * parte de aceptar una postulacion y no constituye una operacion aislada.
  */
 @Service
 public class JobService {

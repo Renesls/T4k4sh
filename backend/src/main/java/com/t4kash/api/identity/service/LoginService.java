@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 
-/** Owns password login and the email 2FA challenge that follows it. */
+/** Gestiona el ingreso con contrasena y la verificacion posterior por correo. */
 @Service
 public class LoginService {
     private static final String ACTIVE_USER = "ACTIVO";
