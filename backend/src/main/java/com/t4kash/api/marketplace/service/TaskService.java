@@ -21,10 +21,9 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Owns the lifecycle of a Tarea (publication): categories, CRUD, cancellation
- * and the expiration sweep. Other marketplace services depend on this one for
- * task lookups and ownership checks instead of talking to TareaRepository
- * directly, so those rules stay in one place.
+ * Gestiona el ciclo de una Tarea: categorias, operaciones CRUD, cancelacion y
+ * vencimiento. Los demas servicios del marketplace delegan aqui las consultas
+ * y validaciones de propiedad para mantener las reglas en un solo lugar.
  */
 @Service
 public class TaskService {
@@ -166,18 +165,18 @@ public class TaskService {
         return cancelTaskAndApplications(tarea);
     }
 
-    /** Looks up a Tarea or throws - shared by the other marketplace services. */
+    /** Busca una tarea o informa que no existe para los demas servicios. */
     public Tarea findTaskEntity(Integer idTarea) {
         return tareaRepository.findById(idTarea)
                 .orElseThrow(() -> new ResourceNotFoundException("La tarea indicada no existe."));
     }
 
-    /** Persists a Tarea mutated by another marketplace service (e.g. accepting an application). */
+    /** Guarda una tarea modificada por otro servicio del marketplace. */
     public Tarea save(Tarea tarea) {
         return tareaRepository.save(tarea);
     }
 
-    /** Throws ForbiddenOperationException unless currentUserId owns the task. */
+    /** Verifica que el usuario actual sea propietario de la tarea. */
     public void requireTaskOwner(Tarea tarea, Integer currentUserId) {
         if (!tarea.getIdCliente().equals(currentUserId)) {
             throw new ForbiddenOperationException(
@@ -187,9 +186,8 @@ public class TaskService {
     }
 
     /**
-     * Closes a task past its application deadline. Mutates {@code tarea} in
-     * place and returns whether it was closed, so callers (e.g. applyToTask)
-     * can reject actions against a task that just expired.
+     * Cierra una tarea cuando vence su plazo de postulacion y devuelve si hubo
+     * un cambio para que el servicio solicitante pueda rechazar la operacion.
      */
     public boolean closeExpiredTask(Tarea tarea, LocalDateTime now) {
         LocalDateTime deadline = tarea.getFechaLimitePostulacion();

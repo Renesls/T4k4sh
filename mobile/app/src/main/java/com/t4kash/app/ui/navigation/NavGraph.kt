@@ -194,9 +194,9 @@ fun NavGraph(
             MarketplaceScreen(
                 viewModel = marketplaceViewModel,
                 currentRoute = Routes.MARKETPLACE,
+                user = session?.user,
                 onNavigate = onBottomNavigate,
                 onTaskSelected = { task -> navController.navigate(Routes.taskDetails(task.idTarea)) },
-                onCreateTask = { navController.navigateBottom(Routes.POST) },
                 onOpenMap = { navController.navigate(Routes.OPPORTUNITY_MAP) },
                 onOpenNotifications = {
                     navController.navigate(Routes.NOTIFICATIONS)

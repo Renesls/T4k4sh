@@ -21,9 +21,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * Owns the Postulacion lifecycle: applying to a task, accepting/rejecting
- * applications and the resulting TrabajoAsignado creation. Delegates task
- * lookups and ownership checks to TaskService instead of duplicating them.
+ * Gestiona el ciclo de las postulaciones, desde su creacion hasta su
+ * aceptacion o rechazo y la asignacion resultante. Delega en TaskService las
+ * consultas y validaciones de propiedad para no duplicar reglas.
  */
 @Service
 public class ApplicationService {
