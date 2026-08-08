@@ -28,6 +28,7 @@ import com.t4kash.app.ui.screen.OpportunityDetailScreen
 import com.t4kash.app.ui.screen.OpportunityMapScreen
 import com.t4kash.app.ui.screen.PostTaskScreen
 import com.t4kash.app.ui.screen.ProfileScreen
+import com.t4kash.app.ui.screen.PublicProfileScreen
 import com.t4kash.app.ui.screen.RegisterScreen
 import com.t4kash.app.ui.screen.ForgotPasswordScreen
 import com.t4kash.app.ui.screen.ResetPasswordScreen
@@ -37,6 +38,7 @@ import com.t4kash.app.ui.screen.VerifyEmailScreen
 import com.t4kash.app.ui.viewmodel.MarketplaceViewModel
 import com.t4kash.app.ui.viewmodel.AuthViewModel
 import com.t4kash.app.ui.viewmodel.CommunicationViewModel
+import com.t4kash.app.ui.viewmodel.PublicProfileViewModel
 import com.t4kash.app.ui.session.UserSession
 
 @Composable
@@ -46,6 +48,7 @@ fun NavGraph(
     val authViewModel: AuthViewModel = viewModel()
     val marketplaceViewModel: MarketplaceViewModel = viewModel()
     val communicationViewModel: CommunicationViewModel = viewModel()
+    val publicProfileViewModel: PublicProfileViewModel = viewModel()
     val session by UserSession.session.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -245,6 +248,9 @@ fun NavGraph(
                 onOpenMap = { navController.navigate(Routes.opportunityMap(taskId)) },
                 onManageApplications = {
                     navController.navigate(Routes.taskApplications(taskId))
+                },
+                onOpenProfile = { username ->
+                    navController.navigate(Routes.publicProfile(username))
                 }
             )
         }
@@ -258,7 +264,10 @@ fun NavGraph(
             ApplicationManagementScreen(
                 taskId = taskId,
                 viewModel = marketplaceViewModel,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onOpenProfile = { username ->
+                    navController.navigate(Routes.publicProfile(username))
+                }
             )
         }
         composable(Routes.NETWORK) {
@@ -341,6 +350,7 @@ fun NavGraph(
             }
             ProfileScreen(
                 viewModel = marketplaceViewModel,
+                profileViewModel = publicProfileViewModel,
                 user = currentUser,
                 onNavigate = onBottomNavigate,
                 onOpenPublications = { filter ->
@@ -356,6 +366,21 @@ fun NavGraph(
                         }
                     }
                 }
+            )
+        }
+        composable(
+            route = Routes.PUBLIC_PROFILE,
+            arguments = listOf(
+                navArgument(Routes.USERNAME_ARG) { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val username = backStackEntry.arguments
+                ?.getString(Routes.USERNAME_ARG)
+                .orEmpty()
+            PublicProfileScreen(
+                username = username,
+                viewModel = publicProfileViewModel,
+                onBack = { navController.popBackStack() }
             )
         }
         composable(Routes.ADMIN) {
@@ -414,7 +439,10 @@ fun NavGraph(
             JobDetailScreen(
                 jobId = jobId,
                 viewModel = marketplaceViewModel,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onOpenProfile = { username ->
+                    navController.navigate(Routes.publicProfile(username))
+                }
             )
         }
         composable(Routes.APPLICATION_SENT) {

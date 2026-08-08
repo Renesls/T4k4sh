@@ -87,7 +87,8 @@ fun OpportunityDetailScreen(
     onBack: () -> Unit,
     onApply: () -> Unit,
     onOpenMap: () -> Unit,
-    onManageApplications: () -> Unit
+    onManageApplications: () -> Unit,
+    onOpenProfile: (String) -> Unit
 ) {
     val state = viewModel.uiState
     val task = state.tasks.firstOrNull { it.idTarea == taskId }
@@ -267,6 +268,7 @@ fun OpportunityDetailScreen(
                     isLoadingAttachments = state.isLoadingTaskAttachments,
                     attachmentsError = state.taskAttachmentsError,
                     onOpenMap = onOpenMap,
+                    onOpenProfile = onOpenProfile,
                     canReport = sessionUser != null &&
                         task.idCliente != sessionUser.id &&
                         !task.estadoTarea.equals("CANCELADA", true),
@@ -287,6 +289,7 @@ private fun OpportunityDetailContent(
     isLoadingAttachments: Boolean,
     attachmentsError: String?,
     onOpenMap: () -> Unit,
+    onOpenProfile: (String) -> Unit,
     canReport: Boolean,
     onReport: () -> Unit,
     modifier: Modifier = Modifier
@@ -302,7 +305,7 @@ private fun OpportunityDetailContent(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        item { HeroCard(task = task) }
+        item { HeroCard(task = task, onOpenProfile = onOpenProfile) }
         item {
             DetailSection(
                 title = "Descripcion",
@@ -407,7 +410,7 @@ private fun OpportunityDetailContent(
 }
 
 @Composable
-private fun HeroCard(task: TaskDto) {
+private fun HeroCard(task: TaskDto, onOpenProfile: (String) -> Unit) {
     val categoryColors = t4CategoryColors(task.idCategoria)
     T4PatternSurface(
         modifier = Modifier.fillMaxWidth(),
@@ -420,7 +423,11 @@ private fun HeroCard(task: TaskDto) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = task.cliente != null) {
+                        task.cliente?.nombreUsuario?.let(onOpenProfile)
+                    },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -470,13 +477,14 @@ private fun HeroCard(task: TaskDto) {
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Cliente #${task.idCliente}",
+                        text = task.cliente?.nombreCompleto ?: "Cliente T4KASH",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = Color.White
                     )
                     Text(
-                        text = "Perfil verificado por T4KASH",
+                        text = task.cliente?.let { "@${it.nombreUsuario}" }
+                            ?: "Perfil T4KASH",
                         color = Color.White.copy(alpha = 0.76f),
                         style = MaterialTheme.typography.bodySmall
                     )

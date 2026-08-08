@@ -25,6 +25,8 @@ object Routes {
     const val ASSIGNED_JOBS = "profile/jobs"
     const val APPLICATION_SENT = "application-sent"
     const val ADMIN = "profile/admin"
+    const val USERNAME_ARG = "username"
+    const val PUBLIC_PROFILE = "profile/public/{$USERNAME_ARG}"
 
     const val TASK_ID_ARG = "taskId"
     const val JOB_ID_ARG = "jobId"
@@ -46,6 +48,8 @@ object Routes {
     fun jobDetails(jobId: Int): String = "profile/jobs/$jobId"
     fun conversation(conversationId: Int): String =
         "chat/$conversationId"
+    fun publicProfile(username: String): String =
+        "profile/public/${Uri.encode(username)}"
     fun verifyEmail(email: String = ""): String {
         return "verify-email?email=${Uri.encode(email)}"
     }

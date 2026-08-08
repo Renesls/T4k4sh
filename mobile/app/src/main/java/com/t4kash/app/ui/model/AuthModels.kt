@@ -85,3 +85,24 @@ data class AuthResponse(
     val fechaExpiracion: String,
     val usuario: AuthenticatedUserDto
 )
+
+data class PublicIdentityDto(
+    val idUsuario: Int,
+    val nombreUsuario: String,
+    val nombreCompleto: String,
+    val nombreUniversidad: String?,
+    val nombreCarrera: String?,
+    val estudianteVerificado: Boolean
+)
+
+data class PublicProfileDto(
+    val identidad: PublicIdentityDto,
+    val miembroDesde: String,
+    val publicaciones: Long,
+    val trabajosCompletados: Long,
+    val proximoCambioNombreUsuario: String?
+)
+
+data class UpdateUsernameRequest(
+    val nombreUsuario: String
+)

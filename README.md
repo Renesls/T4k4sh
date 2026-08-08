@@ -48,6 +48,7 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 | Autenticación en dos pasos (segundo código al iniciar sesión) | Implementado |
 | Recuperación de contraseña por código | Implementado |
 | Verificación de perfil estudiantil con adjunto y revisión administrativa | Implementado |
+| Identidad pública por arroba y cambio de nombre de usuario | Implementado |
 | Conversaciones, mensajes y notificaciones internas | Implementado |
 | Formularios adaptados al teclado y manejo visual de errores | Implementado |
 | Modelo financiero para wallet, Pagadito y efectivo | Diseñado en PostgreSQL |
@@ -59,6 +60,10 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 El registro valida los dominios configurados para cada universidad, relaciona únicamente
 carreras activas y activa la cuenta después de confirmar un código enviado por correo.
 Cada cuenta recibe un nombre de usuario público único generado desde el nombre y apellido.
+El usuario puede cambiarlo desde su perfil y debe esperar 30 días antes de escoger otro.
+Las oportunidades, postulaciones, trabajos y conversaciones muestran el nombre y la
+arroba pública; el perfil público no expone correo, carnet, estado interno ni otros datos
+privados de la cuenta.
 Android conserva la sesión iniciada y utiliza internamente el ID autenticado para
 publicaciones, postulaciones, trabajos y archivos. Las contraseñas se almacenan con BCrypt
 y la base conserva únicamente el hash de cada token de sesión.
@@ -227,6 +232,8 @@ El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno 
 | `POST` | `/api/auth/password/reset` | Confirmar código y establecer una contraseña nueva |
 | `GET` | `/api/auth/me` | Consultar el usuario autenticado |
 | `POST` | `/api/auth/logout` | Cerrar la sesión actual |
+| `GET` | `/api/profiles/{username}` | Consultar un perfil público por arroba |
+| `PUT` | `/api/profiles/me/username` | Cambiar la arroba del usuario autenticado |
 | `GET` | `/api/identity/universities` | Listar universidades activas |
 | `GET` | `/api/identity/universities/{id}/careers` | Listar carreras de una universidad |
 | `GET` | `/api/student-verifications/me` | Consultar mi validación estudiantil |
@@ -505,7 +512,7 @@ cd mobile
 
 | Capa | Cantidad actual | Cobertura principal |
 |---|---:|---|
-| Backend | 48 pruebas | Identidad, nombres de usuario, sesiones, intentos de acceso, correo, marketplace, adjuntos, reportes, conversaciones y arranque de Spring Boot |
+| Backend | 51 pruebas | Identidad y perfiles públicos, nombres de usuario, sesiones, intentos de acceso, correo, marketplace, adjuntos, reportes, conversaciones y arranque de Spring Boot |
 | Android | 17 pruebas unitarias | Formatos, fechas, moneda, distancias, ubicación y políticas de carga/actualización |
 
 Además de las pruebas unitarias, `lintDebug` revisa problemas estáticos y
@@ -707,7 +714,7 @@ cierre obligatorio del hackathon y mejoras que pueden desarrollarse después.
    - Ejecutar el ciclo completo con dos cuentas: publicar, postular, aceptar, conversar,
      entregar y aprobar.
    - Probar verificación estudiantil, reportes y moderación con una cuenta administradora.
-   - Ejecutar las 48 pruebas del backend, las 17 de Android, `lintDebug` y `assembleDebug`.
+   - Ejecutar las 51 pruebas del backend, las 17 de Android, `lintDebug` y `assembleDebug`.
 2. **Integración final**
    - Resolver diferencias entre ramas y completar los Pull Requests pendientes.
    - Integrar la versión validada en `main` y comprobar el despliegue automático de Render.

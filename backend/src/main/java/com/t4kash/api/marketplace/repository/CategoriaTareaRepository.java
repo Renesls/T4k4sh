@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface CategoriaTareaRepository extends JpaRepository<CategoriaTarea, Integer> {
     List<CategoriaTarea> findByEstadoTrueOrderByNombreCategoriaAsc();
+
+    boolean existsByIdCategoriaAndEstadoTrue(Integer idCategoria);
 }

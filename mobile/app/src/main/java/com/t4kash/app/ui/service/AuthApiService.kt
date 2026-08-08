@@ -7,16 +7,19 @@ import com.t4kash.app.ui.model.ForgotPasswordRequest
 import com.t4kash.app.ui.model.LoginChallengeResponse
 import com.t4kash.app.ui.model.LoginRequest
 import com.t4kash.app.ui.model.MessageResponse
+import com.t4kash.app.ui.model.PublicProfileDto
 import com.t4kash.app.ui.model.RegisterRequest
 import com.t4kash.app.ui.model.RegistrationResponse
 import com.t4kash.app.ui.model.ResendVerificationRequest
 import com.t4kash.app.ui.model.ResetPasswordRequest
 import com.t4kash.app.ui.model.UniversityDto
+import com.t4kash.app.ui.model.UpdateUsernameRequest
 import com.t4kash.app.ui.model.VerifyEmailRequest
 import com.t4kash.app.ui.model.VerifyLoginRequest
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
 
 interface AuthApiService {
     @POST("auth/login")
@@ -53,6 +56,16 @@ interface AuthApiService {
 
     @GET("auth/me")
     suspend fun getCurrentUser(): AuthenticatedUserDto
+
+    @GET("profiles/{username}")
+    suspend fun getPublicProfile(
+        @retrofit2.http.Path("username") username: String
+    ): PublicProfileDto
+
+    @PUT("profiles/me/username")
+    suspend fun updateUsername(
+        @Body request: UpdateUsernameRequest
+    ): PublicProfileDto
 
     @POST("auth/logout")
     suspend fun logout()

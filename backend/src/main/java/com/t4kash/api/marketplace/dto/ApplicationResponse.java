@@ -1,5 +1,6 @@
 package com.t4kash.api.marketplace.dto;
 
+import com.t4kash.api.identity.dto.PublicIdentityResponse;
 import com.t4kash.api.marketplace.entity.Postulacion;
 
 import java.math.BigDecimal;
@@ -13,7 +14,8 @@ public record ApplicationResponse(
         BigDecimal precioPropuesto,
         LocalDateTime fechaPostulacion,
         String estadoPostulacion,
-        Integer numeroIntento
+        Integer numeroIntento,
+        PublicIdentityResponse estudiante
 ) {
     public static ApplicationResponse fromEntity(Postulacion postulacion) {
         return new ApplicationResponse(
@@ -24,7 +26,15 @@ public record ApplicationResponse(
                 postulacion.getPrecioPropuesto(),
                 postulacion.getFechaPostulacion(),
                 postulacion.getEstadoPostulacion(),
-                postulacion.getNumeroIntento()
+                postulacion.getNumeroIntento(),
+                null
+        );
+    }
+
+    public ApplicationResponse withStudent(PublicIdentityResponse publicStudent) {
+        return new ApplicationResponse(
+                idPostulacion, idTarea, idEstudiante, mensaje, precioPropuesto,
+                fechaPostulacion, estadoPostulacion, numeroIntento, publicStudent
         );
     }
 }

@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Mail
 import androidx.compose.material.icons.filled.School
@@ -29,13 +30,17 @@ import androidx.compose.material.icons.filled.WorkHistory
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -63,10 +68,12 @@ import com.t4kash.app.ui.theme.T4Surface
 import com.t4kash.app.ui.theme.T4Text
 import com.t4kash.app.ui.theme.T4TextMuted
 import com.t4kash.app.ui.viewmodel.MarketplaceViewModel
+import com.t4kash.app.ui.viewmodel.PublicProfileViewModel
 
 @Composable
 fun ProfileScreen(
     viewModel: MarketplaceViewModel,
+    profileViewModel: PublicProfileViewModel,
     user: SessionUser,
     onNavigate: (String) -> Unit,
     onOpenPublications: (String) -> Unit,
@@ -75,6 +82,9 @@ fun ProfileScreen(
     onOpenAdmin: () -> Unit,
     onLogout: () -> Unit
 ) {
+    val profileState = profileViewModel.uiState
+    var showUsernameDialog by remember { mutableStateOf(false) }
+    var usernameDraft by remember(user.username) { mutableStateOf(user.username) }
     var verificationFiles by remember {
         mutableStateOf<List<PendingAttachment>>(emptyList())
     }
@@ -97,6 +107,74 @@ fun ProfileScreen(
     val completedJobs = viewModel.uiState.jobs.count { job ->
         (job.idEstudiante == user.id || ownTasks.any { it.idTarea == job.idTarea }) &&
             job.estadoTrabajo.equals("FINALIZADO", ignoreCase = true)
+    }
+
+    if (showUsernameDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!profileState.isUpdating) {
+                    showUsernameDialog = false
+                    profileViewModel.clearFeedback()
+                }
+            },
+            title = { Text("Cambiar nombre de usuario") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Podras volver a cambiarlo dentro de 30 dias.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = T4TextMuted
+                    )
+                    OutlinedTextField(
+                        value = usernameDraft,
+                        onValueChange = { value ->
+                            usernameDraft = value
+                                .removePrefix("@")
+                                .lowercase()
+                                .take(30)
+                            profileViewModel.clearFeedback()
+                        },
+                        label = { Text("Nombre de usuario") },
+                        prefix = { Text("@") },
+                        supportingText = {
+                            Text("Letras, numeros, puntos y guiones bajos.")
+                        },
+                        singleLine = true
+                    )
+                    profileState.errorMessage?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        profileViewModel.updateUsername(usernameDraft) {
+                            showUsernameDialog = false
+                        }
+                    },
+                    enabled = usernameDraft.length >= 3 && !profileState.isUpdating
+                ) {
+                    if (profileState.isUpdating) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                    } else {
+                        Text("Guardar")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showUsernameDialog = false },
+                    enabled = !profileState.isUpdating
+                ) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 
     LaunchedEffect(Unit) {
@@ -191,14 +269,34 @@ fun ProfileScreen(
                                 color = T4TextMuted,
                                 maxLines = 2
                             )
-                            Text(
-                                text = user.username
-                                    .takeIf { it.isNotBlank() }
-                                    ?.let { "@$it" }
-                                    ?: "Cuenta T4KASH",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = T4Primary
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = user.username
+                                        .takeIf { it.isNotBlank() }
+                                        ?.let { "@$it" }
+                                        ?: "Cuenta T4KASH",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = T4Primary
+                                )
+                                IconButton(
+                                    onClick = {
+                                        usernameDraft = user.username
+                                        profileViewModel.clearFeedback()
+                                        showUsernameDialog = true
+                                    },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Edit,
+                                        contentDescription = "Editar nombre de usuario",
+                                        tint = T4Primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

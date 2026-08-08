@@ -7,6 +7,7 @@ public record MessageResponse(
         Integer idConversacion,
         Integer idUsuarioEmisor,
         String nombreEmisor,
+        String nombreUsuarioEmisor,
         String contenido,
         LocalDateTime fechaEnvio,
         boolean leido,
