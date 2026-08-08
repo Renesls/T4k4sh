@@ -47,7 +47,7 @@ public class RegistrationPolicyService {
             }
             if (!evaluator && belongsToRegisteredUniversity(normalizedEmail)) {
                 throw new IllegalArgumentException(
-                        "Este correo es institucional. Selecciona tu universidad y carrera."
+                        "Este correo institucional requiere una carrera valida."
                 );
             }
             return new RegistrationProfile(evaluator, evaluator, null, null);

@@ -1,7 +1,10 @@
 package com.t4kash.api.identity.dto;
 
+import java.util.List;
+
 public record UniversityResponse(
         Integer idUniversidad,
-        String nombreUniversidad
+        String nombreUniversidad,
+        List<String> dominiosCorreo
 ) {
 }

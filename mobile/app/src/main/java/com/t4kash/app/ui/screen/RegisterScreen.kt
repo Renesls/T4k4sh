@@ -51,6 +51,8 @@ import com.t4kash.app.ui.components.T4TopBar
 import com.t4kash.app.ui.components.SearchableSelectionDialog
 import com.t4kash.app.ui.components.SelectionOption
 import com.t4kash.app.ui.components.keepVisibleAboveKeyboard
+import com.t4kash.app.ui.detectUniversityFromEmail
+import com.t4kash.app.ui.extractEmailDomain
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
 import com.t4kash.app.ui.theme.T4Surface
@@ -70,29 +72,25 @@ fun RegisterScreen(
     var passwordConfirmation by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var validationError by remember { mutableStateOf<String?>(null) }
-    var selectedUniversityId by rememberSaveable { mutableStateOf<Int?>(null) }
     var selectedCareerId by rememberSaveable { mutableStateOf<Int?>(null) }
     var studentCard by rememberSaveable { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
     val uiState = viewModel.uiState
-    val selectedUniversity = uiState.universities.firstOrNull {
-        it.idUniversidad == selectedUniversityId
-    }
+    val emailDomain = extractEmailDomain(email)
+    val selectedUniversity = detectUniversityFromEmail(email, uiState.universities)
     val selectedCareer = uiState.careers.firstOrNull {
         it.idCarrera == selectedCareerId
     }
-    val universitySelectionText = when (selectedUniversityId) {
-        null -> if (uiState.isLoadingOptions) {
-            "Cargando universidades..."
-        } else {
-            "Seleccionar una opcion"
-        }
-        NO_INSTITUTION_ID -> NO_INSTITUTION_LABEL
-        else -> selectedUniversity?.nombreUniversidad ?: "Seleccionar universidad"
-    }
-
     LaunchedEffect(Unit) {
         viewModel.loadUniversities()
+    }
+
+    LaunchedEffect(selectedUniversity?.idUniversidad) {
+        selectedCareerId = null
+        studentCard = ""
+        selectedUniversity?.let {
+            viewModel.loadCareers(it.idUniversidad)
+        } ?: viewModel.clearCareers()
     }
 
     fun submit() {
@@ -101,14 +99,11 @@ fun RegisterScreen(
                 password.isBlank() || passwordConfirmation.isBlank() ->
                 "Completa todos los campos."
 
-            selectedUniversityId == null ->
-                "Indica si tienes correo institucional."
-
-            selectedUniversityId != NO_INSTITUTION_ID && selectedCareerId == null ->
-                "Selecciona tu carrera."
-
-            !email.contains("@") ->
+            extractEmailDomain(email) == null ->
                 "Ingresa un correo válido."
+
+            selectedUniversity != null && selectedCareerId == null ->
+                "Selecciona tu carrera."
 
             password.length < 8 ->
                 "La contraseña debe tener al menos 8 caracteres."
@@ -125,14 +120,10 @@ fun RegisterScreen(
                 lastName = lastName,
                 email = email,
                 password = password,
-                universityId = selectedUniversityId.takeUnless {
-                    it == NO_INSTITUTION_ID
-                },
-                careerId = selectedCareerId.takeIf {
-                    selectedUniversityId != NO_INSTITUTION_ID
-                },
+                universityId = selectedUniversity?.idUniversidad,
+                careerId = selectedCareerId.takeIf { selectedUniversity != null },
                 studentCard = studentCard.takeIf {
-                    selectedUniversityId != NO_INSTITUTION_ID && it.isNotBlank()
+                    selectedUniversity != null && it.isNotBlank()
                 },
                 onVerificationRequired = onVerificationRequired
             )
@@ -244,30 +235,19 @@ fun RegisterScreen(
                                 imeAction = ImeAction.Next
                             )
                         )
-                        SelectionMenu(
-                            label = "Correo institucional",
-                            value = universitySelectionText,
-                            options = listOf(
-                                NO_INSTITUTION_ID to NO_INSTITUTION_LABEL
-                            ) + uiState.universities.map {
-                                it.idUniversidad to it.nombreUniversidad
-                            },
-                            enabled = true,
-                            onSelected = { universityId ->
-                                selectedUniversityId = universityId
-                                selectedCareerId = null
-                                studentCard = ""
-                                validationError = null
-                                viewModel.clearError()
-                                if (universityId != NO_INSTITUTION_ID) {
-                                    viewModel.loadCareers(universityId)
-                                }
-                            }
-                        )
-                        if (
-                            selectedUniversityId != null &&
-                            selectedUniversityId != NO_INSTITUTION_ID
-                        ) {
+                        if (selectedUniversity != null) {
+                            OutlinedTextField(
+                                value = selectedUniversity.nombreUniversidad,
+                                onValueChange = {},
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("Universidad detectada") },
+                                supportingText = {
+                                    Text("Dominio institucional: $emailDomain")
+                                },
+                                readOnly = true,
+                                singleLine = true,
+                                shape = RoundedCornerShape(8.dp)
+                            )
                             SelectionMenu(
                                 label = "Carrera",
                                 value = selectedCareer?.nombreCarrera
@@ -286,11 +266,24 @@ fun RegisterScreen(
                                     viewModel.clearError()
                                 }
                             )
-                        }
-                        if (
-                            selectedUniversityId != null &&
-                            selectedUniversityId != NO_INSTITUTION_ID
+                        } else if (
+                            emailDomain != null &&
+                            uiState.universities.isNotEmpty()
                         ) {
+                            Text(
+                                text = "Este dominio no esta registrado como universitario. " +
+                                    "No se solicitara universidad ni carrera.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = T4Text
+                            )
+                        } else if (emailDomain != null && uiState.isLoadingOptions) {
+                            Text(
+                                text = "Comprobando el dominio del correo...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = T4Text
+                            )
+                        }
+                        if (selectedUniversity != null) {
                             Text(
                                 text = "El carnet es opcional si tu correo institucional puede verificarse automaticamente.",
                                 style = MaterialTheme.typography.bodySmall,
@@ -410,9 +403,6 @@ fun RegisterScreen(
         }
     }
 }
-
-private const val NO_INSTITUTION_ID = 0
-private const val NO_INSTITUTION_LABEL = "No tengo correo institucional"
 
 @Composable
 private fun SelectionMenu(
