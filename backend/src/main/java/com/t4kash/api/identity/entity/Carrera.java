@@ -21,6 +21,9 @@ public class Carrera {
     @Column(name = "id_universidad", nullable = false)
     private Integer idUniversidad;
 
+    @Column(name = "estado", nullable = false)
+    private boolean estado;
+
     public Integer getIdCarrera() {
         return idCarrera;
     }
@@ -31,5 +34,9 @@ public class Carrera {
 
     public Integer getIdUniversidad() {
         return idUniversidad;
+    }
+
+    public boolean isEstado() {
+        return estado;
     }
 }

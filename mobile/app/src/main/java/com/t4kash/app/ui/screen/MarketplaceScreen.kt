@@ -61,6 +61,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.t4kash.app.ui.components.ConnectionErrorState
 import com.t4kash.app.ui.components.EmptyState
+import com.t4kash.app.ui.components.SearchableSelectionDialog
+import com.t4kash.app.ui.components.SelectionOption
 import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4BottomBar
 import com.t4kash.app.ui.components.isSoftwareKeyboardVisible
@@ -99,6 +101,7 @@ fun MarketplaceScreen(
     val keyboardVisible = isSoftwareKeyboardVisible()
     var query by remember { mutableStateOf("") }
     var selectedCategoryId by remember { mutableIntStateOf(0) }
+    var showCategoryDialog by remember { mutableStateOf(false) }
 
     val availableTasks = remember(state.tasks) {
         state.tasks.filter { it.estadoTarea.equals("PUBLICADA", ignoreCase = true) }
@@ -117,6 +120,18 @@ fun MarketplaceScreen(
     }
     val mappedTasks = remember(availableTasks) {
         availableTasks.count { it.latitud != null && it.longitud != null }
+    }
+
+    if (showCategoryDialog) {
+        SearchableSelectionDialog(
+            title = "Filtrar por categoria",
+            options = state.categories.map {
+                SelectionOption(it.idCategoria, it.nombreCategoria)
+            },
+            selectedId = selectedCategoryId.takeIf { it != 0 },
+            onDismiss = { showCategoryDialog = false },
+            onSelected = { selectedCategoryId = it }
+        )
     }
 
     Scaffold(
@@ -192,7 +207,8 @@ fun MarketplaceScreen(
                         CategoryChips(
                             categories = state.categories,
                             selectedCategoryId = selectedCategoryId,
-                            onSelected = { selectedCategoryId = it }
+                            onSelected = { selectedCategoryId = it },
+                            onShowAll = { showCategoryDialog = true }
                         )
                     }
                 }
@@ -416,8 +432,16 @@ private fun HomeMetricCard(
 private fun CategoryChips(
     categories: List<CategoryDto>,
     selectedCategoryId: Int,
-    onSelected: (Int) -> Unit
+    onSelected: (Int) -> Unit,
+    onShowAll: () -> Unit
 ) {
+    val selectedCategory = categories.firstOrNull {
+        it.idCategoria == selectedCategoryId
+    }
+    val visibleCategories = listOfNotNull(selectedCategory) + categories
+        .filterNot { it.idCategoria == selectedCategoryId }
+        .take(if (selectedCategory == null) 6 else 5)
+
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         item {
             StatusChip(
@@ -430,7 +454,7 @@ private fun CategoryChips(
                     .clickable { onSelected(0) }
             )
         }
-        items(categories, key = { it.idCategoria }) { category ->
+        items(visibleCategories, key = { it.idCategoria }) { category ->
             val selected = selectedCategoryId == category.idCategoria
             val categoryColors = t4CategoryColors(category.idCategoria)
             StatusChip(
@@ -441,6 +465,17 @@ private fun CategoryChips(
                 modifier = Modifier
                     .clip(CircleShape)
                     .clickable { onSelected(category.idCategoria) }
+            )
+        }
+        item {
+            StatusChip(
+                text = "Mas categorias",
+                selected = false,
+                containerColor = T4SurfaceVariant,
+                contentColor = T4Primary,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(onClick = onShowAll)
             )
         }
     }

@@ -57,8 +57,7 @@ data class MessageResponse(
 
 data class UniversityDto(
     val idUniversidad: Int,
-    val nombreUniversidad: String,
-    val dominioCorreo: String?
+    val nombreUniversidad: String
 )
 
 data class CareerDto(
@@ -69,6 +68,7 @@ data class CareerDto(
 
 data class AuthenticatedUserDto(
     val idUsuario: Int,
+    val nombreUsuario: String,
     val nombre: String,
     val apellido: String,
     val correo: String,

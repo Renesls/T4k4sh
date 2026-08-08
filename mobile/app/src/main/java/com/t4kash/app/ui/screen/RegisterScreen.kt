@@ -23,8 +23,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -50,6 +48,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
+import com.t4kash.app.ui.components.SearchableSelectionDialog
+import com.t4kash.app.ui.components.SelectionOption
 import com.t4kash.app.ui.components.keepVisibleAboveKeyboard
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
@@ -107,11 +107,6 @@ fun RegisterScreen(
             selectedUniversityId != NO_INSTITUTION_ID && selectedCareerId == null ->
                 "Selecciona tu carrera."
 
-            selectedUniversity?.dominioCorreo.isNullOrBlank() &&
-                selectedUniversityId != NO_INSTITUTION_ID &&
-                studentCard.isBlank() ->
-                "Ingresa tu numero de carnet para solicitar la validacion."
-
             !email.contains("@") ->
                 "Ingresa un correo válido."
 
@@ -137,7 +132,7 @@ fun RegisterScreen(
                     selectedUniversityId != NO_INSTITUTION_ID
                 },
                 studentCard = studentCard.takeIf {
-                    selectedUniversity?.dominioCorreo.isNullOrBlank()
+                    selectedUniversityId != NO_INSTITUTION_ID && it.isNotBlank()
                 },
                 onVerificationRequired = onVerificationRequired
             )
@@ -294,11 +289,10 @@ fun RegisterScreen(
                         }
                         if (
                             selectedUniversityId != null &&
-                            selectedUniversityId != NO_INSTITUTION_ID &&
-                            selectedUniversity?.dominioCorreo.isNullOrBlank()
+                            selectedUniversityId != NO_INSTITUTION_ID
                         ) {
                             Text(
-                                text = "Esta universidad requiere validar carnet o constancia despues de confirmar el correo.",
+                                text = "El carnet es opcional si tu correo institucional puede verificarse automaticamente.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = T4Text
                             )
@@ -312,7 +306,7 @@ fun RegisterScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .keepVisibleAboveKeyboard(),
-                                label = { Text("Numero de carnet") },
+                                label = { Text("Numero de carnet (opcional)") },
                                 singleLine = true,
                                 shape = RoundedCornerShape(8.dp)
                             )
@@ -452,20 +446,15 @@ private fun SelectionMenu(
                     contentDescription = null
                 )
             }
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
-                options.forEach { (id, name) ->
-                    DropdownMenuItem(
-                        text = { Text(name) },
-                        onClick = {
-                            expanded = false
-                            onSelected(id)
-                        }
-                    )
-                }
-            }
         }
+    }
+    if (expanded) {
+        SearchableSelectionDialog(
+            title = "Seleccionar $label",
+            options = options.map { (id, name) -> SelectionOption(id, name) },
+            selectedId = options.firstOrNull { it.second == value }?.first,
+            onDismiss = { expanded = false },
+            onSelected = onSelected
+        )
     }
 }

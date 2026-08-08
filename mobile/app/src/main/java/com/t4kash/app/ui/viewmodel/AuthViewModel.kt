@@ -369,6 +369,7 @@ private fun AuthResponse.toSession(): AuthSession {
 private fun AuthenticatedUserDto.toSessionUser(): SessionUser {
     return SessionUser(
         id = idUsuario,
+        username = nombreUsuario,
         firstName = nombre,
         lastName = apellido,
         email = correo,

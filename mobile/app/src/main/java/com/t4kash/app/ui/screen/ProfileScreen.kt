@@ -192,7 +192,10 @@ fun ProfileScreen(
                                 maxLines = 2
                             )
                             Text(
-                                text = "#${user.id}",
+                                text = user.username
+                                    .takeIf { it.isNotBlank() }
+                                    ?.let { "@$it" }
+                                    ?: "Cuenta T4KASH",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = T4Primary
                             )
