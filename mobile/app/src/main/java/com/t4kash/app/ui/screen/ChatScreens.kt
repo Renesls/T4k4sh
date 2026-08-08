@@ -103,6 +103,8 @@ fun ChatScreen(
         state.conversations.filter {
             query.isBlank() ||
                 it.nombreParticipante.contains(query, ignoreCase = true) ||
+                it.nombreUsuarioParticipante.orEmpty()
+                    .contains(query, ignoreCase = true) ||
                 it.tituloTarea.contains(query, ignoreCase = true)
         }
     }
@@ -309,7 +311,9 @@ fun ConversationScreen(
         topBar = {
             T4TopBar(
                 title = conversation?.nombreParticipante ?: "Conversacion",
-                subtitle = conversation?.tituloTarea,
+                subtitle = conversation?.nombreUsuarioParticipante
+                    ?.let { "@$it" }
+                    ?: conversation?.tituloTarea,
                 onBack = onBack
             )
         },
@@ -606,6 +610,13 @@ private fun ConversationCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                conversation.nombreUsuarioParticipante?.let { username ->
+                    Text(
+                        text = "@$username",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = T4TextMuted
+                    )
+                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -670,6 +681,13 @@ private fun MessageBubble(message: MessageDto) {
                     vertical = 9.dp
                 )
             ) {
+                if (!message.propio && !message.nombreUsuarioEmisor.isNullOrBlank()) {
+                    Text(
+                        text = "@${message.nombreUsuarioEmisor}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = T4Primary
+                    )
+                }
                 Text(
                     text = message.contenido,
                     style = MaterialTheme.typography.bodyMedium,

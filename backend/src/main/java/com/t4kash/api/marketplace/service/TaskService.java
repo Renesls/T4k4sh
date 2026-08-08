@@ -86,8 +86,8 @@ public class TaskService {
 
     @Transactional
     public TaskResponse createTask(Integer currentUserId, CreateTaskRequest request) {
-        if (!categoriaRepository.existsById(request.idCategoria())) {
-            throw new ResourceNotFoundException("La categoria indicada no existe.");
+        if (!categoriaRepository.existsByIdCategoriaAndEstadoTrue(request.idCategoria())) {
+            throw new ResourceNotFoundException("La categoria indicada no existe o esta inactiva.");
         }
         validateTaskDates(request, LocalDateTime.now());
 
@@ -121,8 +121,8 @@ public class TaskService {
         Tarea tarea = findTaskEntity(idTarea);
         requireTaskOwner(tarea, currentUserId);
         requireEditableTask(tarea);
-        if (!categoriaRepository.existsById(request.idCategoria())) {
-            throw new ResourceNotFoundException("La categoria indicada no existe.");
+        if (!categoriaRepository.existsByIdCategoriaAndEstadoTrue(request.idCategoria())) {
+            throw new ResourceNotFoundException("La categoria indicada no existe o esta inactiva.");
         }
         validateTaskDates(request, LocalDateTime.now());
 

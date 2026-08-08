@@ -1,6 +1,8 @@
 package com.t4kash.api.marketplace.controller;
 
 import com.t4kash.api.identity.dto.AuthenticatedUserResponse;
+import com.t4kash.api.identity.dto.PublicIdentityResponse;
+import com.t4kash.api.identity.service.PublicProfileService;
 import com.t4kash.api.identity.web.CurrentUser;
 import com.t4kash.api.marketplace.dto.ApplicationResponse;
 import com.t4kash.api.marketplace.dto.CategoriaResponse;
@@ -30,6 +32,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
@@ -39,17 +42,20 @@ public class MarketplaceController {
     private final ApplicationService applicationService;
     private final JobService jobService;
     private final DeliveryService deliveryService;
+    private final PublicProfileService profileService;
 
     public MarketplaceController(
             TaskService taskService,
             ApplicationService applicationService,
             JobService jobService,
-            DeliveryService deliveryService
+            DeliveryService deliveryService,
+            PublicProfileService profileService
     ) {
         this.taskService = taskService;
         this.applicationService = applicationService;
         this.jobService = jobService;
         this.deliveryService = deliveryService;
+        this.profileService = profileService;
     }
 
     @GetMapping("/categories")
@@ -61,7 +67,7 @@ public class MarketplaceController {
     @GetMapping("/tasks")
     @Operation(summary = "Listar oportunidades")
     public List<TaskResponse> listTasks() {
-        return taskService.listTasks();
+        return enrichTasks(taskService.listTasks());
     }
 
     @PostMapping("/tasks")
@@ -72,7 +78,7 @@ public class MarketplaceController {
             @CurrentUser(role = "CLIENTE") AuthenticatedUserResponse user,
             @Valid @RequestBody CreateTaskRequest request
     ) {
-        return taskService.createTask(user.idUsuario(), request);
+        return enrichTask(taskService.createTask(user.idUsuario(), request));
     }
 
     @PutMapping("/tasks/{idTarea}")
@@ -83,7 +89,7 @@ public class MarketplaceController {
             @PathVariable Integer idTarea,
             @Valid @RequestBody CreateTaskRequest request
     ) {
-        return taskService.updateTask(user.idUsuario(), idTarea, request);
+        return enrichTask(taskService.updateTask(user.idUsuario(), idTarea, request));
     }
 
     @DeleteMapping("/tasks/{idTarea}")
@@ -93,13 +99,13 @@ public class MarketplaceController {
             @CurrentUser(role = "CLIENTE") AuthenticatedUserResponse user,
             @PathVariable Integer idTarea
     ) {
-        return taskService.cancelTask(user.idUsuario(), idTarea);
+        return enrichTask(taskService.cancelTask(user.idUsuario(), idTarea));
     }
 
     @GetMapping("/tasks/{idTarea}")
     @Operation(summary = "Obtener detalle de una oportunidad")
     public TaskResponse getTask(@PathVariable Integer idTarea) {
-        return taskService.getTask(idTarea);
+        return enrichTask(taskService.getTask(idTarea));
     }
 
     @GetMapping("/tasks/{idTarea}/applications")
@@ -109,7 +115,9 @@ public class MarketplaceController {
             @CurrentUser(role = "CLIENTE") AuthenticatedUserResponse user,
             @PathVariable Integer idTarea
     ) {
-        return applicationService.listApplications(user.idUsuario(), idTarea);
+        return enrichApplications(
+                applicationService.listApplications(user.idUsuario(), idTarea)
+        );
     }
 
     @PostMapping("/tasks/{idTarea}/applications")
@@ -121,7 +129,9 @@ public class MarketplaceController {
             @PathVariable Integer idTarea,
             @Valid @RequestBody CreateApplicationRequest request
     ) {
-        return applicationService.applyToTask(user.idUsuario(), idTarea, request);
+        return enrichApplication(
+                applicationService.applyToTask(user.idUsuario(), idTarea, request)
+        );
     }
 
     @GetMapping("/applications/me")
@@ -130,7 +140,7 @@ public class MarketplaceController {
     public List<ApplicationResponse> listMyApplications(
             @CurrentUser(role = "ESTUDIANTE") AuthenticatedUserResponse user
     ) {
-        return applicationService.listMyApplications(user.idUsuario());
+        return enrichApplications(applicationService.listMyApplications(user.idUsuario()));
     }
 
     @PostMapping("/applications/{idPostulacion}/accept")
@@ -140,7 +150,9 @@ public class MarketplaceController {
             @CurrentUser(role = "CLIENTE") AuthenticatedUserResponse user,
             @PathVariable Integer idPostulacion
     ) {
-        return applicationService.acceptApplication(user.idUsuario(), idPostulacion);
+        return enrichJob(
+                applicationService.acceptApplication(user.idUsuario(), idPostulacion)
+        );
     }
 
     @PostMapping("/applications/{idPostulacion}/reject")
@@ -150,14 +162,16 @@ public class MarketplaceController {
             @CurrentUser(role = "CLIENTE") AuthenticatedUserResponse user,
             @PathVariable Integer idPostulacion
     ) {
-        return applicationService.rejectApplication(user.idUsuario(), idPostulacion);
+        return enrichApplication(
+                applicationService.rejectApplication(user.idUsuario(), idPostulacion)
+        );
     }
 
     @GetMapping("/jobs")
     @Operation(summary = "Listar trabajos asignados")
     @SecurityRequirement(name = "bearerAuth")
     public List<JobResponse> listJobs(@CurrentUser AuthenticatedUserResponse user) {
-        return jobService.listJobs(user.idUsuario());
+        return enrichJobs(jobService.listJobs(user.idUsuario()));
     }
 
     @GetMapping("/jobs/{idTrabajo}/deliveries")
@@ -190,5 +204,50 @@ public class MarketplaceController {
             @PathVariable Integer idEntrega
     ) {
         return deliveryService.approveDelivery(user.idUsuario(), idEntrega);
+    }
+
+    private List<TaskResponse> enrichTasks(List<TaskResponse> tasks) {
+        Map<Integer, PublicIdentityResponse> identities = profileService.getIdentities(
+                tasks.stream().map(TaskResponse::idCliente).toList()
+        );
+        return tasks.stream()
+                .map(task -> task.withClient(identities.get(task.idCliente())))
+                .toList();
+    }
+
+    private TaskResponse enrichTask(TaskResponse task) {
+        return task.withClient(profileService.getIdentity(task.idCliente()));
+    }
+
+    private List<ApplicationResponse> enrichApplications(
+            List<ApplicationResponse> applications
+    ) {
+        Map<Integer, PublicIdentityResponse> identities = profileService.getIdentities(
+                applications.stream().map(ApplicationResponse::idEstudiante).toList()
+        );
+        return applications.stream()
+                .map(application -> application.withStudent(
+                        identities.get(application.idEstudiante())
+                ))
+                .toList();
+    }
+
+    private ApplicationResponse enrichApplication(ApplicationResponse application) {
+        return application.withStudent(
+                profileService.getIdentity(application.idEstudiante())
+        );
+    }
+
+    private List<JobResponse> enrichJobs(List<JobResponse> jobs) {
+        Map<Integer, PublicIdentityResponse> identities = profileService.getIdentities(
+                jobs.stream().map(JobResponse::idEstudiante).toList()
+        );
+        return jobs.stream()
+                .map(job -> job.withStudent(identities.get(job.idEstudiante())))
+                .toList();
+    }
+
+    private JobResponse enrichJob(JobResponse job) {
+        return job.withStudent(profileService.getIdentity(job.idEstudiante()));
     }
 }

@@ -23,7 +23,8 @@ data class TaskDto(
     val visibilidad: String,
     val direccionReferencia: String?,
     val latitud: Double?,
-    val longitud: Double?
+    val longitud: Double?,
+    val cliente: PublicIdentityDto?
 )
 
 data class CreateTaskRequest(
@@ -54,7 +55,8 @@ data class ApplicationDto(
     val precioPropuesto: Double?,
     val fechaPostulacion: String,
     val estadoPostulacion: String,
-    val numeroIntento: Int
+    val numeroIntento: Int,
+    val estudiante: PublicIdentityDto?
 )
 
 data class JobDto(
@@ -63,7 +65,8 @@ data class JobDto(
     val idEstudiante: Int,
     val fechaInicio: String,
     val fechaEntregaEsperada: String?,
-    val estadoTrabajo: String
+    val estadoTrabajo: String,
+    val estudiante: PublicIdentityDto?
 )
 
 data class CreateDeliveryRequest(

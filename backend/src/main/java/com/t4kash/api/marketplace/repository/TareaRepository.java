@@ -9,4 +9,6 @@ public interface TareaRepository extends JpaRepository<Tarea, Integer> {
     List<Tarea> findAllByOrderByFechaPublicacionDesc();
 
     long countByEstadoTareaIgnoreCase(String estadoTarea);
+
+    long countByIdCliente(Integer idCliente);
 }
