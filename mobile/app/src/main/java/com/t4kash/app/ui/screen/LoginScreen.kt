@@ -128,7 +128,7 @@ fun LoginScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
-                    text = "Bienvenido de vuelta",
+                    text = "Bienvenido",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.ExtraBold,
                     color = T4Text
