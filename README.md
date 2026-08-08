@@ -50,7 +50,8 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 | Verificación de perfil estudiantil con adjunto y revisión administrativa | Implementado |
 | Conversaciones, mensajes y notificaciones internas | Implementado |
 | Formularios adaptados al teclado y manejo visual de errores | Implementado |
-| Wallet y pagos reales | Pendiente |
+| Modelo financiero para wallet, Pagadito y efectivo | Diseñado en PostgreSQL |
+| Integración con Pagadito Sandbox y wallet transaccional | Pendiente |
 | Calificaciones y reputación | Pendiente |
 | Notificaciones push con Firebase Cloud Messaging | Pendiente |
 
@@ -569,6 +570,40 @@ ruta y propietario del archivo.
 - La clave secreta de Supabase se usa únicamente en el backend.
 - Las descargas pasan por la API; Android no recibe acceso directo al bucket.
 
+### Modelo Financiero
+
+PostgreSQL contiene el diseño del ciclo financiero, pero los endpoints y la integración
+con Pagadito todavía no forman parte del MVP ejecutable. Durante el hackathon se usará
+Pagadito Sandbox: los webhooks serán reales como comunicación entre servicios, mientras
+que las operaciones y los fondos serán ficticios.
+
+Reglas acordadas:
+
+- Las tareas remotas e híbridas requieren pago protegido con Pagadito.
+- Las tareas presenciales permiten elegir Pagadito o efectivo.
+- El monto acordado indica la ganancia exacta del estudiante.
+- El cliente ve por separado el monto del trabajo, la tarifa de T4KASH del 1 %, el costo
+  del procesador y el total antes de confirmar.
+- Un pago en efectivo no genera comisión y queda registrado como operación externa sin
+  protección financiera ni reembolso desde T4KASH.
+- Aceptar una postulación reserva el trabajo; el estudiante no debe comenzar hasta que
+  el pago protegido haya sido confirmado.
+
+Las tablas financieras separan la orden de pago, sus movimientos, los eventos webhook,
+los desembolsos, los reembolsos y las disputas. Las claves de idempotencia impiden
+registrar dos veces una notificación o solicitud repetida. La billetera se calculará a
+partir de estos movimientos auditables y no almacenará un saldo aislado susceptible de
+desincronizarse.
+
+Estados principales previstos:
+
+```text
+PENDIENTE_PAGO -> PAGO_CONFIRMADO -> FONDOS_RETENIDOS
+FONDOS_RETENIDOS -> PAGO_DISPONIBLE -> PAGO_LIBERADO
+FONDOS_RETENIDOS -> EN_DISPUTA -> REEMBOLSADO o PAGO_LIBERADO
+PAGO_EXTERNO_PENDIENTE -> PAGO_EXTERNO_CONFIRMADO
+```
+
 ## Diseño y Diagramas
 
 Prototipo de referencia:
@@ -652,7 +687,9 @@ cierre obligatorio del hackathon y mejoras que pueden desarrollarse después.
 ### Mejoras Posteriores al MVP
 
 1. **Finanzas y reputación**
-   - Implementar movimientos reales del wallet y el ciclo de pagos.
+   - Integrar Pagadito Sandbox sobre el modelo financiero definido en PostgreSQL.
+   - Implementar checkout, webhooks idempotentes, wallet, reembolsos y disputas.
+   - Validar con Pagadito el modelo de marketplace antes de utilizar producción.
    - Agregar calificaciones y recomendaciones al finalizar trabajos.
 2. **Perfil profesional y networking**
    - Completar habilidades, portafolio y conexiones entre usuarios.
