@@ -52,6 +52,7 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 | Formularios adaptados al teclado y manejo visual de errores | Implementado |
 | Modelo financiero para wallet, Pagadito y efectivo | Diseñado en PostgreSQL |
 | Integración con Pagadito Sandbox y wallet transaccional | Pendiente |
+| Puntos T4KASH y catálogo de beneficios | Diseñado en PostgreSQL |
 | Calificaciones y reputación | Pendiente |
 | Notificaciones push con Firebase Cloud Messaging | Pendiente |
 
@@ -564,7 +565,8 @@ Los archivos de tareas y entregas se guardan en el bucket privado
 `t4kash-attachments`. PostgreSQL conserva solamente el nombre, tipo, tamaño,
 ruta y propietario del archivo.
 
-- Tamaño máximo: 10 MB por archivo.
+- Tamaño máximo actual desde la aplicación: 10 MB por archivo.
+- El esquema admite hasta 100 MB para la futura integración con Cloudflare R2.
 - Máximo desde Android: 3 archivos por publicación o entrega.
 - Tipos aceptados: PDF, PNG, JPG, WebP, TXT, DOC, DOCX y ZIP.
 - La clave secreta de Supabase se usa únicamente en el backend.
@@ -603,6 +605,32 @@ FONDOS_RETENIDOS -> PAGO_DISPONIBLE -> PAGO_LIBERADO
 FONDOS_RETENIDOS -> EN_DISPUTA -> REEMBOLSADO o PAGO_LIBERADO
 PAGO_EXTERNO_PENDIENTE -> PAGO_EXTERNO_CONFIRMADO
 ```
+
+### Puntos T4KASH
+
+Los puntos son recompensas internas y no representan dinero electrónico. No pueden
+comprarse, retirarse, convertirse a córdobas ni transferirse entre usuarios. Se obtienen
+por acciones verificadas, como completar un trabajo o mantener una buena participación,
+y se utilizan exclusivamente para beneficios dentro de T4KASH.
+
+El esquema separa:
+
+- `catalogo_beneficios_puntos`: define los beneficios disponibles y su costo.
+- `movimientos_puntos`: registra entradas, salidas, ajustes y expiraciones sin guardar un
+  saldo aislado.
+- `canjes_puntos`: conserva el beneficio solicitado, su costo histórico y su vigencia.
+
+El catálogo inicial permite destacar una tarea, una publicación o un perfil. Cada evento
+usa una clave de idempotencia para impedir que una recompensa o un canje se aplique dos
+veces. El saldo visible se obtiene sumando movimientos aplicados de entrada y restando
+los de salida.
+
+El esquema PostgreSQL completo contiene 46 tablas organizadas en identidad, marketplace,
+finanzas, puntos, comunicación, moderación y auditoría.
+
+Las 46 tablas tienen Row Level Security habilitado sin políticas para las claves públicas
+de Supabase. Android accede exclusivamente mediante la API Spring Boot; el backend usa su
+conexión PostgreSQL de servidor y las claves privadas nunca se incluyen en la aplicación.
 
 ## Diseño y Diagramas
 
@@ -690,6 +718,7 @@ cierre obligatorio del hackathon y mejoras que pueden desarrollarse después.
    - Integrar Pagadito Sandbox sobre el modelo financiero definido en PostgreSQL.
    - Implementar checkout, webhooks idempotentes, wallet, reembolsos y disputas.
    - Validar con Pagadito el modelo de marketplace antes de utilizar producción.
+   - Implementar las reglas de obtención y canje de puntos T4KASH.
    - Agregar calificaciones y recomendaciones al finalizar trabajos.
 2. **Perfil profesional y networking**
    - Completar habilidades, portafolio y conexiones entre usuarios.
