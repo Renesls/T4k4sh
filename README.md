@@ -173,7 +173,7 @@ El modelo original fue diagramado en SQL Server y posteriormente migrado a Postg
 database/schema-postgresql.sql
 ```
 
-El esquema contiene 34 tablas e incluye:
+El esquema contiene 46 tablas e incluye:
 
 - Llaves primarias y foráneas.
 - Restricciones únicas y validaciones.
@@ -182,7 +182,7 @@ El esquema contiene 34 tablas e incluye:
 - Tareas, habilidades, postulaciones y trabajos.
 - Entregas, pagos, conversaciones y reportes.
 - Sesiones, verificaciones y auditoría.
-- Datos demo para roles, universidad, carreras y doce categorías de oportunidades.
+- Catalogos iniciales con roles, universidades de Managua y Leon, carreras, categorias de oportunidades y habilidades.
 
 `database/sqlserver-original.sql` se conserva únicamente como referencia histórica y no debe utilizarse para Supabase.
 
@@ -283,7 +283,7 @@ generan al confirmar ese código con `POST /api/auth/login/verify`.
 
 ```json
 {
-  "correo": "estudiante.demo@unidemo.edu",
+  "correo": "estudiante@uamv.edu.ni",
   "password": "••••••••"
 }
 ```
@@ -292,7 +292,7 @@ generan al confirmar ese código con `POST /api/auth/login/verify`.
 
 ```json
 {
-  "correo": "estudiante.demo@unidemo.edu",
+  "correo": "estudiante@uamv.edu.ni",
   "codigo": "123456"
 }
 ```
@@ -309,7 +309,7 @@ contraseña:
 
 ```json
 {
-  "correo": "estudiante.demo@unidemo.edu",
+  "correo": "estudiante@uamv.edu.ni",
   "codigo": "123456",
   "nuevaPassword": "unaContrasenaNueva123"
 }

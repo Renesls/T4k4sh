@@ -1289,13 +1289,86 @@ INSERT INTO roles (id_rol, nombre_rol) VALUES
 ON CONFLICT (id_rol) DO NOTHING;
 
 INSERT INTO universidades (id_universidad, nombre_universidad, dominio_correo, estado) VALUES
-    (1, 'Universidad Demo', 'unidemo.edu', true)
+    (1, 'Universidad Americana', 'uamv.edu.ni', true),
+    (2, 'Universidad Nacional Autonoma de Nicaragua, Managua', 'unan.edu.ni', true),
+    (3, 'Universidad Nacional de Ingenieria', 'uni.edu.ni', true),
+    (4, 'Universidad Nacional Autonoma de Nicaragua, Leon', 'ac.unanleon.edu.ni', true),
+    (5, 'Universidad Catolica Redemptoris Mater', 'unica.edu.ni', true)
 ON CONFLICT (id_universidad) DO NOTHING;
 
 INSERT INTO carreras (id_carrera, nombre_carrera, id_universidad) VALUES
-    (1, 'Ingenieria en Sistemas', 1),
-    (2, 'Diseno Grafico', 1),
-    (3, 'Administracion de Empresas', 1)
+    (1, 'Odontologia', 1),
+    (2, 'Medicina', 1),
+    (3, 'Psicologia', 1),
+    (4, 'Nutricion', 1),
+    (5, 'Marketing y Publicidad', 1),
+    (6, 'Diseno y Comunicacion Visual', 1),
+    (7, 'Comunicacion y Relaciones Publicas', 1),
+    (8, 'Administracion de Empresas', 1),
+    (9, 'Contabilidad y Finanzas', 1),
+    (10, 'Economia Empresarial', 1),
+    (11, 'Negocios Internacionales', 1),
+    (12, 'Arquitectura', 1),
+    (13, 'Ingenieria Civil', 1),
+    (14, 'Ingenieria Industrial', 1),
+    (15, 'Ingenieria en Sistemas de Informacion', 1),
+    (16, 'Derecho', 1),
+    (17, 'Diplomacia y Relaciones Internacionales', 1),
+    (18, 'Arquitectura', 2),
+    (19, 'Biologia', 2),
+    (20, 'Matematica', 2),
+    (21, 'Quimica Ambiental', 2),
+    (22, 'Quimica Farmaceutica', 2),
+    (23, 'Diseno Grafico y Multimedia', 2),
+    (24, 'Informatica Educativa', 2),
+    (25, 'Administracion de Empresas', 2),
+    (26, 'Contaduria Publica y Finanzas', 2),
+    (27, 'Economia', 2),
+    (28, 'Marketing', 2),
+    (29, 'Psicologia', 2),
+    (30, 'Medicina', 2),
+    (31, 'Enfermeria', 2),
+    (32, 'Ingenieria en Sistemas', 2),
+    (33, 'Arquitectura', 3),
+    (34, 'Ingenieria Agricola', 3),
+    (35, 'Ingenieria Civil', 3),
+    (36, 'Ingenieria en Computacion', 3),
+    (37, 'Ingenieria Electrica', 3),
+    (38, 'Ingenieria Electronica', 3),
+    (39, 'Ingenieria Industrial', 3),
+    (40, 'Ingenieria Mecanica', 3),
+    (41, 'Ingenieria Quimica', 3),
+    (42, 'Ingenieria de Sistemas', 3),
+    (43, 'Medicina', 4),
+    (44, 'Bioanalisis Clinico', 4),
+    (45, 'Odontologia', 4),
+    (46, 'Ciencias de la Enfermeria', 4),
+    (47, 'Psicologia', 4),
+    (48, 'Farmacia', 4),
+    (49, 'Medicina Veterinaria', 4),
+    (50, 'Ingenieria en Agroecologia Tropical', 4),
+    (51, 'Ingenieria Agropecuaria', 4),
+    (52, 'Ingenieria en Agronegocios', 4),
+    (53, 'Derecho', 4),
+    (54, 'Administracion y Politicas Publicas', 4),
+    (55, 'Ingenieria en Sistemas de Informacion', 4),
+    (56, 'Administracion de Empresas', 4),
+    (57, 'Contaduria Publica y Finanzas', 4),
+    (58, 'Mercadotecnia', 4),
+    (59, 'Economia', 4),
+    (60, 'Gestion de Empresas Turisticas', 4),
+    (61, 'Medicina', 5),
+    (62, 'Odontologia', 5),
+    (63, 'Derecho', 5),
+    (64, 'Arquitectura', 5),
+    (65, 'Pedagogia', 5),
+    (66, 'Psicologia', 5),
+    (67, 'Administracion de Empresas', 5),
+    (68, 'Arte Digital y Animacion', 5),
+    (69, 'Relaciones Internacionales y Comercio Internacional', 5),
+    (70, 'Ingenieria Industrial', 5),
+    (71, 'Marketing y Publicidad', 5),
+    (72, 'Contabilidad y Finanzas', 5)
 ON CONFLICT (id_carrera) DO NOTHING;
 
 INSERT INTO categorias_tarea (id_categoria, nombre_categoria, descripcion, estado) VALUES
@@ -1310,7 +1383,19 @@ INSERT INTO categorias_tarea (id_categoria, nombre_categoria, descripcion, estad
     (9, 'Investigacion', 'Busqueda de fuentes, levantamiento de datos y apoyo academico.', true),
     (10, 'Asistencia administrativa', 'Organizacion de documentos, digitacion y apoyo operativo.', true),
     (11, 'Idiomas', 'Clases, practica conversacional y revision de textos.', true),
-    (12, 'Contabilidad', 'Registro de gastos, presupuestos y apoyo contable basico.', true)
+    (12, 'Contabilidad', 'Registro de gastos, presupuestos y apoyo contable basico.', true),
+    (13, 'Mascotas', 'Paseos, cuidado temporal, alimentacion y apoyo con mascotas.', true),
+    (14, 'Hogar y mantenimiento', 'Limpieza, organizacion, reparaciones y mantenimiento basico.', true),
+    (15, 'Transporte y entregas', 'Mandados, traslados y entrega local de productos o documentos.', true),
+    (16, 'Ventas y atencion al cliente', 'Apoyo comercial, ventas, encuestas y servicio al cliente.', true),
+    (17, 'Datos y analitica', 'Digitacion, limpieza, visualizacion y analisis de datos.', true),
+    (18, 'Musica y audio', 'Grabacion, locucion, mezcla, edicion y apoyo musical.', true),
+    (19, 'Salud y bienestar', 'Acompanamiento, actividad fisica y orientacion de bienestar no clinica.', true),
+    (20, 'Asistencia legal', 'Organizacion documental e investigacion juridica bajo supervision.', true),
+    (21, 'Arquitectura y construccion', 'Planos, presupuestos, levantamientos y apoyo en proyectos.', true),
+    (22, 'Ambiente y sostenibilidad', 'Reciclaje, educacion ambiental y apoyo en proyectos sostenibles.', true),
+    (23, 'Gastronomia', 'Preparacion de alimentos, reposteria y apoyo en servicios de comida.', true),
+    (24, 'Deportes y actividad fisica', 'Entrenamiento, arbitraje y apoyo en actividades deportivas.', true)
 ON CONFLICT (id_categoria) DO NOTHING;
 
 INSERT INTO habilidades (id_habilidad, nombre_habilidad, descripcion, estado) VALUES
@@ -1318,7 +1403,42 @@ INSERT INTO habilidades (id_habilidad, nombre_habilidad, descripcion, estado) VA
     (2, 'Java', 'Desarrollo backend y aplicaciones orientadas a objetos.', true),
     (3, 'Spring Boot', 'Creacion de APIs REST.', true),
     (4, 'PostgreSQL', 'Modelado y consultas de base de datos.', true),
-    (5, 'Figma', 'Diseno de interfaces y prototipado.', true)
+    (5, 'Figma', 'Diseno de interfaces y prototipado.', true),
+    (6, 'JavaScript', 'Desarrollo de soluciones web interactivas.', true),
+    (7, 'TypeScript', 'Desarrollo web con tipado estatico.', true),
+    (8, 'Python', 'Automatizacion, analisis de datos y desarrollo.', true),
+    (9, 'React', 'Construccion de interfaces web por componentes.', true),
+    (10, 'HTML y CSS', 'Maquetacion y estilos para sitios web.', true),
+    (11, 'Git y GitHub', 'Control de versiones y colaboracion en repositorios.', true),
+    (12, 'SQL', 'Consultas y manipulacion de datos relacionales.', true),
+    (13, 'Microsoft Excel', 'Hojas de calculo, formulas y reportes.', true),
+    (14, 'Power BI', 'Paneles e inteligencia de negocios.', true),
+    (15, 'Canva', 'Creacion rapida de contenido visual.', true),
+    (16, 'Adobe Photoshop', 'Edicion y composicion de imagenes.', true),
+    (17, 'Adobe Illustrator', 'Ilustracion y diseno vectorial.', true),
+    (18, 'Adobe Premiere Pro', 'Edicion profesional de video.', true),
+    (19, 'Diseno UI/UX', 'Diseno de experiencias e interfaces digitales.', true),
+    (20, 'Redaccion academica', 'Estructuracion y revision de textos academicos.', true),
+    (21, 'Copywriting', 'Redaccion persuasiva para medios y negocios.', true),
+    (22, 'Traduccion ingles-espanol', 'Traduccion general entre ingles y espanol.', true),
+    (23, 'Ingles', 'Comunicacion oral y escrita en ingles.', true),
+    (24, 'Fotografia', 'Captura y composicion fotografica.', true),
+    (25, 'Edicion de video', 'Montaje y mejora de piezas audiovisuales.', true),
+    (26, 'Gestion de redes sociales', 'Planificacion y administracion de contenido social.', true),
+    (27, 'Marketing digital', 'Campanas, contenido y medicion digital.', true),
+    (28, 'Atencion al cliente', 'Comunicacion y resolucion de solicitudes de clientes.', true),
+    (29, 'Contabilidad', 'Registro, clasificacion y revision contable.', true),
+    (30, 'Gestion administrativa', 'Organizacion documental y apoyo operativo.', true),
+    (31, 'Analisis de datos', 'Limpieza, exploracion e interpretacion de datos.', true),
+    (32, 'Estadistica', 'Analisis estadistico descriptivo e inferencial.', true),
+    (33, 'Tutoria academica', 'Acompanamiento en procesos de aprendizaje.', true),
+    (34, 'Organizacion de eventos', 'Planificacion y logistica de actividades.', true),
+    (35, 'Oratoria', 'Presentacion clara de ideas ante una audiencia.', true),
+    (36, 'Gestion de proyectos', 'Planificacion, seguimiento y entrega de proyectos.', true),
+    (37, 'AutoCAD', 'Dibujo tecnico y elaboracion de planos.', true),
+    (38, 'Dibujo tecnico', 'Representacion grafica de piezas y espacios.', true),
+    (39, 'Soporte tecnico', 'Diagnostico y solucion de problemas tecnologicos.', true),
+    (40, 'Mantenimiento de computadoras', 'Revision, limpieza y reparacion basica de equipos.', true)
 ON CONFLICT (id_habilidad) DO NOTHING;
 
 INSERT INTO catalogo_beneficios_puntos (
@@ -1337,10 +1457,10 @@ INSERT INTO catalogo_beneficios_puntos (
 ON CONFLICT (id_beneficio) DO NOTHING;
 
 ALTER TABLE roles ALTER COLUMN id_rol RESTART WITH 4;
-ALTER TABLE universidades ALTER COLUMN id_universidad RESTART WITH 2;
-ALTER TABLE carreras ALTER COLUMN id_carrera RESTART WITH 4;
-ALTER TABLE categorias_tarea ALTER COLUMN id_categoria RESTART WITH 13;
-ALTER TABLE habilidades ALTER COLUMN id_habilidad RESTART WITH 6;
+ALTER TABLE universidades ALTER COLUMN id_universidad RESTART WITH 6;
+ALTER TABLE carreras ALTER COLUMN id_carrera RESTART WITH 73;
+ALTER TABLE categorias_tarea ALTER COLUMN id_categoria RESTART WITH 25;
+ALTER TABLE habilidades ALTER COLUMN id_habilidad RESTART WITH 41;
 ALTER TABLE catalogo_beneficios_puntos ALTER COLUMN id_beneficio RESTART WITH 4;
 
 COMMIT;
