@@ -57,8 +57,9 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 | Calificaciones y reputación | Pendiente |
 | Notificaciones push con Firebase Cloud Messaging | Pendiente |
 
-El registro valida los dominios configurados para cada universidad, relaciona únicamente
-carreras activas y activa la cuenta después de confirmar un código enviado por correo.
+El registro detecta automáticamente la universidad a partir del dominio del correo,
+muestra carreras únicamente cuando existe una coincidencia institucional activa y
+activa la cuenta después de confirmar un código enviado por correo.
 Cada cuenta recibe un nombre de usuario público único generado desde el nombre y apellido.
 El usuario puede cambiarlo desde su perfil y debe esperar 30 días antes de escoger otro.
 Las oportunidades, postulaciones, trabajos y conversaciones muestran el nombre y la
@@ -512,8 +513,8 @@ cd mobile
 
 | Capa | Cantidad actual | Cobertura principal |
 |---|---:|---|
-| Backend | 51 pruebas | Identidad y perfiles públicos, nombres de usuario, sesiones, intentos de acceso, correo, marketplace, adjuntos, reportes, conversaciones y arranque de Spring Boot |
-| Android | 17 pruebas unitarias | Formatos, fechas, moneda, distancias, ubicación y políticas de carga/actualización |
+| Backend | 52 pruebas | Identidad y perfiles públicos, catálogos institucionales, nombres de usuario, sesiones, intentos de acceso, correo, marketplace, adjuntos, reportes, conversaciones y arranque de Spring Boot |
+| Android | 20 pruebas unitarias | Dominios de correo, formatos, fechas, moneda, distancias, ubicación y políticas de carga/actualización |
 
 Además de las pruebas unitarias, `lintDebug` revisa problemas estáticos y
 `assembleDebug` confirma que el APK puede generarse. Antes de una entrega se deben
@@ -714,7 +715,7 @@ cierre obligatorio del hackathon y mejoras que pueden desarrollarse después.
    - Ejecutar el ciclo completo con dos cuentas: publicar, postular, aceptar, conversar,
      entregar y aprobar.
    - Probar verificación estudiantil, reportes y moderación con una cuenta administradora.
-   - Ejecutar las 51 pruebas del backend, las 17 de Android, `lintDebug` y `assembleDebug`.
+   - Ejecutar las 52 pruebas del backend, las 20 de Android, `lintDebug` y `assembleDebug`.
 2. **Integración final**
    - Resolver diferencias entre ramas y completar los Pull Requests pendientes.
    - Integrar la versión validada en `main` y comprobar el despliegue automático de Render.

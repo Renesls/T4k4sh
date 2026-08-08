@@ -57,7 +57,8 @@ data class MessageResponse(
 
 data class UniversityDto(
     val idUniversidad: Int,
-    val nombreUniversidad: String
+    val nombreUniversidad: String,
+    val dominiosCorreo: List<String>? = emptyList()
 )
 
 data class CareerDto(

@@ -27,7 +27,8 @@ data class AuthUiState(
     val errorMessage: String? = null,
     val infoMessage: String? = null,
     val universities: List<UniversityDto> = emptyList(),
-    val careers: List<CareerDto> = emptyList()
+    val careers: List<CareerDto> = emptyList(),
+    val careersUniversityId: Int? = null
 )
 
 class AuthViewModel(
@@ -92,20 +93,37 @@ class AuthViewModel(
             uiState = uiState.copy(
                 isLoadingOptions = true,
                 careers = emptyList(),
+                careersUniversityId = universityId,
                 errorMessage = null
             )
             when (val result = repository.getCareers(universityId)) {
-                is ApiResult.Success -> uiState = uiState.copy(
-                    isLoadingOptions = false,
-                    careers = result.data
-                )
+                is ApiResult.Success -> {
+                    if (uiState.careersUniversityId == universityId) {
+                        uiState = uiState.copy(
+                            isLoadingOptions = false,
+                            careers = result.data
+                        )
+                    }
+                }
 
-                is ApiResult.Error -> uiState = uiState.copy(
-                    isLoadingOptions = false,
-                    errorMessage = result.message
-                )
+                is ApiResult.Error -> {
+                    if (uiState.careersUniversityId == universityId) {
+                        uiState = uiState.copy(
+                            isLoadingOptions = false,
+                            errorMessage = result.message
+                        )
+                    }
+                }
             }
         }
+    }
+
+    fun clearCareers() {
+        uiState = uiState.copy(
+            isLoadingOptions = false,
+            careers = emptyList(),
+            careersUniversityId = null
+        )
     }
 
     fun register(
