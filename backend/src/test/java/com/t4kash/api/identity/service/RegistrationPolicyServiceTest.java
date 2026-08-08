@@ -8,8 +8,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.t4kash.api.identity.entity.Carrera;
+import com.t4kash.api.identity.entity.DominioUniversidad;
 import com.t4kash.api.identity.entity.Universidad;
 import com.t4kash.api.identity.repository.CarreraRepository;
+import com.t4kash.api.identity.repository.DominioUniversidadRepository;
 import com.t4kash.api.identity.repository.UniversidadRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,11 +29,13 @@ class RegistrationPolicyServiceTest {
     @Mock
     private CarreraRepository carreraRepository;
 
+    @Mock
+    private DominioUniversidadRepository dominioRepository;
+
     @Test
     void normalEmailCreatesClientProfile() {
-        Universidad university = university(1, "uamv.edu.ni");
-        when(universidadRepository.findAllByEstadoTrueOrderByNombreUniversidad())
-                .thenReturn(List.of(university));
+        when(dominioRepository.findByDominioCorreoIgnoreCaseAndEstadoTrue("gmail.com"))
+                .thenReturn(Optional.empty());
 
         RegistrationProfile profile = service("").resolve(
                 "client@gmail.com",
@@ -46,9 +50,9 @@ class RegistrationPolicyServiceTest {
 
     @Test
     void institutionalEmailMustSelectUniversityAndCareer() {
-        Universidad university = university(1, "uamv.edu.ni");
-        when(universidadRepository.findAllByEstadoTrueOrderByNombreUniversidad())
-                .thenReturn(List.of(university));
+        DominioUniversidad registeredDomain = mock(DominioUniversidad.class);
+        when(dominioRepository.findByDominioCorreoIgnoreCaseAndEstadoTrue("uamv.edu.ni"))
+                .thenReturn(Optional.of(registeredDomain));
 
         assertThrows(
                 IllegalArgumentException.class,
@@ -58,11 +62,14 @@ class RegistrationPolicyServiceTest {
 
     @Test
     void verifiedUniversitySelectionCreatesStudentProfile() {
-        Universidad university = university(1, "uamv.edu.ni");
+        Universidad university = university(1);
+        DominioUniversidad registeredDomain = domain(1, true);
         when(universidadRepository.findByIdUniversidadAndEstadoTrue(1))
                 .thenReturn(Optional.of(university));
-        when(carreraRepository.findByIdCarreraAndIdUniversidad(4, 1))
+        when(carreraRepository.findByIdCarreraAndIdUniversidadAndEstadoTrue(4, 1))
                 .thenReturn(Optional.of(mock(Carrera.class)));
+        when(dominioRepository.findByDominioCorreoIgnoreCaseAndEstadoTrue("uamv.edu.ni"))
+                .thenReturn(Optional.of(registeredDomain));
 
         RegistrationProfile profile = service("").resolve(
                 "student@uamv.edu.ni",
@@ -89,11 +96,13 @@ class RegistrationPolicyServiceTest {
 
     @Test
     void universityWithoutDomainRequiresManualStudentReview() {
-        Universidad university = university(2, null);
+        Universidad university = university(2);
         when(universidadRepository.findByIdUniversidadAndEstadoTrue(2))
                 .thenReturn(Optional.of(university));
-        when(carreraRepository.findByIdCarreraAndIdUniversidad(5, 2))
+        when(carreraRepository.findByIdCarreraAndIdUniversidadAndEstadoTrue(5, 2))
                 .thenReturn(Optional.of(mock(Carrera.class)));
+        when(dominioRepository.findByDominioCorreoIgnoreCaseAndEstadoTrue("gmail.com"))
+                .thenReturn(Optional.empty());
 
         RegistrationProfile profile = service("").resolve(
                 "student@gmail.com",
@@ -109,18 +118,23 @@ class RegistrationPolicyServiceTest {
         return new RegistrationPolicyService(
                 universidadRepository,
                 carreraRepository,
+                dominioRepository,
                 evaluatorEmails
         );
     }
 
-    private Universidad university(Integer id, String domain) {
+    private Universidad university(Integer id) {
         Universidad university = mock(Universidad.class);
         org.mockito.Mockito.lenient()
                 .when(university.getIdUniversidad())
                 .thenReturn(id);
-        org.mockito.Mockito.lenient()
-                .when(university.getDominioCorreo())
-                .thenReturn(domain);
         return university;
+    }
+
+    private DominioUniversidad domain(Integer universityId, boolean automatic) {
+        DominioUniversidad domain = mock(DominioUniversidad.class);
+        when(domain.getIdUniversidad()).thenReturn(universityId);
+        when(domain.isVerificacionAutomatica()).thenReturn(automatic);
+        return domain;
     }
 }

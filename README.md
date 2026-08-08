@@ -38,7 +38,7 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 | Documentación Swagger/OpenAPI | Implementado |
 | Marketplace y detalle de oportunidades en Android | Implementado |
 | Publicación de tareas desde Android | Implementado |
-| Doce categorías de oportunidades | Implementado |
+| Veinticuatro categorías de oportunidades | Implementado |
 | Ubicación para tareas presenciales e híbridas | Implementado |
 | Mapa con radio de búsqueda y marcadores interactivos | Implementado |
 | Postulación desde Android | Implementado |
@@ -56,7 +56,12 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 | Calificaciones y reputación | Pendiente |
 | Notificaciones push con Firebase Cloud Messaging | Pendiente |
 
-El registro valida el dominio de la universidad, relaciona la carrera y activa la cuenta después de confirmar un código enviado por correo. Android conserva la sesión iniciada y utiliza el ID de la cuenta autenticada para publicaciones, postulaciones, trabajos y archivos. Las contraseñas se almacenan con BCrypt y la base conserva únicamente el hash de cada token de sesión.
+El registro valida los dominios configurados para cada universidad, relaciona únicamente
+carreras activas y activa la cuenta después de confirmar un código enviado por correo.
+Cada cuenta recibe un nombre de usuario público único generado desde el nombre y apellido.
+Android conserva la sesión iniciada y utiliza internamente el ID autenticado para
+publicaciones, postulaciones, trabajos y archivos. Las contraseñas se almacenan con BCrypt
+y la base conserva únicamente el hash de cada token de sesión.
 
 ## Tecnologías
 
@@ -173,12 +178,13 @@ El modelo original fue diagramado en SQL Server y posteriormente migrado a Postg
 database/schema-postgresql.sql
 ```
 
-El esquema contiene 46 tablas e incluye:
+El esquema contiene 47 tablas e incluye:
 
 - Llaves primarias y foráneas.
 - Restricciones únicas y validaciones.
 - Índices para búsquedas frecuentes.
 - Usuarios, roles y perfiles universitarios.
+- Nombres de usuario públicos y múltiples dominios por universidad.
 - Tareas, habilidades, postulaciones y trabajos.
 - Entregas, pagos, conversaciones y reportes.
 - Sesiones, verificaciones y auditoría.
@@ -396,7 +402,7 @@ Las tareas remotas se muestran en el marketplace, pero no generan marcadores.
 Flujo actual de exploración y postulación:
 
 1. Android consulta las oportunidades y categorías publicadas.
-2. Los filtros permiten explorar las doce categorías disponibles.
+2. Los filtros permiten explorar las veinticuatro categorías disponibles.
 3. El mapa solicita la ubicación del dispositivo y descarta coordenadas inválidas como `(0, 0)`.
 4. El usuario ajusta un radio de búsqueda entre `5 km` y `50 km`.
 5. Al tocar un marcador se abre el detalle de la oportunidad.
@@ -499,7 +505,7 @@ cd mobile
 
 | Capa | Cantidad actual | Cobertura principal |
 |---|---:|---|
-| Backend | 46 pruebas | Identidad, sesiones, intentos de acceso, correo, marketplace, adjuntos, reportes, conversaciones y arranque de Spring Boot |
+| Backend | 48 pruebas | Identidad, nombres de usuario, sesiones, intentos de acceso, correo, marketplace, adjuntos, reportes, conversaciones y arranque de Spring Boot |
 | Android | 17 pruebas unitarias | Formatos, fechas, moneda, distancias, ubicación y políticas de carga/actualización |
 
 Además de las pruebas unitarias, `lintDebug` revisa problemas estáticos y
@@ -625,10 +631,10 @@ usa una clave de idempotencia para impedir que una recompensa o un canje se apli
 veces. El saldo visible se obtiene sumando movimientos aplicados de entrada y restando
 los de salida.
 
-El esquema PostgreSQL completo contiene 46 tablas organizadas en identidad, marketplace,
+El esquema PostgreSQL completo contiene 47 tablas organizadas en identidad, marketplace,
 finanzas, puntos, comunicación, moderación y auditoría.
 
-Las 46 tablas tienen Row Level Security habilitado sin políticas para las claves públicas
+Las 47 tablas tienen Row Level Security habilitado sin políticas para las claves públicas
 de Supabase. Android accede exclusivamente mediante la API Spring Boot; el backend usa su
 conexión PostgreSQL de servidor y las claves privadas nunca se incluyen en la aplicación.
 
@@ -701,7 +707,7 @@ cierre obligatorio del hackathon y mejoras que pueden desarrollarse después.
    - Ejecutar el ciclo completo con dos cuentas: publicar, postular, aceptar, conversar,
      entregar y aprobar.
    - Probar verificación estudiantil, reportes y moderación con una cuenta administradora.
-   - Ejecutar las 46 pruebas del backend, las 17 de Android, `lintDebug` y `assembleDebug`.
+   - Ejecutar las 48 pruebas del backend, las 17 de Android, `lintDebug` y `assembleDebug`.
 2. **Integración final**
    - Resolver diferencias entre ramas y completar los Pull Requests pendientes.
    - Integrar la versión validada en `main` y comprobar el despliegue automático de Render.

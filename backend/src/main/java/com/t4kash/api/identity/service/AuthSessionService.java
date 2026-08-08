@@ -159,6 +159,7 @@ public class AuthSessionService {
                 .orElse(null);
         return new AuthenticatedUserResponse(
                 usuario.getIdUsuario(),
+                usuario.getNombreUsuario(),
                 usuario.getNombre(),
                 usuario.getApellido(),
                 usuario.getCorreo(),

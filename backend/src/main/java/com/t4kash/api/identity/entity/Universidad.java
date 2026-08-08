@@ -18,9 +18,6 @@ public class Universidad {
     @Column(name = "nombre_universidad", nullable = false, length = 150)
     private String nombreUniversidad;
 
-    @Column(name = "dominio_correo", length = 100)
-    private String dominioCorreo;
-
     @Column(name = "estado", nullable = false)
     private boolean estado;
 
@@ -30,10 +27,6 @@ public class Universidad {
 
     public String getNombreUniversidad() {
         return nombreUniversidad;
-    }
-
-    public String getDominioCorreo() {
-        return dominioCorreo;
     }
 
     public boolean isEstado() {

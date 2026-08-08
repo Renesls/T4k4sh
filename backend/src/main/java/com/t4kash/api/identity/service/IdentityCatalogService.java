@@ -36,7 +36,8 @@ public class IdentityCatalogService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "La universidad seleccionada no existe o esta inactiva."
                 ));
-        return carreraRepository.findAllByIdUniversidadOrderByNombreCarrera(universityId)
+        return carreraRepository
+                .findAllByIdUniversidadAndEstadoTrueOrderByNombreCarrera(universityId)
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -45,8 +46,7 @@ public class IdentityCatalogService {
     private UniversityResponse toResponse(Universidad universidad) {
         return new UniversityResponse(
                 universidad.getIdUniversidad(),
-                universidad.getNombreUniversidad(),
-                universidad.getDominioCorreo()
+                universidad.getNombreUniversidad()
         );
     }
 

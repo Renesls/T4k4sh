@@ -7,9 +7,11 @@ import java.util.List;
 import java.util.Optional;
 
 public interface CarreraRepository extends JpaRepository<Carrera, Integer> {
-    List<Carrera> findAllByIdUniversidadOrderByNombreCarrera(Integer idUniversidad);
+    List<Carrera> findAllByIdUniversidadAndEstadoTrueOrderByNombreCarrera(
+            Integer idUniversidad
+    );
 
-    Optional<Carrera> findByIdCarreraAndIdUniversidad(
+    Optional<Carrera> findByIdCarreraAndIdUniversidadAndEstadoTrue(
             Integer idCarrera,
             Integer idUniversidad
     );
