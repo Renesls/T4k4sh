@@ -43,6 +43,26 @@ services:
         value: "T4KASH"
       - key: BREVO_API_KEY
         sync: false
+      - key: APP_PUBLIC_BASE_URL
+        value: "https://t4k4sh.onrender.com"
+      - key: APP_PAYMENTS_PLATFORM_FEE_PERCENT
+        value: "1.00"
+      - key: APP_PAGADITO_ENABLED
+        sync: false
+      - key: APP_PAGADITO_ENVIRONMENT
+        value: "SANDBOX"
+      - key: APP_PAGADITO_ENDPOINT
+        value: "https://sandbox.pagadito.com/comercios/wspg/charges.php"
+      - key: PAGADITO_UID
+        sync: false
+      - key: PAGADITO_WSK
+        sync: false
+      - key: PAGADITO_PROCESSOR_FEE_PERCENT
+        value: "0"
+      - key: PAGADITO_PROCESSOR_FIXED_FEE
+        value: "0"
+      - key: PAGADITO_PROCESSOR_TAX_PERCENT
+        value: "0"
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT

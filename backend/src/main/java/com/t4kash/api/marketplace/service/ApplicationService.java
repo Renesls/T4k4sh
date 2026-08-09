@@ -5,6 +5,8 @@ import com.t4kash.api.communication.service.NotificationService;
 import com.t4kash.api.exception.ForbiddenOperationException;
 import com.t4kash.api.exception.ResourceConflictException;
 import com.t4kash.api.exception.ResourceNotFoundException;
+import com.t4kash.api.finance.dto.PaymentResponse;
+import com.t4kash.api.finance.service.PaymentService;
 import com.t4kash.api.marketplace.dto.ApplicationResponse;
 import com.t4kash.api.marketplace.dto.CreateApplicationRequest;
 import com.t4kash.api.marketplace.dto.JobResponse;
@@ -15,6 +17,7 @@ import com.t4kash.api.marketplace.repository.PostulacionRepository;
 import com.t4kash.api.marketplace.repository.TrabajoAsignadoRepository;
 import com.t4kash.api.marketplace.repository.UsuarioEstudianteRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -35,6 +38,7 @@ public class ApplicationService {
     private static final String ESTADO_POSTULACION_CANCELADA_LIMITE = "CANCELADA_LIMITE";
     private static final String ESTADO_POSTULACION_CANCELADA_TAREA = "CANCELADA_TAREA";
     private static final String ESTADO_TRABAJO_EN_PROCESO = "EN_PROCESO";
+    private static final String ESTADO_TRABAJO_PENDIENTE_PAGO = "PENDIENTE_PAGO";
     private static final int MAX_ACTIVE_JOBS = 2;
     private static final int MAX_APPLICATION_ATTEMPTS = 3;
 
@@ -44,6 +48,26 @@ public class ApplicationService {
     private final TaskService taskService;
     private final ConversationService conversationService;
     private final NotificationService notificationService;
+    private final PaymentService paymentService;
+
+    @Autowired
+    public ApplicationService(
+            PostulacionRepository postulacionRepository,
+            TrabajoAsignadoRepository trabajoRepository,
+            UsuarioEstudianteRepository estudianteRepository,
+            TaskService taskService,
+            ConversationService conversationService,
+            NotificationService notificationService,
+            PaymentService paymentService
+    ) {
+        this.postulacionRepository = postulacionRepository;
+        this.trabajoRepository = trabajoRepository;
+        this.estudianteRepository = estudianteRepository;
+        this.taskService = taskService;
+        this.conversationService = conversationService;
+        this.notificationService = notificationService;
+        this.paymentService = paymentService;
+    }
 
     public ApplicationService(
             PostulacionRepository postulacionRepository,
@@ -53,12 +77,10 @@ public class ApplicationService {
             ConversationService conversationService,
             NotificationService notificationService
     ) {
-        this.postulacionRepository = postulacionRepository;
-        this.trabajoRepository = trabajoRepository;
-        this.estudianteRepository = estudianteRepository;
-        this.taskService = taskService;
-        this.conversationService = conversationService;
-        this.notificationService = notificationService;
+        this(
+                postulacionRepository, trabajoRepository, estudianteRepository,
+                taskService, conversationService, notificationService, null
+        );
     }
 
     @Transactional(readOnly = true)
@@ -94,6 +116,11 @@ public class ApplicationService {
         }
         if (!ESTADO_TAREA_PUBLICADA.equals(tarea.getEstadoTarea())) {
             throw new ResourceConflictException("La tarea no esta disponible para nuevas postulaciones.");
+        }
+        if (TaskService.TIPO_TAREA_RAPIDA.equalsIgnoreCase(tarea.getTipoOportunidad())) {
+            throw new ResourceConflictException(
+                    "Las tareas rapidas se toman directamente desde el radar."
+            );
         }
         if (tarea.getIdCliente().equals(currentUserId)) {
             throw new ResourceConflictException("No puedes postularte a tu propia tarea.");
@@ -135,7 +162,98 @@ public class ApplicationService {
     }
 
     @Transactional
+    public JobResponse claimQuickTask(Integer currentUserId, Integer idTarea) {
+        Tarea tarea = taskService.findTaskEntityForUpdate(idTarea);
+        LocalDateTime now = LocalDateTime.now();
+        if (taskService.closeExpiredTask(tarea, now)) {
+            throw new ResourceConflictException("Esta tarea rapida ya vencio.");
+        }
+        if (!TaskService.TIPO_TAREA_RAPIDA.equalsIgnoreCase(tarea.getTipoOportunidad())) {
+            throw new ResourceConflictException("La oportunidad indicada no es una tarea rapida.");
+        }
+        if (!ESTADO_TAREA_PUBLICADA.equals(tarea.getEstadoTarea())) {
+            throw new ResourceConflictException("Otra persona ya tomo esta tarea rapida.");
+        }
+        if (tarea.getIdCliente().equals(currentUserId)) {
+            throw new ResourceConflictException("No puedes tomar tu propia tarea.");
+        }
+        estudianteRepository.findByIdForUpdate(currentUserId)
+                .orElseThrow(() -> new ForbiddenOperationException(
+                        "Tu cuenta no tiene un perfil estudiantil activo."
+                ));
+        if (activeJobs(currentUserId) >= MAX_ACTIVE_JOBS) {
+            throw new ResourceConflictException(
+                    "Ya tienes dos trabajos en proceso. Finaliza uno antes de tomar otra tarea."
+            );
+        }
+        if (trabajoRepository.findByIdTarea(idTarea).isPresent()) {
+            throw new ResourceConflictException("Otra persona ya tomo esta tarea rapida.");
+        }
+
+        Postulacion postulacion = new Postulacion();
+        postulacion.setIdTarea(idTarea);
+        postulacion.setIdEstudiante(currentUserId);
+        postulacion.setMensaje("Tarea rapida tomada desde el radar.");
+        postulacion.setPrecioPropuesto(tarea.getPresupuesto());
+        postulacion.setFechaPostulacion(now);
+        postulacion.setEstadoPostulacion(ESTADO_POSTULACION_ACEPTADA);
+        postulacion.setNumeroIntento(1);
+        Postulacion savedApplication = postulacionRepository.save(postulacion);
+
+        tarea.setEstadoTarea(ESTADO_TAREA_ASIGNADA);
+        taskService.save(tarea);
+
+        TrabajoAsignado trabajo = new TrabajoAsignado();
+        trabajo.setIdTarea(idTarea);
+        trabajo.setIdEstudiante(currentUserId);
+        trabajo.setFechaInicio(now);
+        trabajo.setFechaEntregaEsperada(tarea.getFechaLimite());
+        trabajo.setEstadoTrabajo(ESTADO_TRABAJO_EN_PROCESO);
+        TrabajoAsignado savedJob = trabajoRepository.save(trabajo);
+
+        rejectRemainingApplications(savedApplication);
+        if (activeJobs(currentUserId) >= MAX_ACTIVE_JOBS) {
+            cancelPendingApplicationsForLimit(
+                    currentUserId,
+                    savedApplication.getIdPostulacion()
+            );
+        }
+        conversationService.ensureForAcceptedApplication(savedApplication, savedJob);
+        notificationService.create(
+                tarea.getIdCliente(),
+                "Tarea rapida tomada",
+                "Un estudiante tomo " + tarea.getTitulo() + "."
+        );
+        notificationService.create(
+                currentUserId,
+                "Tarea rapida asignada",
+                "Ya puedes coordinar y completar " + tarea.getTitulo() + "."
+        );
+
+        JobResponse response = JobResponse.fromEntity(savedJob);
+        if (paymentService == null) {
+            return response;
+        }
+        PaymentResponse payment = paymentService.createForAcceptedApplication(
+                savedJob,
+                tarea,
+                savedApplication,
+                PaymentService.METHOD_CASH
+        );
+        return response.withPayment(payment);
+    }
+
+    @Transactional
     public JobResponse acceptApplication(Integer currentUserId, Integer idPostulacion) {
+        return acceptApplication(currentUserId, idPostulacion, PaymentService.METHOD_PAGADITO);
+    }
+
+    @Transactional
+    public JobResponse acceptApplication(
+            Integer currentUserId,
+            Integer idPostulacion,
+            String paymentMethod
+    ) {
         Postulacion postulacion = findApplication(idPostulacion);
         Tarea tarea = taskService.findTaskEntity(postulacion.getIdTarea());
         taskService.requireTaskOwner(tarea, currentUserId);
@@ -164,7 +282,10 @@ public class ApplicationService {
         trabajo.setIdEstudiante(postulacion.getIdEstudiante());
         trabajo.setFechaInicio(LocalDateTime.now());
         trabajo.setFechaEntregaEsperada(tarea.getFechaLimite());
-        trabajo.setEstadoTrabajo(ESTADO_TRABAJO_EN_PROCESO);
+        boolean protectedPayment = !PaymentService.METHOD_CASH.equalsIgnoreCase(paymentMethod);
+        trabajo.setEstadoTrabajo(
+                protectedPayment ? ESTADO_TRABAJO_PENDIENTE_PAGO : ESTADO_TRABAJO_EN_PROCESO
+        );
 
         taskService.save(tarea);
         postulacionRepository.save(postulacion);
@@ -185,7 +306,17 @@ public class ApplicationService {
                 "Postulacion aceptada",
                 "Fuiste seleccionado para " + tarea.getTitulo() + "."
         );
-        return JobResponse.fromEntity(savedJob);
+        JobResponse response = JobResponse.fromEntity(savedJob);
+        if (paymentService == null) {
+            return response;
+        }
+        PaymentResponse payment = paymentService.createForAcceptedApplication(
+                savedJob,
+                tarea,
+                postulacion,
+                paymentMethod
+        );
+        return response.withPayment(payment);
     }
 
     @Transactional
@@ -271,9 +402,14 @@ public class ApplicationService {
     }
 
     private long activeJobs(Integer studentId) {
-        return trabajoRepository.countByIdEstudianteAndEstadoTrabajo(
+        long inProgress = trabajoRepository.countByIdEstudianteAndEstadoTrabajo(
                 studentId,
                 ESTADO_TRABAJO_EN_PROCESO
         );
+        long awaitingPayment = trabajoRepository.countByIdEstudianteAndEstadoTrabajo(
+                studentId,
+                ESTADO_TRABAJO_PENDIENTE_PAGO
+        );
+        return inProgress + awaitingPayment;
     }
 }

@@ -253,6 +253,60 @@ class ApplicationServiceTest {
         );
     }
 
+    @Test
+    void claimingQuickTaskCreatesAcceptedApplicationAndAssignedJob() {
+        Tarea task = task(10, "PUBLICADA", LocalDateTime.now().plusHours(1));
+        task.setTipoOportunidad("RAPIDA");
+        task.setModalidad("PRESENCIAL");
+        task.setLatitud(new BigDecimal("12.114990"));
+        task.setLongitud(new BigDecimal("-86.236170"));
+        task.setFechaLimite(LocalDateTime.now().plusHours(3));
+        when(tareaRepository.findByIdForUpdate(10)).thenReturn(Optional.of(task));
+        when(estudianteRepository.findByIdForUpdate(2))
+                .thenReturn(Optional.of(new UsuarioEstudiante()));
+        when(trabajoRepository.findByIdTarea(10)).thenReturn(Optional.empty());
+        when(postulacionRepository.save(any(Postulacion.class)))
+                .thenAnswer(invocation -> {
+                    Postulacion application = invocation.getArgument(0);
+                    application.setIdPostulacion(100);
+                    return application;
+                });
+        when(trabajoRepository.save(any(TrabajoAsignado.class)))
+                .thenAnswer(invocation -> {
+                    TrabajoAsignado job = invocation.getArgument(0);
+                    job.setIdTrabajo(50);
+                    return job;
+                });
+
+        JobResponse response = service.claimQuickTask(2, 10);
+
+        assertEquals(50, response.idTrabajo());
+        assertEquals("ASIGNADA", task.getEstadoTarea());
+        assertEquals("EN_PROCESO", response.estadoTrabajo());
+        verify(conversationService).ensureForAcceptedApplication(any(), any());
+    }
+
+    @Test
+    void quickTaskCannotUseRegularApplicationFlow() {
+        Tarea task = task(10, "PUBLICADA", LocalDateTime.now().plusHours(1));
+        task.setTipoOportunidad("RAPIDA");
+        when(tareaRepository.findById(10)).thenReturn(Optional.of(task));
+
+        ResourceConflictException error = assertThrows(
+                ResourceConflictException.class,
+                () -> service.applyToTask(
+                        2,
+                        10,
+                        new CreateApplicationRequest("Quiero tomarla.", new BigDecimal("20.00"))
+                )
+        );
+
+        assertEquals(
+                "Las tareas rapidas se toman directamente desde el radar.",
+                error.getMessage()
+        );
+    }
+
     private Tarea task(
             Integer id,
             String status,

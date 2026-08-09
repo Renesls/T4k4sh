@@ -78,6 +78,11 @@ public class GlobalExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, ex.getMessage());
     }
 
+    @ExceptionHandler(PaymentProviderException.class)
+    public ProblemDetail handlePaymentProvider(PaymentProviderException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, ex.getMessage());
+    }
+
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ProblemDetail handleMaxUploadSize(MaxUploadSizeExceededException ex) {
         return ProblemDetail.forStatusAndDetail(

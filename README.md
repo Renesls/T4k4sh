@@ -26,7 +26,10 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 6. Una postulación aceptada se convierte en trabajo asignado.
 7. Cliente y estudiante coordinan el trabajo mediante la conversación interna.
 8. El estudiante registra una entrega.
-9. El cliente revisa y aprueba el trabajo.
+9. El cliente elige pago protegido; solo las tareas presenciales permiten efectivo.
+10. Pagadito confirma el pago y habilita el inicio del trabajo.
+11. El estudiante registra una entrega.
+12. El cliente aprueba la entrega y el monto pasa al balance disponible.
 
 ## Estado del MVP
 
@@ -41,6 +44,7 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 | Veinticuatro categorías de oportunidades | Implementado |
 | Ubicación para tareas presenciales e híbridas | Implementado |
 | Mapa con radio de búsqueda y marcadores interactivos | Implementado |
+| Tareas rápidas con radar, asignación inmediata y efectivo confirmado por ambas partes | Implementado |
 | Postulación desde Android | Implementado |
 | Postulaciones, asignaciones y entregas en la API | Implementado |
 | Navegación, carga y manejo visual de errores | Implementado |
@@ -51,8 +55,8 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 | Identidad pública por arroba y cambio de nombre de usuario | Implementado |
 | Conversaciones, mensajes y notificaciones internas | Implementado |
 | Formularios adaptados al teclado y manejo visual de errores | Implementado |
-| Modelo financiero para wallet, Pagadito y efectivo | Diseñado en PostgreSQL |
-| Integración con Pagadito Sandbox y wallet transaccional | Pendiente |
+| Modelo financiero para wallet, Pagadito y efectivo | Implementado |
+| Integración con Pagadito Sandbox y wallet transaccional | Implementado; requiere credenciales Sandbox |
 | Puntos T4KASH y catálogo de beneficios | Diseñado en PostgreSQL |
 | Calificaciones y reputación | Pendiente |
 | Notificaciones push con Firebase Cloud Messaging | Pendiente |
@@ -82,6 +86,7 @@ y la base conserva únicamente el hash de cada token de sesión.
 | Base de datos | PostgreSQL 16 |
 | Entorno local | Docker Compose |
 | Hosting | Render, Supabase |
+| Pagos de prueba | Pagadito Sandbox, WSPG y webhooks firmados |
 | Diseño | Figma |
 | Control de versiones | GitHub, Conventional Commits |
 
@@ -116,6 +121,8 @@ API Spring Boot en Render
    | +-- JDBC / JPA + SSL --> PostgreSQL en Supabase
    | +-- HTTPS -------------> Supabase Storage
    | +-- HTTPS -------------> Brevo Email API
+   | +-- SOAP / HTTPS -------> Pagadito Sandbox
+   | <-- HTTPS firmado ------- Webhooks de Pagadito
 ```
 
 - Android nunca se conecta directamente a PostgreSQL.
@@ -124,6 +131,7 @@ API Spring Boot en Render
 - OpenFreeMap proporciona el estilo y las teselas del mapa sin requerir una clave privada.
 - Supabase Storage conserva los archivos privados y solo el backend utiliza su clave secreta.
 - Brevo envía por HTTPS los códigos de activación, segundo paso y recuperación.
+- Pagadito Sandbox procesa pagos ficticios y notifica cambios de estado al backend.
 - El backend normaliza y valida los datos antes de persistirlos.
 
 ## Entornos
@@ -248,6 +256,8 @@ El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno 
 | `PUT` | `/api/tasks/{idTarea}` | Editar una oportunidad activa |
 | `DELETE` | `/api/tasks/{idTarea}` | Cancelar una oportunidad activa (propietario) |
 | `GET` | `/api/tasks/{idTarea}` | Obtener detalle |
+| `GET` | `/api/quick-tasks/nearby` | Buscar tareas rápidas cercanas por ubicación y radio |
+| `POST` | `/api/quick-tasks/{idTarea}/claim` | Tomar una tarea rápida disponible |
 | `GET` | `/api/tasks/{idTarea}/applications` | Listar postulaciones |
 | `POST` | `/api/tasks/{idTarea}/applications` | Crear postulación |
 | `GET` | `/api/applications/me` | Listar mis postulaciones |
@@ -259,6 +269,13 @@ El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno 
 | `GET` | `/api/jobs/{idTrabajo}/deliveries` | Listar entregas |
 | `POST` | `/api/jobs/{idTrabajo}/deliveries` | Registrar entrega |
 | `POST` | `/api/deliveries/{idEntrega}/approve` | Aprobar entrega |
+| `GET` | `/api/wallet` | Consultar balance, pagos y movimientos |
+| `GET` | `/api/jobs/{idTrabajo}/payment` | Consultar el pago de un trabajo |
+| `POST` | `/api/jobs/{idTrabajo}/payment/checkout` | Crear checkout de Pagadito Sandbox |
+| `POST` | `/api/jobs/{idTrabajo}/payment/cash/confirm-receipt` | Confirmar que el estudiante recibió el efectivo |
+| `POST` | `/api/payments/{idPago}/refresh` | Consultar nuevamente el estado en Pagadito |
+| `POST` | `/api/payments/pagadito/webhook` | Recibir eventos firmados de Pagadito |
+| `GET` | `/api/payments/pagadito/return` | Verificar el retorno del checkout |
 | `GET` | `/api/tasks/{taskId}/attachments` | Listar archivos adjuntos de una tarea |
 | `POST` | `/api/tasks/{taskId}/attachments` | Adjuntar archivo a una tarea |
 | `GET` | `/api/deliveries/{deliveryId}/attachments` | Listar archivos adjuntos de una entrega |
@@ -368,6 +385,28 @@ Para una tarea remota se utiliza `"modalidad": "REMOTA"` y se omiten o envían c
 }
 ```
 
+### Aceptar y Pagar un Trabajo
+
+Al aceptar una postulación, el cliente envía el método acordado:
+
+```json
+{
+  "metodoPago": "PAGADITO"
+}
+```
+
+`EFECTIVO` solo se acepta cuando la tarea es presencial. Para Pagadito, el trabajo queda
+en `PENDIENTE_PAGO`; el cliente abre el checkout desde Wallet y el backend cambia el
+trabajo a `EN_PROCESO` únicamente después de validar la confirmación del proveedor.
+
+En el comercio Pagadito Sandbox deben configurarse estas direcciones públicas:
+
+```text
+Retorno: https://t4k4sh.onrender.com/api/payments/pagadito/return
+Webhook: https://t4k4sh.onrender.com/api/payments/pagadito/webhook
+Evento:  TRANSACTION.STATUS.CHANGE
+```
+
 La solicitud se envía mediante `POST /api/tasks/{idTarea}/applications`. Un estudiante
 puede volver a postularse después de un rechazo hasta completar tres intentos, pero no
 puede mantener dos postulaciones pendientes sobre la misma tarea.
@@ -441,6 +480,11 @@ Firebase Cloud Messaging queda reservado para notificaciones push posteriores.
 7. Consultar postulaciones, publicaciones y trabajos desde **Perfil**.
 8. Abrir el chat de un trabajo asignado y enviar mensajes al otro participante.
 9. Revisar las notificaciones internas y marcar elementos como leídos.
+10. Abrir **Tareas rápidas** desde Inicio, ajustar un radio de 250 metros a 5 kilómetros
+    y tomar una oportunidad urgente disponible. La asignación es inmediata, el monto no
+    puede superar C$1,000 y el pago se realiza en efectivo sin comisión.
+11. Después de la entrega, el cliente declara el pago y el estudiante confirma que recibió
+    el efectivo. Solo entonces el trabajo queda finalizado.
 
 Las operaciones privadas utilizan el usuario autenticado de la sesión. Android no decide
 el propietario de una tarea, postulación, entrega o archivo.
@@ -553,6 +597,16 @@ ejecutar los cuatro comandos sobre una copia limpia del repositorio.
 | `APP_MAIL_FROM` | Remitente visible de verificación | Remitente verificado en Brevo |
 | `APP_MAIL_FROM_NAME` | Nombre visible del remitente | `T4KASH` |
 | `BREVO_API_KEY` | Clave privada para enviar mediante HTTPS | Configurada en Render |
+| `APP_PUBLIC_BASE_URL` | URL pública del backend para retornos | `https://t4k4sh.onrender.com` |
+| `APP_PAYMENTS_PLATFORM_FEE_PERCENT` | Tarifa transparente de T4KASH | `1.00` |
+| `APP_PAGADITO_ENABLED` | Activa la comunicación con Pagadito | `true` en la demo configurada |
+| `APP_PAGADITO_ENVIRONMENT` | Entorno financiero | `SANDBOX` |
+| `APP_PAGADITO_ENDPOINT` | Endpoint WSPG | URL oficial de Sandbox |
+| `PAGADITO_UID` | Identificador privado del comercio Sandbox | Configurado en Render |
+| `PAGADITO_WSK` | Clave privada WSPG y de firma | Configurada en Render |
+| `PAGADITO_PROCESSOR_FEE_PERCENT` | Porcentaje informado por Pagadito | `0` mientras Sandbox no cobre |
+| `PAGADITO_PROCESSOR_FIXED_FEE` | Cargo fijo informado por Pagadito | `0` |
+| `PAGADITO_PROCESSOR_TAX_PERCENT` | Impuesto aplicable al cargo del procesador | `0` |
 | `SMTP_HOST` | Servidor de correo | Servidor del proveedor |
 | `SMTP_PORT` | Puerto SMTP | `587` |
 | `SMTP_USERNAME` | Usuario SMTP | Configurado en Render |
@@ -588,15 +642,15 @@ ruta y propietario del archivo.
 
 ### Modelo Financiero
 
-PostgreSQL contiene el diseño del ciclo financiero, pero los endpoints y la integración
-con Pagadito todavía no forman parte del MVP ejecutable. Durante el hackathon se usará
-Pagadito Sandbox: los webhooks serán reales como comunicación entre servicios, mientras
-que las operaciones y los fondos serán ficticios.
+El MVP integra el ciclo financiero con Pagadito Sandbox. Los mensajes entre servicios,
+el checkout, la consulta de estado y los webhooks son reales, mientras que las operaciones
+y los fondos del entorno Sandbox son ficticios.
 
 Reglas acordadas:
 
 - Las tareas remotas e híbridas requieren pago protegido con Pagadito.
 - Las tareas presenciales permiten elegir Pagadito o efectivo.
+- Las tareas rápidas son presenciales, aceptan hasta C$1,000 y usan únicamente efectivo.
 - El monto acordado indica la ganancia exacta del estudiante.
 - El cliente ve por separado el monto del trabajo, la tarifa de T4KASH del 1 %, el costo
   del procesador y el total antes de confirmar.
@@ -607,15 +661,16 @@ Reglas acordadas:
 
 Las tablas financieras separan la orden de pago, sus movimientos, los eventos webhook,
 los desembolsos, los reembolsos y las disputas. Las claves de idempotencia impiden
-registrar dos veces una notificación o solicitud repetida. La billetera se calculará a
-partir de estos movimientos auditables y no almacenará un saldo aislado susceptible de
+registrar dos veces una notificación o solicitud repetida. La billetera se calcula a
+partir de estos movimientos auditables y no almacena un saldo aislado susceptible de
 desincronizarse.
 
-Estados principales previstos:
+Estados principales implementados:
 
 ```text
-PENDIENTE_PAGO -> PAGO_CONFIRMADO -> FONDOS_RETENIDOS
-FONDOS_RETENIDOS -> PAGO_DISPONIBLE -> PAGO_LIBERADO
+PENDIENTE_PAGO -> PAGO_REGISTRADO o PAGO_EN_VERIFICACION
+PENDIENTE_PAGO -> FONDOS_RETENIDOS
+FONDOS_RETENIDOS -> PAGO_LIBERADO
 FONDOS_RETENIDOS -> EN_DISPUTA -> REEMBOLSADO o PAGO_LIBERADO
 PAGO_EXTERNO_PENDIENTE -> PAGO_EXTERNO_CONFIRMADO
 ```
@@ -715,7 +770,7 @@ cierre obligatorio del hackathon y mejoras que pueden desarrollarse después.
    - Ejecutar el ciclo completo con dos cuentas: publicar, postular, aceptar, conversar,
      entregar y aprobar.
    - Probar verificación estudiantil, reportes y moderación con una cuenta administradora.
-   - Ejecutar las 52 pruebas del backend, las 20 de Android, `lintDebug` y `assembleDebug`.
+   - Ejecutar las 55 pruebas del backend, las pruebas de Android, `lintDebug` y `assembleDebug`.
 2. **Integración final**
    - Resolver diferencias entre ramas y completar los Pull Requests pendientes.
    - Integrar la versión validada en `main` y comprobar el despliegue automático de Render.
@@ -729,8 +784,7 @@ cierre obligatorio del hackathon y mejoras que pueden desarrollarse después.
 ### Mejoras Posteriores al MVP
 
 1. **Finanzas y reputación**
-   - Integrar Pagadito Sandbox sobre el modelo financiero definido en PostgreSQL.
-   - Implementar checkout, webhooks idempotentes, wallet, reembolsos y disputas.
+   - Completar reembolsos, desembolsos y resolución de disputas sobre el flujo implementado.
    - Validar con Pagadito el modelo de marketplace antes de utilizar producción.
    - Implementar las reglas de obtención y canje de puntos T4KASH.
    - Agregar calificaciones y recomendaciones al finalizar trabajos.

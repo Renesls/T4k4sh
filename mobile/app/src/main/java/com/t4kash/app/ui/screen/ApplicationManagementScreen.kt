@@ -25,6 +25,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -91,15 +92,16 @@ fun ApplicationManagementScreen(
     pendingDecision?.let { decision ->
         DecisionDialog(
             decision = decision,
+            allowCash = task?.modalidad.equals("PRESENCIAL", ignoreCase = true),
             isSubmitting = state.updatingApplicationId != null,
             onDismiss = {
                 if (state.updatingApplicationId == null) {
                     pendingDecision = null
                 }
             },
-            onConfirm = {
+            onConfirm = { paymentMethod ->
                 if (decision.accept) {
-                    viewModel.acceptApplication(decision.application)
+                    viewModel.acceptApplication(decision.application, paymentMethod)
                 } else {
                     viewModel.rejectApplication(decision.application)
                 }
@@ -416,11 +418,15 @@ private fun ApplicationCard(
 @Composable
 private fun DecisionDialog(
     decision: ApplicationDecision,
+    allowCash: Boolean,
     isSubmitting: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: () -> Unit
+    onConfirm: (String) -> Unit
 ) {
     val action = if (decision.accept) "aceptar" else "rechazar"
+    var paymentMethod by rememberSaveable(decision.application.idPostulacion) {
+        mutableStateOf("PAGADITO")
+    }
     val studentLabel = decision.application.estudiante?.let {
         "${it.nombreCompleto} (@${it.nombreUsuario})"
     } ?: "seleccionado"
@@ -446,14 +452,46 @@ private fun DecisionDialog(
             )
         },
         text = {
-            Text(
-                "Vas a $action la propuesta de $studentLabel. " +
-                    "Esta decision quedara en el historial."
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "Vas a $action la propuesta de $studentLabel. " +
+                        "Esta decision quedara en el historial."
+                )
+                if (decision.accept) {
+                    Text(
+                        text = "Metodo de pago",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = paymentMethod == "PAGADITO",
+                            onClick = { paymentMethod = "PAGADITO" },
+                            label = { Text("Pago protegido") }
+                        )
+                        if (allowCash) {
+                            FilterChip(
+                                selected = paymentMethod == "EFECTIVO",
+                                onClick = { paymentMethod = "EFECTIVO" },
+                                label = { Text("Efectivo") }
+                            )
+                        }
+                    }
+                    Text(
+                        text = if (paymentMethod == "PAGADITO") {
+                            "El trabajo inicia cuando Pagadito confirme el pago."
+                        } else {
+                            "Solo para esta tarea presencial; el pago queda fuera de T4KASH."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = T4TextMuted
+                    )
+                }
+            }
         },
         confirmButton = {
             Button(
-                onClick = onConfirm,
+                onClick = { onConfirm(paymentMethod) },
                 enabled = !isSubmitting
             ) {
                 Text(if (decision.accept) "Aceptar" else "Rechazar")

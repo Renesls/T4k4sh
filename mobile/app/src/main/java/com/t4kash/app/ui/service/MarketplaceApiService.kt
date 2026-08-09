@@ -1,6 +1,7 @@
 package com.t4kash.app.ui.service
 
 import com.t4kash.app.ui.model.ApplicationDto
+import com.t4kash.app.ui.model.AcceptApplicationRequest
 import com.t4kash.app.ui.model.AdminSummaryDto
 import com.t4kash.app.ui.model.AttachmentDto
 import com.t4kash.app.ui.model.CategoryDto
@@ -10,6 +11,10 @@ import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.model.CreateTaskReportRequest
 import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.JobDto
+import com.t4kash.app.ui.model.CheckoutDto
+import com.t4kash.app.ui.model.PaymentDto
+import com.t4kash.app.ui.model.QuickTaskDto
+import com.t4kash.app.ui.model.WalletDto
 import com.t4kash.app.ui.model.ReviewStudentVerificationRequest
 import com.t4kash.app.ui.model.ReviewReportRequest
 import com.t4kash.app.ui.model.ReportDto
@@ -23,6 +28,7 @@ import retrofit2.http.POST
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.PUT
+import retrofit2.http.Query
 import okhttp3.MultipartBody
 
 interface MarketplaceApiService {
@@ -44,6 +50,16 @@ interface MarketplaceApiService {
     @DELETE("tasks/{taskId}")
     suspend fun cancelTask(@Path("taskId") taskId: Int): TaskDto
 
+    @GET("quick-tasks/nearby")
+    suspend fun getNearbyQuickTasks(
+        @Query("latitude") latitude: Double,
+        @Query("longitude") longitude: Double,
+        @Query("radiusKm") radiusKm: Double
+    ): List<QuickTaskDto>
+
+    @POST("quick-tasks/{taskId}/claim")
+    suspend fun claimQuickTask(@Path("taskId") taskId: Int): JobDto
+
     @POST("tasks/{taskId}/applications")
     suspend fun applyToTask(
         @Path("taskId") taskId: Int,
@@ -60,7 +76,8 @@ interface MarketplaceApiService {
 
     @POST("applications/{applicationId}/accept")
     suspend fun acceptApplication(
-        @Path("applicationId") applicationId: Int
+        @Path("applicationId") applicationId: Int,
+        @Body request: AcceptApplicationRequest
     ): JobDto
 
     @POST("applications/{applicationId}/reject")
@@ -86,6 +103,24 @@ interface MarketplaceApiService {
     suspend fun approveDelivery(
         @Path("deliveryId") deliveryId: Int
     ): DeliveryDto
+
+    @GET("wallet")
+    suspend fun getWallet(): WalletDto
+
+    @POST("jobs/{jobId}/payment/checkout")
+    suspend fun createPaymentCheckout(
+        @Path("jobId") jobId: Int
+    ): CheckoutDto
+
+    @POST("jobs/{jobId}/payment/cash/confirm-receipt")
+    suspend fun confirmCashReceipt(
+        @Path("jobId") jobId: Int
+    ): PaymentDto
+
+    @POST("payments/{paymentId}/refresh")
+    suspend fun refreshPayment(
+        @Path("paymentId") paymentId: Int
+    ): PaymentDto
 
     @GET("tasks/{taskId}/attachments")
     suspend fun getTaskAttachments(

@@ -2,6 +2,7 @@ package com.t4kash.api.marketplace.service;
 
 import com.t4kash.api.communication.service.NotificationService;
 import com.t4kash.api.exception.ForbiddenOperationException;
+import com.t4kash.api.finance.service.PaymentService;
 import com.t4kash.api.marketplace.dto.CreateDeliveryRequest;
 import com.t4kash.api.marketplace.dto.DeliveryResponse;
 import com.t4kash.api.marketplace.entity.Entrega;
@@ -108,6 +109,40 @@ class DeliveryServiceTest {
         assertEquals("APROBADA", response.estadoEntrega());
         assertEquals("FINALIZADO", job.getEstadoTrabajo());
         verify(trabajoRepository).save(job);
+    }
+
+    @Test
+    void approvingCashDeliveryWaitsForStudentConfirmation() {
+        PaymentService paymentService = org.mockito.Mockito.mock(PaymentService.class);
+        TaskService taskService = new TaskService(
+                categoriaRepository,
+                tareaRepository,
+                postulacionRepository,
+                trabajoRepository
+        );
+        DeliveryService cashService = new DeliveryService(
+                entregaRepository,
+                trabajoRepository,
+                taskService,
+                new JobService(trabajoRepository, taskService),
+                notificationService,
+                paymentService
+        );
+        TrabajoAsignado job = job(50, "EN_PROCESO");
+        Entrega delivery = delivery(200, 50, "ENVIADA");
+        when(entregaRepository.findById(200)).thenReturn(Optional.of(delivery));
+        when(trabajoRepository.findById(50)).thenReturn(Optional.of(job));
+        when(tareaRepository.findById(10)).thenReturn(Optional.of(task(
+                10,
+                "ASIGNADA",
+                LocalDateTime.now().plusDays(1)
+        )));
+        when(entregaRepository.save(delivery)).thenReturn(delivery);
+        when(paymentService.releaseForApprovedDelivery(job)).thenReturn(false);
+
+        cashService.approveDelivery(1, 200);
+
+        assertEquals(PaymentService.JOB_CASH_CONFIRMATION_PENDING, job.getEstadoTrabajo());
     }
 
     @Test

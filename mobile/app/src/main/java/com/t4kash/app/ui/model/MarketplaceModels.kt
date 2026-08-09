@@ -42,6 +42,12 @@ data class CreateTaskRequest(
     val longitud: Double?
 )
 
+data class QuickTaskDto(
+    val tarea: TaskDto,
+    val distanciaKm: Double,
+    val segundosRestantes: Long
+)
+
 data class CreateApplicationRequest(
     val mensaje: String?,
     val precioPropuesto: Double?
@@ -59,6 +65,63 @@ data class ApplicationDto(
     val estudiante: PublicIdentityDto?
 )
 
+data class AcceptApplicationRequest(
+    val metodoPago: String
+)
+
+data class PaymentDto(
+    val idPago: Int,
+    val idTrabajo: Int,
+    val idCliente: Int,
+    val idEstudiante: Int,
+    val proveedorPago: String,
+    val entornoPago: String,
+    val metodoPago: String,
+    val monedaCobro: String,
+    val montoEstudiante: Double,
+    val porcentajeComisionPlataforma: Double,
+    val comisionPlataforma: Double,
+    val comisionProcesador: Double,
+    val impuestoProcesador: Double,
+    val montoTotalCliente: Double,
+    val estadoPago: String,
+    val referenciaComercio: String?,
+    val fechaCreacion: String,
+    val fechaActualizacion: String,
+    val fechaExpiracion: String?,
+    val fechaConfirmacion: String?,
+    val fechaLiberacion: String?,
+    val puedePagar: Boolean
+)
+
+data class CheckoutDto(
+    val idPago: Int,
+    val checkoutUrl: String,
+    val estadoPago: String
+)
+
+data class WalletMovementDto(
+    val idTransaccion: Long,
+    val idPago: Int,
+    val tipoMovimiento: String,
+    val saldoAfectado: String,
+    val monto: Double,
+    val moneda: String,
+    val estadoMovimiento: String,
+    val proveedorPago: String,
+    val descripcion: String?,
+    val fechaRegistro: String
+)
+
+data class WalletDto(
+    val moneda: String,
+    val balanceDisponible: Double,
+    val fondosRetenidos: Double,
+    val totalGanado: Double,
+    val pagos: List<PaymentDto>,
+    val movimientos: List<WalletMovementDto>
+)
+
 data class JobDto(
     val idTrabajo: Int,
     val idTarea: Int,
@@ -66,7 +129,8 @@ data class JobDto(
     val fechaInicio: String,
     val fechaEntregaEsperada: String?,
     val estadoTrabajo: String,
-    val estudiante: PublicIdentityDto?
+    val estudiante: PublicIdentityDto?,
+    val pago: PaymentDto? = null
 )
 
 data class CreateDeliveryRequest(
