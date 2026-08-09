@@ -141,7 +141,7 @@ internal class ApplicationActions(
         }
     }
 
-    fun accept(application: ApplicationDto) {
+    fun accept(application: ApplicationDto, paymentMethod: String) {
         scope.launch {
             updateState {
                 it.copy(
@@ -152,7 +152,8 @@ internal class ApplicationActions(
             }
             when (
                 val result = repository.acceptApplication(
-                    application.idPostulacion
+                    application.idPostulacion,
+                    paymentMethod
                 )
             ) {
                 is ApiResult.Success -> updateState { current ->
@@ -182,8 +183,11 @@ internal class ApplicationActions(
                         jobs = listOf(result.data) + current.jobs.filterNot {
                             it.idTrabajo == result.data.idTrabajo
                         },
-                        applicationActionMessage =
-                            "Postulación aceptada. Trabajo #${result.data.idTrabajo} creado."
+                        applicationActionMessage = if (paymentMethod == "PAGADITO") {
+                            "Postulacion aceptada. Completa el pago protegido desde Wallet."
+                        } else {
+                            "Postulacion aceptada con pago presencial en efectivo."
+                        }
                     )
                 }
 

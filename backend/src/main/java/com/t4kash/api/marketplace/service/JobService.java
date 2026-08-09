@@ -2,11 +2,15 @@ package com.t4kash.api.marketplace.service;
 
 import com.t4kash.api.exception.ForbiddenOperationException;
 import com.t4kash.api.exception.ResourceNotFoundException;
+import com.t4kash.api.finance.dto.PaymentResponse;
+import com.t4kash.api.finance.entity.Pago;
+import com.t4kash.api.finance.repository.PagoRepository;
 import com.t4kash.api.marketplace.dto.JobResponse;
 import com.t4kash.api.marketplace.entity.Tarea;
 import com.t4kash.api.marketplace.entity.TrabajoAsignado;
 import com.t4kash.api.marketplace.repository.TrabajoAsignadoRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -20,17 +24,36 @@ import java.util.List;
 public class JobService {
     private final TrabajoAsignadoRepository trabajoRepository;
     private final TaskService taskService;
+    private final PagoRepository paymentRepository;
 
-    public JobService(TrabajoAsignadoRepository trabajoRepository, TaskService taskService) {
+    @Autowired
+    public JobService(
+            TrabajoAsignadoRepository trabajoRepository,
+            TaskService taskService,
+            PagoRepository paymentRepository
+    ) {
         this.trabajoRepository = trabajoRepository;
         this.taskService = taskService;
+        this.paymentRepository = paymentRepository;
+    }
+
+    public JobService(TrabajoAsignadoRepository trabajoRepository, TaskService taskService) {
+        this(trabajoRepository, taskService, null);
     }
 
     @Transactional(readOnly = true)
     public List<JobResponse> listJobs(Integer currentUserId) {
         return trabajoRepository.findVisibleToUser(currentUserId)
                 .stream()
-                .map(JobResponse::fromEntity)
+                .map(job -> {
+                    JobResponse response = JobResponse.fromEntity(job);
+                    Pago payment = paymentRepository == null
+                            ? null
+                            : paymentRepository.findByIdTrabajo(job.getIdTrabajo()).orElse(null);
+                    return payment == null
+                            ? response
+                            : response.withPayment(PaymentResponse.fromEntity(payment, currentUserId));
+                })
                 .toList();
     }
 

@@ -9,6 +9,7 @@ import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.model.StudentVerificationDto
 import com.t4kash.app.ui.model.ReportDto
+import com.t4kash.app.ui.model.WalletDto
 
 data class MarketplaceUiState(
     val isLoading: Boolean = false,
@@ -73,5 +74,11 @@ data class MarketplaceUiState(
     val isLoadingAdmin: Boolean = false,
     val adminActionKey: String? = null,
     val adminMessage: String? = null,
-    val adminError: String? = null
+    val adminError: String? = null,
+    val wallet: WalletDto? = null,
+    val isLoadingWallet: Boolean = false,
+    val walletError: String? = null,
+    val processingPaymentId: Int? = null,
+    val checkoutUrl: String? = null,
+    val paymentMessage: String? = null
 )

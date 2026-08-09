@@ -418,7 +418,10 @@ fun NavGraph(
             )
         }
         composable(Routes.WALLET) {
-            WalletScreen(onBack = { navController.popBackStack() })
+            WalletScreen(
+                viewModel = marketplaceViewModel,
+                onBack = { navController.popBackStack() }
+            )
         }
         composable(Routes.ASSIGNED_JOBS) {
             AssignedJobsScreen(
