@@ -201,6 +201,7 @@ fun NavGraph(
                 onNavigate = onBottomNavigate,
                 onTaskSelected = { task -> navController.navigate(Routes.taskDetails(task.idTarea)) },
                 onOpenMap = { navController.navigate(Routes.OPPORTUNITY_MAP) },
+                onOpenQuickTasks = { navController.navigate(Routes.QUICK_TASKS) },
                 onOpenNotifications = {
                     navController.navigate(Routes.NOTIFICATIONS)
                 },
@@ -368,6 +369,22 @@ fun NavGraph(
                 }
             )
         }
+        composable(Routes.QUICK_TASKS) {
+            OpportunityMapScreen(
+                viewModel = marketplaceViewModel,
+                onBack = { navController.popBackStack() },
+                onTaskSelected = { taskId ->
+                    navController.navigate(Routes.taskDetails(taskId))
+                },
+                quickMode = true,
+                onQuickClaimed = { jobId ->
+                    marketplaceViewModel.clearQuickTaskFeedback()
+                    navController.navigate(Routes.jobDetails(jobId)) {
+                        popUpTo(Routes.QUICK_TASKS) { inclusive = true }
+                    }
+                }
+            )
+        }
         composable(
             route = Routes.PUBLIC_PROFILE,
             arguments = listOf(
@@ -418,7 +435,10 @@ fun NavGraph(
             )
         }
         composable(Routes.WALLET) {
-            WalletScreen(onBack = { navController.popBackStack() })
+            WalletScreen(
+                viewModel = marketplaceViewModel,
+                onBack = { navController.popBackStack() }
+            )
         }
         composable(Routes.ASSIGNED_JOBS) {
             AssignedJobsScreen(

@@ -63,6 +63,7 @@ import com.t4kash.app.ui.formatApiDateTime
 import com.t4kash.app.ui.formatNioCurrency
 import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.JobDto
+import com.t4kash.app.ui.model.PaymentDto
 import com.t4kash.app.ui.model.PendingAttachment
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.theme.T4Background
@@ -124,6 +125,7 @@ fun JobDetailScreen(
                 actions = {
                     IconButton(
                         onClick = {
+                            viewModel.refreshJobs(force = true)
                             viewModel.loadDeliveries(jobId, force = true)
                             viewModel.loadJobAttachments(jobId, force = true)
                         },
@@ -163,6 +165,9 @@ fun JobDetailScreen(
                 val isClient = task?.idCliente == UserSession.requireUserId()
                 val canSend = isStudent &&
                     job.estadoTrabajo.equals("EN_PROCESO", ignoreCase = true)
+                val cashPayment = job.pago?.takeIf {
+                    it.metodoPago.equals("EFECTIVO", ignoreCase = true)
+                }
 
                 LazyColumn(
                     modifier = Modifier
@@ -179,6 +184,26 @@ fun JobDetailScreen(
                             onOpenProfile = onOpenProfile,
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
+                    }
+
+                    cashPayment?.let { payment ->
+                        item {
+                            CashPaymentStatus(
+                                payment = payment,
+                                jobStatus = job.estadoTrabajo,
+                                isStudent = isStudent,
+                                processing = state.processingPaymentId == payment.idPago,
+                                message = state.paymentMessage,
+                                error = state.walletError,
+                                onConfirm = {
+                                    viewModel.confirmCashReceipt(
+                                        job.idTrabajo,
+                                        payment.idPago
+                                    )
+                                },
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
+                        }
                     }
 
                     if (canSend) {
@@ -347,7 +372,11 @@ fun JobDetailScreen(
             title = { Text("Aprobar entrega") },
             text = {
                 Text(
-                    "Al aprobar esta entrega, el trabajo quedara marcado como finalizado."
+                    if (job?.pago?.metodoPago.equals("EFECTIVO", ignoreCase = true)) {
+                        "Al aprobar confirmas que entregaste el efectivo. El trabajo finalizará cuando el estudiante confirme que lo recibió."
+                    } else {
+                        "Al aprobar esta entrega, el trabajo quedará marcado como finalizado."
+                    }
                 )
             },
             confirmButton = {
@@ -366,6 +395,118 @@ fun JobDetailScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun CashPaymentStatus(
+    payment: PaymentDto,
+    jobStatus: String,
+    isStudent: Boolean,
+    processing: Boolean,
+    message: String?,
+    error: String?,
+    onConfirm: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val awaitingConfirmation = jobStatus.equals(
+        "PAGO_EFECTIVO_PENDIENTE",
+        ignoreCase = true
+    )
+    val confirmed = payment.estadoPago.equals(
+        "PAGO_EXTERNO_CONFIRMADO",
+        ignoreCase = true
+    )
+    val status = when {
+        confirmed -> "Efectivo confirmado"
+        awaitingConfirmation && isStudent -> "Confirma que recibiste el efectivo"
+        awaitingConfirmation -> "Esperando confirmación del estudiante"
+        else -> "Pago en efectivo al entregar"
+    }
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = T4Surface),
+        border = BorderStroke(1.dp, T4Border.copy(alpha = 0.7f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Payments,
+                    contentDescription = null,
+                    tint = T4MintDark
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Pago en efectivo",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = T4Text
+                    )
+                    Text(
+                        text = formatNioCurrency(payment.montoEstudiante),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = T4TextMuted
+                    )
+                }
+                StatusChip(
+                    text = if (confirmed) "Confirmado" else "Pendiente",
+                    containerColor = if (confirmed) T4Mint else T4PrimaryContainer,
+                    contentColor = if (confirmed) T4MintDark else T4PrimaryDark
+                )
+            }
+            Text(
+                text = status,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = T4Text
+            )
+            if (awaitingConfirmation && isStudent && !confirmed) {
+                Button(
+                    onClick = onConfirm,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !processing
+                ) {
+                    if (processing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Filled.CheckCircle,
+                            contentDescription = null
+                        )
+                    }
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text(if (processing) "Confirmando..." else "Confirmar que recibí el efectivo")
+                }
+            }
+            message?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = T4MintDark
+                )
+            }
+            error?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = T4Danger
+                )
+            }
+        }
     }
 }
 

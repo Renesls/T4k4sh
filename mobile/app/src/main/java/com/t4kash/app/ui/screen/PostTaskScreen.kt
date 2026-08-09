@@ -96,6 +96,11 @@ import java.util.Calendar
 import java.util.Locale
 
 private const val MODALIDAD_REMOTA = "REMOTA"
+private const val MODALIDAD_PRESENCIAL = "PRESENCIAL"
+private const val TIPO_OPORTUNIDAD = "TAREA"
+private const val TIPO_TAREA_RAPIDA = "RAPIDA"
+private const val PAGO_MAXIMO_TAREA_RAPIDA = 1000.0
+private const val UNA_HORA_MILLIS = 60 * 60 * 1000L
 private val MODALIDADES = listOf("REMOTA", "PRESENCIAL", "HIBRIDA")
 
 @Composable
@@ -116,6 +121,7 @@ fun PostTaskScreen(
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var budget by remember { mutableStateOf("") }
+    var opportunityType by remember { mutableStateOf(TIPO_OPORTUNIDAD) }
     var modality by remember { mutableStateOf(MODALIDAD_REMOTA) }
     var addressReference by remember { mutableStateOf("") }
     var latitude by remember { mutableStateOf<Double?>(null) }
@@ -145,6 +151,7 @@ fun PostTaskScreen(
         title = task.titulo
         description = task.descripcion
         budget = task.presupuesto.toString()
+        opportunityType = task.tipoOportunidad
         modality = task.modalidad ?: MODALIDAD_REMOTA
         addressReference = task.direccionReferencia.orEmpty()
         latitude = task.latitud
@@ -268,6 +275,11 @@ fun PostTaskScreen(
                 "Agrega una descripción de al menos 20 caracteres."
             numericBudget == null || numericBudget < 0 ->
                 "Ingresa un presupuesto numérico válido."
+            opportunityType == TIPO_TAREA_RAPIDA && numericBudget <= 0 ->
+                "La tarea rápida requiere un pago mayor que cero."
+            opportunityType == TIPO_TAREA_RAPIDA &&
+                numericBudget > PAGO_MAXIMO_TAREA_RAPIDA ->
+                "La tarea rápida no puede superar C$1,000."
             selectedCategoryId == null -> "Selecciona una categoría."
             applicationDeadline == null ->
                 "Selecciona el cierre de postulaciones."
@@ -277,6 +289,12 @@ fun PostTaskScreen(
                 "Selecciona la fecha limite del trabajo."
             taskDeadline <= applicationDeadline ->
                 "La fecha limite debe ser posterior al cierre de postulaciones."
+            opportunityType == TIPO_TAREA_RAPIDA &&
+                applicationDeadline > now + (24 * UNA_HORA_MILLIS) ->
+                "La tarea rápida puede estar disponible hasta 24 horas."
+            opportunityType == TIPO_TAREA_RAPIDA &&
+                taskDeadline > now + (48 * UNA_HORA_MILLIS) ->
+                "La tarea rápida debe completarse dentro de 48 horas."
             modality != MODALIDAD_REMOTA && (latitude == null || longitude == null) ->
                 "Captura la ubicación para esta modalidad."
             else -> null
@@ -294,6 +312,7 @@ fun PostTaskScreen(
                 fechaLimitePostulacion = applicationDeadline.toApiDateTime(),
                 fechaLimite = taskDeadline.toApiDateTime(),
                 idCategoria = selectedCategoryId ?: return,
+                tipoOportunidad = opportunityType,
                 modalidad = modality,
                 direccionReferencia = addressReference.trim().takeIf {
                     modality != MODALIDAD_REMOTA && it.isNotEmpty()
@@ -373,26 +392,42 @@ fun PostTaskScreen(
                     ) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             StatusChip(
-                                text = "Publicación",
+                                text = if (opportunityType == TIPO_TAREA_RAPIDA) {
+                                    "Tarea rápida"
+                                } else {
+                                    "Publicación"
+                                },
                                 selected = true,
                                 containerColor = Color.White.copy(alpha = 0.18f),
                                 contentColor = Color.White
                             )
                             StatusChip(
-                                text = "En línea",
+                                text = if (opportunityType == TIPO_TAREA_RAPIDA) {
+                                    "Cerca de ti"
+                                } else {
+                                    "Marketplace"
+                                },
                                 selected = true,
                                 containerColor = Color.White.copy(alpha = 0.14f),
                                 contentColor = Color.White
                             )
                         }
                         Text(
-                            text = "Publica una oportunidad clara y atractiva.",
+                            text = if (opportunityType == TIPO_TAREA_RAPIDA) {
+                                "Resuelve algo urgente cerca de ti."
+                            } else {
+                                "Publica una oportunidad clara y atractiva."
+                            },
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
                         Text(
-                            text = "Al publicarla quedará disponible en el marketplace y, si tiene ubicación, también en el mapa.",
+                            text = if (opportunityType == TIPO_TAREA_RAPIDA) {
+                                "Aparecerá en el radar y se asignará al primer estudiante que la tome."
+                            } else {
+                                "Al publicarla quedará disponible en el marketplace y, si tiene ubicación, también en el mapa."
+                            },
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color.White.copy(alpha = 0.84f)
                         )
@@ -418,6 +453,32 @@ fun PostTaskScreen(
                             fontWeight = FontWeight.SemiBold,
                             color = T4Text
                         )
+
+                        Text(
+                            text = "Tipo de publicación",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = T4Text
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = opportunityType == TIPO_OPORTUNIDAD,
+                                onClick = { opportunityType = TIPO_OPORTUNIDAD },
+                                label = { Text("Oportunidad") }
+                            )
+                            FilterChip(
+                                selected = opportunityType == TIPO_TAREA_RAPIDA,
+                                onClick = {
+                                    opportunityType = TIPO_TAREA_RAPIDA
+                                    modality = MODALIDAD_PRESENCIAL
+                                    val now = System.currentTimeMillis()
+                                    applicationDeadlineMillis = now + UNA_HORA_MILLIS
+                                    taskDeadlineMillis = now + (3 * UNA_HORA_MILLIS)
+                                    validationError = null
+                                },
+                                label = { Text("Tarea rápida") }
+                            )
+                        }
 
                         OutlinedTextField(
                             value = title,
@@ -561,27 +622,36 @@ fun PostTaskScreen(
                             fontWeight = FontWeight.SemiBold,
                             color = T4Text
                         )
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(MODALIDADES) { option ->
-                                FilterChip(
-                                    selected = modality == option,
-                                    onClick = {
-                                        modality = option
-                                        validationError = null
-                                        if (option == MODALIDAD_REMOTA) {
-                                            addressReference = ""
-                                            latitude = null
-                                            longitude = null
-                                            captureLocationRequested = false
+                        if (opportunityType == TIPO_TAREA_RAPIDA) {
+                            StatusChip(
+                                text = "Presencial y pago en efectivo",
+                                selected = true,
+                                containerColor = T4Mint,
+                                contentColor = T4MintDark
+                            )
+                        } else {
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(MODALIDADES) { option ->
+                                    FilterChip(
+                                        selected = modality == option,
+                                        onClick = {
+                                            modality = option
+                                            validationError = null
+                                            if (option == MODALIDAD_REMOTA) {
+                                                addressReference = ""
+                                                latitude = null
+                                                longitude = null
+                                                captureLocationRequested = false
+                                            }
+                                        },
+                                        label = {
+                                            Text(
+                                                option.lowercase()
+                                                    .replaceFirstChar { it.uppercase() }
+                                            )
                                         }
-                                    },
-                                    label = {
-                                        Text(
-                                            option.lowercase()
-                                                .replaceFirstChar { it.uppercase() }
-                                        )
-                                    }
-                                )
+                                    )
+                                }
                             }
                         }
 
@@ -791,7 +861,11 @@ fun PostTaskScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             if (editTaskId == null) {
-                                "Publicar oportunidad"
+                                if (opportunityType == TIPO_TAREA_RAPIDA) {
+                                    "Publicar tarea rápida"
+                                } else {
+                                    "Publicar oportunidad"
+                                }
                             } else {
                                 "Guardar cambios"
                             }

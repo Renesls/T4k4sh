@@ -3,6 +3,7 @@ package com.t4kash.api.marketplace.service;
 import com.t4kash.api.communication.service.NotificationService;
 import com.t4kash.api.exception.ResourceConflictException;
 import com.t4kash.api.exception.ResourceNotFoundException;
+import com.t4kash.api.finance.service.PaymentService;
 import com.t4kash.api.marketplace.dto.CreateDeliveryRequest;
 import com.t4kash.api.marketplace.dto.DeliveryResponse;
 import com.t4kash.api.marketplace.entity.Entrega;
@@ -11,6 +12,7 @@ import com.t4kash.api.marketplace.entity.TrabajoAsignado;
 import com.t4kash.api.marketplace.repository.EntregaRepository;
 import com.t4kash.api.marketplace.repository.TrabajoAsignadoRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -29,6 +31,24 @@ public class DeliveryService {
     private final TaskService taskService;
     private final JobService jobService;
     private final NotificationService notificationService;
+    private final PaymentService paymentService;
+
+    @Autowired
+    public DeliveryService(
+            EntregaRepository entregaRepository,
+            TrabajoAsignadoRepository trabajoRepository,
+            TaskService taskService,
+            JobService jobService,
+            NotificationService notificationService,
+            PaymentService paymentService
+    ) {
+        this.entregaRepository = entregaRepository;
+        this.trabajoRepository = trabajoRepository;
+        this.taskService = taskService;
+        this.jobService = jobService;
+        this.notificationService = notificationService;
+        this.paymentService = paymentService;
+    }
 
     public DeliveryService(
             EntregaRepository entregaRepository,
@@ -37,11 +57,10 @@ public class DeliveryService {
             JobService jobService,
             NotificationService notificationService
     ) {
-        this.entregaRepository = entregaRepository;
-        this.trabajoRepository = trabajoRepository;
-        this.taskService = taskService;
-        this.jobService = jobService;
-        this.notificationService = notificationService;
+        this(
+                entregaRepository, trabajoRepository, taskService,
+                jobService, notificationService, null
+        );
     }
 
     @Transactional
@@ -92,15 +111,23 @@ public class DeliveryService {
         TrabajoAsignado trabajo = jobService.findJobEntity(entrega.getIdTrabajo());
         Tarea task = taskService.findTaskEntity(trabajo.getIdTarea());
         taskService.requireTaskOwner(task, currentUserId);
+        boolean finished = paymentService == null
+                || paymentService.releaseForApprovedDelivery(trabajo);
         entrega.setEstadoEntrega(ESTADO_ENTREGA_APROBADA);
-        trabajo.setEstadoTrabajo(ESTADO_TRABAJO_FINALIZADO);
+        trabajo.setEstadoTrabajo(
+                finished
+                        ? ESTADO_TRABAJO_FINALIZADO
+                        : PaymentService.JOB_CASH_CONFIRMATION_PENDING
+        );
 
         trabajoRepository.save(trabajo);
         Entrega savedDelivery = entregaRepository.save(entrega);
         notificationService.create(
                 trabajo.getIdEstudiante(),
                 "Entrega aprobada",
-                "Tu entrega para " + task.getTitulo() + " fue aprobada."
+                finished
+                        ? "Tu entrega para " + task.getTitulo() + " fue aprobada."
+                        : "Tu entrega fue aprobada. Confirma que recibiste el efectivo."
         );
         return DeliveryResponse.fromEntity(savedDelivery);
     }
