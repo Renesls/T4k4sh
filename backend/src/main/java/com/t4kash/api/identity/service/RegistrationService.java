@@ -23,7 +23,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 
-/** Owns account creation and email-verification of a new account. */
+/** Gestiona la creacion de cuentas y la verificacion inicial por correo. */
 @Service
 public class RegistrationService {
     private static final String ACTIVE_USER = "ACTIVO";
@@ -40,6 +40,7 @@ public class RegistrationService {
     private final VerificationRecordService verificationRecordService;
     private final VerificationEmailService emailService;
     private final RegistrationPolicyService registrationPolicyService;
+    private final UsernameService usernameService;
     private final AuthSessionService authSessionService;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(12);
     private final int verificationMinutes;
@@ -53,6 +54,7 @@ public class RegistrationService {
             VerificationRecordService verificationRecordService,
             VerificationEmailService emailService,
             RegistrationPolicyService registrationPolicyService,
+            UsernameService usernameService,
             AuthSessionService authSessionService,
             @Value("${app.auth.verification-minutes:15}") int verificationMinutes,
             @Value("${app.auth.verification-resend-seconds:60}") int resendSeconds
@@ -64,6 +66,7 @@ public class RegistrationService {
         this.verificationRecordService = verificationRecordService;
         this.emailService = emailService;
         this.registrationPolicyService = registrationPolicyService;
+        this.usernameService = usernameService;
         this.authSessionService = authSessionService;
         this.verificationMinutes = verificationMinutes;
         this.resendSeconds = resendSeconds;
@@ -85,6 +88,7 @@ public class RegistrationService {
         LocalDateTime now = now();
         Usuario usuario = new Usuario();
         usuario.setNombre(request.nombre().trim());
+        usuario.setNombreUsuario(usernameService.generate(request.nombre(), request.apellido()));
         usuario.setApellido(request.apellido().trim());
         usuario.setCorreo(correo);
         usuario.setPasswordHash(passwordEncoder.encode(request.password()));

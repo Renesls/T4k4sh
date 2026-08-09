@@ -9,6 +9,7 @@ public record ConversationResponse(
         String tituloTarea,
         Integer idParticipante,
         String nombreParticipante,
+        String nombreUsuarioParticipante,
         String estadoConversacion,
         String ultimoMensaje,
         LocalDateTime fechaUltimoMensaje,

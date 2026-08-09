@@ -1,6 +1,7 @@
 package com.t4kash.app.ui.screen
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -81,7 +82,8 @@ import com.t4kash.app.ui.viewmodel.MarketplaceViewModel
 fun JobDetailScreen(
     jobId: Int,
     viewModel: MarketplaceViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenProfile: (String) -> Unit
 ) {
     val state = viewModel.uiState
     val job = state.jobs.firstOrNull { it.idTrabajo == jobId }
@@ -174,6 +176,7 @@ fun JobDetailScreen(
                         JobSummary(
                             job = job,
                             task = task,
+                            onOpenProfile = onOpenProfile,
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
                     }
@@ -385,6 +388,7 @@ private fun LoadingJobState(innerPadding: PaddingValues) {
 private fun JobSummary(
     job: JobDto,
     task: TaskDto?,
+    onOpenProfile: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     T4PatternSurface(
@@ -410,9 +414,14 @@ private fun JobSummary(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "Estudiante #${job.idEstudiante}",
+                        text = job.estudiante?.let {
+                            "${it.nombreCompleto} · @${it.nombreUsuario}"
+                        } ?: "Estudiante T4KASH",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.82f)
+                        color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.82f),
+                        modifier = Modifier.clickable(enabled = job.estudiante != null) {
+                            job.estudiante?.nombreUsuario?.let(onOpenProfile)
+                        }
                     )
                 }
                 StatusChip(

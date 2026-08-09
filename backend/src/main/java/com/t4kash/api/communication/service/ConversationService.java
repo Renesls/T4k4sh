@@ -179,6 +179,7 @@ public class ConversationService {
                 task.getTitulo(),
                 counterpartId,
                 fullName(counterpart),
+                counterpart.getNombreUsuario(),
                 conversation.getEstadoConversacion(),
                 lastMessage == null ? null : lastMessage.getContenido(),
                 lastMessage == null
@@ -202,6 +203,7 @@ public class ConversationService {
                 message.getIdConversacion(),
                 message.getIdUsuarioEmisor(),
                 fullName(sender),
+                sender.getNombreUsuario(),
                 message.getContenido(),
                 message.getFechaEnvio(),
                 message.isLeido(),

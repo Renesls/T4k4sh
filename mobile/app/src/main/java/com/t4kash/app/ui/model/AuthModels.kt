@@ -58,7 +58,7 @@ data class MessageResponse(
 data class UniversityDto(
     val idUniversidad: Int,
     val nombreUniversidad: String,
-    val dominioCorreo: String?
+    val dominiosCorreo: List<String>? = emptyList()
 )
 
 data class CareerDto(
@@ -69,6 +69,7 @@ data class CareerDto(
 
 data class AuthenticatedUserDto(
     val idUsuario: Int,
+    val nombreUsuario: String,
     val nombre: String,
     val apellido: String,
     val correo: String,
@@ -84,4 +85,25 @@ data class AuthResponse(
     val token: String,
     val fechaExpiracion: String,
     val usuario: AuthenticatedUserDto
+)
+
+data class PublicIdentityDto(
+    val idUsuario: Int,
+    val nombreUsuario: String,
+    val nombreCompleto: String,
+    val nombreUniversidad: String?,
+    val nombreCarrera: String?,
+    val estudianteVerificado: Boolean
+)
+
+data class PublicProfileDto(
+    val identidad: PublicIdentityDto,
+    val miembroDesde: String,
+    val publicaciones: Long,
+    val trabajosCompletados: Long,
+    val proximoCambioNombreUsuario: String?
+)
+
+data class UpdateUsernameRequest(
+    val nombreUsuario: String
 )

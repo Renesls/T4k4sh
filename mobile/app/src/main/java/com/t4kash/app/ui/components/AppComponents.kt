@@ -8,6 +8,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -61,10 +63,13 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.t4kash.app.R
 import com.t4kash.app.ui.navigation.Routes
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4BrandDark
@@ -128,17 +133,19 @@ fun T4BrandMark(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Box(
+        Surface(
             modifier = Modifier
-                .size(40.dp)
-                .background(tint, RoundedCornerShape(12.dp)),
-            contentAlignment = Alignment.Center
+                .size(38.dp),
+            shape = RoundedCornerShape(10.dp),
+            color = Color.White,
+            shadowElevation = 2.dp,
+            border = BorderStroke(1.dp, T4Border)
         ) {
-            Icon(
-                imageVector = Icons.Filled.School,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(22.dp)
+            Image(
+                painter = painterResource(R.drawable.t4kash_logo),
+                contentDescription = "Logotipo de T4KASH",
+                modifier = Modifier.fillMaxWidth(),
+                contentScale = ContentScale.Crop
             )
         }
         if (showName) {
@@ -206,14 +213,14 @@ fun T4BottomBar(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(80.dp),
-        color = T4Background,
-        shadowElevation = 6.dp
+            .height(72.dp),
+        color = T4Surface,
+        shadowElevation = 10.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 10.dp),
+                .padding(horizontal = 8.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -223,8 +230,7 @@ fun T4BottomBar(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(if (selected) T4Primary else Color.Transparent)
+                        .clip(RoundedCornerShape(8.dp))
                         .clickable {
                             if (selected) {
                                 onReselect(destination.route)
@@ -232,19 +238,27 @@ fun T4BottomBar(
                                 onNavigate(destination.route)
                             }
                         }
-                        .padding(horizontal = 4.dp, vertical = 6.dp),
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .width(22.dp)
+                            .height(3.dp)
+                            .clip(CircleShape)
+                            .background(if (selected) T4Primary else Color.Transparent)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
                     Icon(
                         imageVector = destination.icon,
                         contentDescription = destination.label,
-                        tint = if (selected) Color.White else T4TextMuted,
+                        tint = if (selected) T4Primary else T4TextMuted,
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
                         text = destination.label,
-                        color = if (selected) T4PrimaryContainer else T4TextMuted,
+                        color = if (selected) T4Primary else T4TextMuted,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                         maxLines = 1,
@@ -254,6 +268,84 @@ fun T4BottomBar(
             }
         }
     }
+}
+
+@Composable
+fun T4LightPatternHeader(
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+    content: @Composable BoxScope.() -> Unit
+) {
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(T4Surface)
+    ) {
+        Canvas(modifier = Modifier.matchParentSize()) {
+            drawLightT4Pattern()
+        }
+        content()
+    }
+}
+
+private fun DrawScope.drawLightT4Pattern() {
+    val lavender = Color(0xFFD9D4FF)
+    val navy = Color(0xFF10173D)
+
+    drawRect(
+        color = T4Primary,
+        topLeft = Offset(0f, 0f),
+        size = Size(size.width * 0.23f, size.height * 0.36f)
+    )
+    drawCircle(
+        color = T4Mint,
+        radius = size.minDimension * 0.095f,
+        center = Offset(size.width * 0.11f, size.height * 0.37f)
+    )
+    drawRect(
+        color = T4Mint,
+        topLeft = Offset(0f, size.height * 0.52f),
+        size = Size(size.width * 0.22f, size.height * 0.10f)
+    )
+    drawTriangle(
+        color = navy,
+        first = Offset(0f, size.height * 0.65f),
+        second = Offset(size.width * 0.22f, size.height),
+        third = Offset(0f, size.height)
+    )
+    drawCircle(
+        color = lavender,
+        radius = size.minDimension * 0.15f,
+        center = Offset(size.width * 0.29f, size.height * 0.80f)
+    )
+    drawRoundRect(
+        color = T4Mint,
+        topLeft = Offset(size.width * 0.76f, size.height * 0.30f),
+        size = Size(size.width * 0.16f, size.height * 0.43f),
+        cornerRadius = CornerRadius(size.width * 0.08f)
+    )
+    drawRect(
+        color = T4Primary,
+        topLeft = Offset(size.width * 0.84f, size.height * 0.70f),
+        size = Size(size.width * 0.16f, size.height * 0.22f)
+    )
+    drawTriangle(
+        color = navy,
+        first = Offset(size.width * 0.79f, 0f),
+        second = Offset(size.width, 0f),
+        third = Offset(size.width, size.height * 0.28f)
+    )
+    drawTriangle(
+        color = lavender,
+        first = Offset(size.width * 0.84f, 0f),
+        second = Offset(size.width, 0f),
+        third = Offset(size.width, size.height * 0.19f)
+    )
+    drawCircle(
+        color = T4Mint,
+        radius = size.minDimension * 0.055f,
+        center = Offset(size.width * 0.95f, size.height * 0.69f)
+    )
 }
 
 @Composable

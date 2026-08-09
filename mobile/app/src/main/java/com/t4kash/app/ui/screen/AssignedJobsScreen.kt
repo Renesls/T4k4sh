@@ -345,7 +345,9 @@ private fun AssignedJobCard(
             JobDateRow(
                 icon = Icons.Filled.School,
                 label = "Estudiante",
-                value = "#${job.idEstudiante}"
+                value = job.estudiante?.let {
+                    "${it.nombreCompleto} · @${it.nombreUsuario}"
+                } ?: "Perfil no disponible"
             )
         }
     }

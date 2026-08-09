@@ -737,7 +737,9 @@ private fun AdminTaskCard(
                         color = T4Text
                     )
                     Text(
-                        text = "Publicada por #${task.idCliente}",
+                        text = task.cliente?.let {
+                            "Publicada por ${it.nombreCompleto} · @${it.nombreUsuario}"
+                        } ?: "Perfil del autor no disponible",
                         style = MaterialTheme.typography.bodySmall,
                         color = T4TextMuted
                     )

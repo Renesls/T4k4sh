@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 data class SessionUser(
     val id: Int,
+    val username: String,
     val firstName: String,
     val lastName: String,
     val email: String,
@@ -38,6 +39,7 @@ object UserSession {
     private const val KEY_TOKEN = "token"
     private const val KEY_EXPIRES_AT = "expires_at"
     private const val KEY_USER_ID = "user_id"
+    private const val KEY_USERNAME = "username"
     private const val KEY_FIRST_NAME = "first_name"
     private const val KEY_LAST_NAME = "last_name"
     private const val KEY_EMAIL = "email"
@@ -73,6 +75,7 @@ object UserSession {
             .remove(KEY_TOKEN)
             .putString(KEY_EXPIRES_AT, session.expiresAt)
             .putInt(KEY_USER_ID, session.user.id)
+            .putString(KEY_USERNAME, session.user.username)
             .putString(KEY_FIRST_NAME, session.user.firstName)
             .putString(KEY_LAST_NAME, session.user.lastName)
             .putString(KEY_EMAIL, session.user.email)
@@ -110,6 +113,7 @@ object UserSession {
             expiresAt = prefs.getString(KEY_EXPIRES_AT, "").orEmpty(),
             user = SessionUser(
                 id = userId,
+                username = prefs.getString(KEY_USERNAME, "").orEmpty(),
                 firstName = prefs.getString(KEY_FIRST_NAME, "").orEmpty(),
                 lastName = prefs.getString(KEY_LAST_NAME, "").orEmpty(),
                 email = prefs.getString(KEY_EMAIL, "").orEmpty(),

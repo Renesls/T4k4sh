@@ -58,6 +58,7 @@ class AuthenticatedUserServiceTest {
     private AuthenticatedUserResponse userWithRoles(String... roles) {
         return new AuthenticatedUserResponse(
                 12,
+                "rene.sandoval",
                 "Rene",
                 "Sandoval",
                 "estudiante@universidad.edu",

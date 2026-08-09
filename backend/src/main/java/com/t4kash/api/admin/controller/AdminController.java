@@ -3,6 +3,8 @@ package com.t4kash.api.admin.controller;
 import com.t4kash.api.admin.dto.AdminSummaryResponse;
 import com.t4kash.api.admin.service.AdminService;
 import com.t4kash.api.identity.dto.AuthenticatedUserResponse;
+import com.t4kash.api.identity.dto.PublicIdentityResponse;
+import com.t4kash.api.identity.service.PublicProfileService;
 import com.t4kash.api.identity.web.CurrentUser;
 import com.t4kash.api.marketplace.dto.TaskResponse;
 import com.t4kash.api.moderation.dto.ReportResponse;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -31,13 +34,16 @@ import java.util.List;
 public class AdminController {
     private final AdminService adminService;
     private final ReportService reportService;
+    private final PublicProfileService profileService;
 
     public AdminController(
             AdminService adminService,
-            ReportService reportService
+            ReportService reportService,
+            PublicProfileService profileService
     ) {
         this.adminService = adminService;
         this.reportService = reportService;
+        this.profileService = profileService;
     }
 
     @GetMapping("/summary")
@@ -49,7 +55,13 @@ public class AdminController {
     @GetMapping("/tasks")
     @Operation(summary = "Listar publicaciones para moderacion")
     public List<TaskResponse> listTasks(@CurrentUser(role = "ADMIN") AuthenticatedUserResponse admin) {
-        return adminService.listTasks();
+        List<TaskResponse> tasks = adminService.listTasks();
+        Map<Integer, PublicIdentityResponse> identities = profileService.getIdentities(
+                tasks.stream().map(TaskResponse::idCliente).toList()
+        );
+        return tasks.stream()
+                .map(task -> task.withClient(identities.get(task.idCliente())))
+                .toList();
     }
 
     @DeleteMapping("/tasks/{taskId}")
@@ -59,12 +71,13 @@ public class AdminController {
             @PathVariable Integer taskId,
             HttpServletRequest servletRequest
     ) {
-        return adminService.cancelTask(
+        TaskResponse task = adminService.cancelTask(
                 admin.idUsuario(),
                 taskId,
                 clientIp(servletRequest),
                 servletRequest.getHeader(HttpHeaders.USER_AGENT)
         );
+        return task.withClient(profileService.getIdentity(task.idCliente()));
     }
 
     @GetMapping("/reports")
