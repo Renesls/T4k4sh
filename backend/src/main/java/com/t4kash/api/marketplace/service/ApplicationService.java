@@ -117,6 +117,11 @@ public class ApplicationService {
         if (!ESTADO_TAREA_PUBLICADA.equals(tarea.getEstadoTarea())) {
             throw new ResourceConflictException("La tarea no esta disponible para nuevas postulaciones.");
         }
+        if (TaskService.TIPO_TAREA_RAPIDA.equalsIgnoreCase(tarea.getTipoOportunidad())) {
+            throw new ResourceConflictException(
+                    "Las tareas rapidas se toman directamente desde el radar."
+            );
+        }
         if (tarea.getIdCliente().equals(currentUserId)) {
             throw new ResourceConflictException("No puedes postularte a tu propia tarea.");
         }
@@ -154,6 +159,88 @@ public class ApplicationService {
                 "Recibiste una postulacion para " + tarea.getTitulo() + "."
         );
         return ApplicationResponse.fromEntity(savedApplication);
+    }
+
+    @Transactional
+    public JobResponse claimQuickTask(Integer currentUserId, Integer idTarea) {
+        Tarea tarea = taskService.findTaskEntityForUpdate(idTarea);
+        LocalDateTime now = LocalDateTime.now();
+        if (taskService.closeExpiredTask(tarea, now)) {
+            throw new ResourceConflictException("Esta tarea rapida ya vencio.");
+        }
+        if (!TaskService.TIPO_TAREA_RAPIDA.equalsIgnoreCase(tarea.getTipoOportunidad())) {
+            throw new ResourceConflictException("La oportunidad indicada no es una tarea rapida.");
+        }
+        if (!ESTADO_TAREA_PUBLICADA.equals(tarea.getEstadoTarea())) {
+            throw new ResourceConflictException("Otra persona ya tomo esta tarea rapida.");
+        }
+        if (tarea.getIdCliente().equals(currentUserId)) {
+            throw new ResourceConflictException("No puedes tomar tu propia tarea.");
+        }
+        estudianteRepository.findByIdForUpdate(currentUserId)
+                .orElseThrow(() -> new ForbiddenOperationException(
+                        "Tu cuenta no tiene un perfil estudiantil activo."
+                ));
+        if (activeJobs(currentUserId) >= MAX_ACTIVE_JOBS) {
+            throw new ResourceConflictException(
+                    "Ya tienes dos trabajos en proceso. Finaliza uno antes de tomar otra tarea."
+            );
+        }
+        if (trabajoRepository.findByIdTarea(idTarea).isPresent()) {
+            throw new ResourceConflictException("Otra persona ya tomo esta tarea rapida.");
+        }
+
+        Postulacion postulacion = new Postulacion();
+        postulacion.setIdTarea(idTarea);
+        postulacion.setIdEstudiante(currentUserId);
+        postulacion.setMensaje("Tarea rapida tomada desde el radar.");
+        postulacion.setPrecioPropuesto(tarea.getPresupuesto());
+        postulacion.setFechaPostulacion(now);
+        postulacion.setEstadoPostulacion(ESTADO_POSTULACION_ACEPTADA);
+        postulacion.setNumeroIntento(1);
+        Postulacion savedApplication = postulacionRepository.save(postulacion);
+
+        tarea.setEstadoTarea(ESTADO_TAREA_ASIGNADA);
+        taskService.save(tarea);
+
+        TrabajoAsignado trabajo = new TrabajoAsignado();
+        trabajo.setIdTarea(idTarea);
+        trabajo.setIdEstudiante(currentUserId);
+        trabajo.setFechaInicio(now);
+        trabajo.setFechaEntregaEsperada(tarea.getFechaLimite());
+        trabajo.setEstadoTrabajo(ESTADO_TRABAJO_EN_PROCESO);
+        TrabajoAsignado savedJob = trabajoRepository.save(trabajo);
+
+        rejectRemainingApplications(savedApplication);
+        if (activeJobs(currentUserId) >= MAX_ACTIVE_JOBS) {
+            cancelPendingApplicationsForLimit(
+                    currentUserId,
+                    savedApplication.getIdPostulacion()
+            );
+        }
+        conversationService.ensureForAcceptedApplication(savedApplication, savedJob);
+        notificationService.create(
+                tarea.getIdCliente(),
+                "Tarea rapida tomada",
+                "Un estudiante tomo " + tarea.getTitulo() + "."
+        );
+        notificationService.create(
+                currentUserId,
+                "Tarea rapida asignada",
+                "Ya puedes coordinar y completar " + tarea.getTitulo() + "."
+        );
+
+        JobResponse response = JobResponse.fromEntity(savedJob);
+        if (paymentService == null) {
+            return response;
+        }
+        PaymentResponse payment = paymentService.createForAcceptedApplication(
+                savedJob,
+                tarea,
+                savedApplication,
+                PaymentService.METHOD_CASH
+        );
+        return response.withPayment(payment);
     }
 
     @Transactional

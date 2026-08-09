@@ -21,7 +21,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -112,11 +114,49 @@ class PaymentServiceTest {
         payment.setFechaActualizacion(LocalDateTime.now());
         when(paymentRepository.findByIdTrabajo(30)).thenReturn(Optional.of(payment));
 
-        service.releaseForApprovedDelivery(job);
+        assertTrue(service.releaseForApprovedDelivery(job));
 
         assertEquals("PAGO_LIBERADO", payment.getEstadoPago());
         verify(movementRepository).save(any());
         verify(paymentRepository).save(payment);
+    }
+
+    @Test
+    void cashPaymentNeedsStudentConfirmationAfterClientApproval() {
+        TrabajoAsignado job = job(30);
+        Pago payment = new Pago();
+        payment.setIdPago(9);
+        payment.setIdTrabajo(30);
+        payment.setIdCliente(1);
+        payment.setIdEstudiante(2);
+        payment.setUuidPago(UUID.randomUUID());
+        payment.setMetodoPago("EFECTIVO");
+        payment.setProveedorPago("EXTERNO");
+        payment.setEntornoPago("EXTERNO");
+        payment.setMonedaCobro("NIO");
+        payment.setMontoEstudiante(new BigDecimal("100.00"));
+        payment.setPorcentajeComisionPlataforma(BigDecimal.ZERO);
+        payment.setComisionPlataforma(BigDecimal.ZERO);
+        payment.setComisionProcesador(BigDecimal.ZERO);
+        payment.setImpuestoProcesador(BigDecimal.ZERO);
+        payment.setMontoTotalCliente(new BigDecimal("100.00"));
+        payment.setEstadoPago("PAGO_EXTERNO_PENDIENTE");
+        payment.setFechaCreacion(LocalDateTime.now());
+        payment.setFechaActualizacion(LocalDateTime.now());
+        when(paymentRepository.findByIdTrabajo(30)).thenReturn(Optional.of(payment));
+        when(paymentRepository.findByIdTrabajoForUpdate(30)).thenReturn(Optional.of(payment));
+        when(jobRepository.findById(30)).thenReturn(Optional.of(job));
+
+        assertFalse(service.releaseForApprovedDelivery(job));
+        assertEquals("PAGO_EXTERNO_PENDIENTE", payment.getEstadoPago());
+
+        job.setEstadoTrabajo(PaymentService.JOB_CASH_CONFIRMATION_PENDING);
+        PaymentResponse response = service.confirmCashReceipt(2, 30);
+
+        assertEquals("PAGO_EXTERNO_CONFIRMADO", response.estadoPago());
+        assertEquals("FINALIZADO", job.getEstadoTrabajo());
+        verify(jobRepository).save(job);
+        verify(movementRepository).save(any());
     }
 
     private TrabajoAsignado job(int id) {

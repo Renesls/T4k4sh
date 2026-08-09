@@ -13,6 +13,7 @@ import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.CheckoutDto
 import com.t4kash.app.ui.model.PaymentDto
+import com.t4kash.app.ui.model.QuickTaskDto
 import com.t4kash.app.ui.model.WalletDto
 import com.t4kash.app.ui.model.ReviewStudentVerificationRequest
 import com.t4kash.app.ui.model.ReviewReportRequest
@@ -27,6 +28,7 @@ import retrofit2.http.POST
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.PUT
+import retrofit2.http.Query
 import okhttp3.MultipartBody
 
 interface MarketplaceApiService {
@@ -47,6 +49,16 @@ interface MarketplaceApiService {
 
     @DELETE("tasks/{taskId}")
     suspend fun cancelTask(@Path("taskId") taskId: Int): TaskDto
+
+    @GET("quick-tasks/nearby")
+    suspend fun getNearbyQuickTasks(
+        @Query("latitude") latitude: Double,
+        @Query("longitude") longitude: Double,
+        @Query("radiusKm") radiusKm: Double
+    ): List<QuickTaskDto>
+
+    @POST("quick-tasks/{taskId}/claim")
+    suspend fun claimQuickTask(@Path("taskId") taskId: Int): JobDto
 
     @POST("tasks/{taskId}/applications")
     suspend fun applyToTask(
@@ -99,6 +111,11 @@ interface MarketplaceApiService {
     suspend fun createPaymentCheckout(
         @Path("jobId") jobId: Int
     ): CheckoutDto
+
+    @POST("jobs/{jobId}/payment/cash/confirm-receipt")
+    suspend fun confirmCashReceipt(
+        @Path("jobId") jobId: Int
+    ): PaymentDto
 
     @POST("payments/{paymentId}/refresh")
     suspend fun refreshPayment(

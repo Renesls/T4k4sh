@@ -111,18 +111,23 @@ public class DeliveryService {
         TrabajoAsignado trabajo = jobService.findJobEntity(entrega.getIdTrabajo());
         Tarea task = taskService.findTaskEntity(trabajo.getIdTarea());
         taskService.requireTaskOwner(task, currentUserId);
-        if (paymentService != null) {
-            paymentService.releaseForApprovedDelivery(trabajo);
-        }
+        boolean finished = paymentService == null
+                || paymentService.releaseForApprovedDelivery(trabajo);
         entrega.setEstadoEntrega(ESTADO_ENTREGA_APROBADA);
-        trabajo.setEstadoTrabajo(ESTADO_TRABAJO_FINALIZADO);
+        trabajo.setEstadoTrabajo(
+                finished
+                        ? ESTADO_TRABAJO_FINALIZADO
+                        : PaymentService.JOB_CASH_CONFIRMATION_PENDING
+        );
 
         trabajoRepository.save(trabajo);
         Entrega savedDelivery = entregaRepository.save(entrega);
         notificationService.create(
                 trabajo.getIdEstudiante(),
                 "Entrega aprobada",
-                "Tu entrega para " + task.getTitulo() + " fue aprobada."
+                finished
+                        ? "Tu entrega para " + task.getTitulo() + " fue aprobada."
+                        : "Tu entrega fue aprobada. Confirma que recibiste el efectivo."
         );
         return DeliveryResponse.fromEntity(savedDelivery);
     }

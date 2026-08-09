@@ -5,6 +5,7 @@ import com.t4kash.api.exception.ResourceConflictException;
 import com.t4kash.api.exception.ResourceNotFoundException;
 import com.t4kash.api.marketplace.dto.CategoriaResponse;
 import com.t4kash.api.marketplace.dto.CreateTaskRequest;
+import com.t4kash.api.marketplace.dto.QuickTaskResponse;
 import com.t4kash.api.marketplace.dto.TaskResponse;
 import com.t4kash.api.marketplace.entity.Postulacion;
 import com.t4kash.api.marketplace.entity.Tarea;
@@ -16,6 +17,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.Duration;
+import java.math.BigDecimal;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -34,6 +38,13 @@ public class TaskService {
     private static final String ESTADO_POSTULACION_PENDIENTE = "PENDIENTE";
     private static final String ESTADO_POSTULACION_CANCELADA_TAREA = "CANCELADA_TAREA";
     private static final String MODALIDAD_REMOTA = "REMOTA";
+    public static final String TIPO_TAREA_RAPIDA = "RAPIDA";
+    private static final String MODALIDAD_PRESENCIAL = "PRESENCIAL";
+    private static final double RADIO_RAPIDO_MINIMO_KM = 0.25;
+    private static final double RADIO_RAPIDO_MAXIMO_KM = 5.0;
+    private static final long MAX_HORAS_POSTULACION_RAPIDA = 24;
+    private static final long MAX_HORAS_ENTREGA_RAPIDA = 48;
+    private static final BigDecimal PAGO_MAXIMO_TAREA_RAPIDA = new BigDecimal("1000.00");
     private static final Set<String> MODALIDADES_VALIDAS =
             Set.of(MODALIDAD_REMOTA, "PRESENCIAL", "HIBRIDA");
 
@@ -78,6 +89,47 @@ public class TaskService {
     }
 
     @Transactional
+    public List<QuickTaskResponse> listNearbyQuickTasks(
+            Integer currentUserId,
+            double latitude,
+            double longitude,
+            double radiusKm
+    ) {
+        validateCoordinates(latitude, longitude);
+        if (radiusKm < RADIO_RAPIDO_MINIMO_KM || radiusKm > RADIO_RAPIDO_MAXIMO_KM) {
+            throw new IllegalArgumentException(
+                    "El radio de busqueda debe estar entre 0.25 y 5 kilometros."
+            );
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        double latitudeDelta = radiusKm / 111.32;
+        double longitudeScale = Math.max(
+                0.01,
+                Math.cos(Math.toRadians(latitude))
+        );
+        double longitudeDelta = radiusKm / (111.32 * longitudeScale);
+        return tareaRepository
+                .findQuickTasksWithinBounds(
+                        TIPO_TAREA_RAPIDA,
+                        ESTADO_TAREA_PUBLICADA,
+                        BigDecimal.valueOf(Math.max(-90, latitude - latitudeDelta)),
+                        BigDecimal.valueOf(Math.min(90, latitude + latitudeDelta)),
+                        BigDecimal.valueOf(Math.max(-180, longitude - longitudeDelta)),
+                        BigDecimal.valueOf(Math.min(180, longitude + longitudeDelta))
+                )
+                .stream()
+                .filter(tarea -> !closeExpiredTask(tarea, now))
+                .filter(tarea -> !tarea.getIdCliente().equals(currentUserId))
+                .filter(tarea -> tarea.getLatitud() != null && tarea.getLongitud() != null)
+                .map(tarea -> toQuickTask(tarea, latitude, longitude, now))
+                .filter(task -> task.distanciaKm() <= radiusKm)
+                .sorted(Comparator.comparingDouble(QuickTaskResponse::distanciaKm))
+                .limit(50)
+                .toList();
+    }
+
+    @Transactional
     public TaskResponse getTask(Integer idTarea) {
         Tarea tarea = findTaskEntity(idTarea);
         closeExpiredTask(tarea, LocalDateTime.now());
@@ -89,20 +141,23 @@ public class TaskService {
         if (!categoriaRepository.existsByIdCategoriaAndEstadoTrue(request.idCategoria())) {
             throw new ResourceNotFoundException("La categoria indicada no existe o esta inactiva.");
         }
-        validateTaskDates(request, LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        validateTaskDates(request, now);
+        String opportunityType = normalizeOpportunityType(request.tipoOportunidad());
+        String modalidad = normalizeModality(request.modalidad());
+        validateQuickTask(request, opportunityType, modalidad, now);
 
         Tarea tarea = new Tarea();
         tarea.setTitulo(request.titulo().trim());
         tarea.setDescripcion(request.descripcion().trim());
         tarea.setPresupuesto(request.presupuesto());
-        tarea.setFechaPublicacion(LocalDateTime.now());
+        tarea.setFechaPublicacion(now);
         tarea.setFechaLimitePostulacion(request.fechaLimitePostulacion());
         tarea.setFechaLimite(request.fechaLimite());
         tarea.setEstadoTarea(ESTADO_TAREA_PUBLICADA);
         tarea.setIdCategoria(request.idCategoria());
         tarea.setIdCliente(currentUserId);
-        tarea.setTipoOportunidad(request.tipoOportunidad().trim());
-        String modalidad = normalizeModality(request.modalidad());
+        tarea.setTipoOportunidad(opportunityType);
         tarea.setModalidad(modalidad);
         tarea.setVisibilidad(request.visibilidad() == null || request.visibilidad().isBlank()
                 ? "PUBLICA"
@@ -124,7 +179,11 @@ public class TaskService {
         if (!categoriaRepository.existsByIdCategoriaAndEstadoTrue(request.idCategoria())) {
             throw new ResourceNotFoundException("La categoria indicada no existe o esta inactiva.");
         }
-        validateTaskDates(request, LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        validateTaskDates(request, now);
+        String opportunityType = normalizeOpportunityType(request.tipoOportunidad());
+        String modalidad = normalizeModality(request.modalidad());
+        validateQuickTask(request, opportunityType, modalidad, now);
 
         tarea.setTitulo(request.titulo().trim());
         tarea.setDescripcion(request.descripcion().trim());
@@ -132,8 +191,7 @@ public class TaskService {
         tarea.setFechaLimitePostulacion(request.fechaLimitePostulacion());
         tarea.setFechaLimite(request.fechaLimite());
         tarea.setIdCategoria(request.idCategoria());
-        tarea.setTipoOportunidad(request.tipoOportunidad().trim());
-        String modalidad = normalizeModality(request.modalidad());
+        tarea.setTipoOportunidad(opportunityType);
         tarea.setModalidad(modalidad);
         tarea.setVisibilidad(request.visibilidad() == null || request.visibilidad().isBlank()
                 ? "PUBLICA"
@@ -168,6 +226,12 @@ public class TaskService {
     /** Busca una tarea o informa que no existe para los demas servicios. */
     public Tarea findTaskEntity(Integer idTarea) {
         return tareaRepository.findById(idTarea)
+                .orElseThrow(() -> new ResourceNotFoundException("La tarea indicada no existe."));
+    }
+
+    /** Bloquea la fila mientras una tarea rapida se asigna a un estudiante. */
+    public Tarea findTaskEntityForUpdate(Integer idTarea) {
+        return tareaRepository.findByIdForUpdate(idTarea)
                 .orElseThrow(() -> new ResourceNotFoundException("La tarea indicada no existe."));
     }
 
@@ -244,6 +308,53 @@ public class TaskService {
         return modalidad;
     }
 
+    private String normalizeOpportunityType(String value) {
+        return value == null || value.isBlank()
+                ? "TAREA"
+                : value.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private void validateQuickTask(
+            CreateTaskRequest request,
+            String opportunityType,
+            String modality,
+            LocalDateTime now
+    ) {
+        if (!TIPO_TAREA_RAPIDA.equals(opportunityType)) {
+            return;
+        }
+        if (!MODALIDAD_PRESENCIAL.equals(modality)) {
+            throw new IllegalArgumentException(
+                    "Las tareas rapidas deben ser presenciales."
+            );
+        }
+        if (request.presupuesto() == null || request.presupuesto().signum() <= 0) {
+            throw new IllegalArgumentException(
+                    "Las tareas rapidas requieren un pago mayor que cero."
+            );
+        }
+        if (request.presupuesto().compareTo(PAGO_MAXIMO_TAREA_RAPIDA) > 0) {
+            throw new IllegalArgumentException(
+                    "El pago de una tarea rapida no puede superar C$1,000."
+            );
+        }
+        if (request.fechaLimitePostulacion() == null || request.fechaLimite() == null) {
+            throw new IllegalArgumentException(
+                    "Las tareas rapidas requieren una vigencia y una fecha limite."
+            );
+        }
+        if (request.fechaLimitePostulacion().isAfter(now.plusHours(MAX_HORAS_POSTULACION_RAPIDA))) {
+            throw new IllegalArgumentException(
+                    "Una tarea rapida puede permanecer disponible como maximo 24 horas."
+            );
+        }
+        if (request.fechaLimite().isAfter(now.plusHours(MAX_HORAS_ENTREGA_RAPIDA))) {
+            throw new IllegalArgumentException(
+                    "Una tarea rapida debe completarse dentro de las proximas 48 horas."
+            );
+        }
+    }
+
     private void applyLocation(
             Tarea tarea,
             CreateTaskRequest request,
@@ -296,5 +407,51 @@ public class TaskService {
                     "La fecha limite del trabajo debe ser posterior al cierre de postulaciones."
             );
         }
+    }
+
+    private QuickTaskResponse toQuickTask(
+            Tarea tarea,
+            double latitude,
+            double longitude,
+            LocalDateTime now
+    ) {
+        double distance = distanceInKilometers(
+                latitude,
+                longitude,
+                tarea.getLatitud().doubleValue(),
+                tarea.getLongitud().doubleValue()
+        );
+        LocalDateTime deadline = tarea.getFechaLimitePostulacion();
+        long remaining = deadline == null
+                ? 0
+                : Math.max(0, Duration.between(now, deadline).toSeconds());
+        return new QuickTaskResponse(
+                TaskResponse.fromEntity(tarea),
+                Math.round(distance * 100.0) / 100.0,
+                remaining
+        );
+    }
+
+    private void validateCoordinates(double latitude, double longitude) {
+        if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+            throw new IllegalArgumentException("La ubicacion indicada no es valida.");
+        }
+    }
+
+    private double distanceInKilometers(
+            double originLatitude,
+            double originLongitude,
+            double destinationLatitude,
+            double destinationLongitude
+    ) {
+        double earthRadiusKm = 6371.0088;
+        double latitudeDelta = Math.toRadians(destinationLatitude - originLatitude);
+        double longitudeDelta = Math.toRadians(destinationLongitude - originLongitude);
+        double originRadians = Math.toRadians(originLatitude);
+        double destinationRadians = Math.toRadians(destinationLatitude);
+        double a = Math.sin(latitudeDelta / 2) * Math.sin(latitudeDelta / 2)
+                + Math.cos(originRadians) * Math.cos(destinationRadians)
+                * Math.sin(longitudeDelta / 2) * Math.sin(longitudeDelta / 2);
+        return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 }

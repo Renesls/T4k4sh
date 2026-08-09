@@ -57,6 +57,16 @@ public class PaymentController {
         return paymentService.createCheckout(user.idUsuario(), idTrabajo);
     }
 
+    @PostMapping("/jobs/{idTrabajo}/payment/cash/confirm-receipt")
+    @Operation(summary = "Confirmar recepcion de un pago en efectivo")
+    @SecurityRequirement(name = "bearerAuth")
+    public PaymentResponse confirmCashReceipt(
+            @CurrentUser(role = "ESTUDIANTE") AuthenticatedUserResponse user,
+            @PathVariable Integer idTrabajo
+    ) {
+        return paymentService.confirmCashReceipt(user.idUsuario(), idTrabajo);
+    }
+
     @PostMapping("/payments/{idPago}/refresh")
     @Operation(summary = "Actualizar estado consultando Pagadito")
     @SecurityRequirement(name = "bearerAuth")

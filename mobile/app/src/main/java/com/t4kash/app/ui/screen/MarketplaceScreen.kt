@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Notifications
@@ -94,6 +95,7 @@ fun MarketplaceScreen(
     onNavigate: (String) -> Unit = {},
     onTaskSelected: (TaskDto) -> Unit = {},
     onOpenMap: () -> Unit = {},
+    onOpenQuickTasks: () -> Unit = {},
     onOpenNotifications: () -> Unit = {},
     unreadNotifications: Int = 0
 ) {
@@ -104,7 +106,10 @@ fun MarketplaceScreen(
     var showCategoryDialog by remember { mutableStateOf(false) }
 
     val availableTasks = remember(state.tasks) {
-        state.tasks.filter { it.estadoTarea.equals("PUBLICADA", ignoreCase = true) }
+        state.tasks.filter {
+            it.estadoTarea.equals("PUBLICADA", ignoreCase = true) &&
+                !it.tipoOportunidad.equals("RAPIDA", ignoreCase = true)
+        }
     }
     val filteredTasks = remember(availableTasks, query, selectedCategoryId) {
         availableTasks.filter { task ->
@@ -178,6 +183,10 @@ fun MarketplaceScreen(
                         mapped = mappedTasks,
                         onOpenMap = onOpenMap
                     )
+                }
+
+                item {
+                    QuickTaskBanner(onClick = onOpenQuickTasks)
                 }
 
                 item {
@@ -273,6 +282,54 @@ fun MarketplaceScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun QuickTaskBanner(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = T4Mint),
+        border = BorderStroke(1.dp, T4MintDark.copy(alpha = 0.25f))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = T4Text
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Bolt,
+                    contentDescription = null,
+                    tint = T4Mint,
+                    modifier = Modifier.padding(9.dp)
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Tareas rapidas",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = T4Text
+                )
+                Text(
+                    text = "Activa el radar y encuentra trabajos urgentes cerca de ti.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = T4MintDark
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = "Abrir tareas rapidas",
+                tint = T4Text
+            )
         }
     }
 }

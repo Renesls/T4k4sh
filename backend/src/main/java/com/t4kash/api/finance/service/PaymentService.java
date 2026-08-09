@@ -45,6 +45,8 @@ public class PaymentService {
     public static final String PAYMENT_RELEASED = "PAGO_LIBERADO";
     public static final String EXTERNAL_PENDING = "PAGO_EXTERNO_PENDIENTE";
     public static final String EXTERNAL_CONFIRMED = "PAGO_EXTERNO_CONFIRMADO";
+    public static final String JOB_CASH_CONFIRMATION_PENDING = "PAGO_EFECTIVO_PENDIENTE";
+    private static final String JOB_FINISHED = "FINALIZADO";
 
     private static final Set<String> RETRYABLE_STATES = Set.of(
             PAYMENT_PENDING, "PAGO_FALLIDO", "PAGO_CANCELADO", "PAGO_EXPIRADO"
@@ -341,7 +343,7 @@ public class PaymentService {
     }
 
     @Transactional
-    public void releaseForApprovedDelivery(TrabajoAsignado job) {
+    public boolean releaseForApprovedDelivery(TrabajoAsignado job) {
         Pago payment = findPaymentByJob(job.getIdTrabajo());
         LocalDateTime now = LocalDateTime.now();
         if (METHOD_PAGADITO.equals(payment.getMetodoPago())) {
@@ -362,23 +364,71 @@ public class PaymentService {
                     "RELEASE:" + payment.getUuidPago(),
                     payment.getReferenciaProveedor()
             );
-        } else {
-            payment.setEstadoPago(EXTERNAL_CONFIRMED);
-            payment.setFechaConfirmacion(now);
-            payment.setFechaLiberacion(now);
-            recordMovement(
-                    payment,
-                    payment.getIdEstudiante(),
-                    "PAGO_EFECTIVO_CONFIRMADO",
-                    "EXTERNO",
-                    payment.getMontoEstudiante(),
-                    "Pago en efectivo confirmado por entrega aprobada",
-                    "CASH_CONFIRMED:" + payment.getUuidPago(),
-                    null
+            payment.setFechaActualizacion(now);
+            paymentRepository.save(payment);
+            return true;
+        }
+
+        if (!EXTERNAL_PENDING.equals(payment.getEstadoPago())) {
+            throw new ResourceConflictException(
+                    "El pago en efectivo ya fue confirmado o no esta pendiente."
             );
         }
+        return false;
+    }
+
+    @Transactional
+    public PaymentResponse confirmCashReceipt(Integer currentUserId, Integer jobId) {
+        Pago payment = paymentRepository.findByIdTrabajoForUpdate(jobId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "El trabajo aun no tiene un pago asociado."
+                ));
+        if (!payment.getIdEstudiante().equals(currentUserId)) {
+            throw new ForbiddenOperationException(
+                    "Solo el estudiante asignado puede confirmar que recibio el efectivo."
+            );
+        }
+        if (!METHOD_CASH.equals(payment.getMetodoPago())) {
+            throw new ResourceConflictException("Este trabajo no utiliza pago en efectivo.");
+        }
+        if (!EXTERNAL_PENDING.equals(payment.getEstadoPago())) {
+            throw new ResourceConflictException("El pago en efectivo ya fue confirmado.");
+        }
+
+        TrabajoAsignado job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "El trabajo asociado al pago no existe."
+                ));
+        if (!JOB_CASH_CONFIRMATION_PENDING.equals(job.getEstadoTrabajo())) {
+            throw new ResourceConflictException(
+                    "El cliente aun no ha aprobado la entrega y declarado el pago."
+            );
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        payment.setEstadoPago(EXTERNAL_CONFIRMED);
+        payment.setFechaConfirmacion(now);
+        payment.setFechaLiberacion(now);
         payment.setFechaActualizacion(now);
         paymentRepository.save(payment);
+        job.setEstadoTrabajo(JOB_FINISHED);
+        jobRepository.save(job);
+        recordMovement(
+                payment,
+                currentUserId,
+                "PAGO_EFECTIVO_CONFIRMADO",
+                "EXTERNO",
+                payment.getMontoEstudiante(),
+                "Pago en efectivo confirmado por el estudiante",
+                "CASH_CONFIRMED:" + payment.getUuidPago(),
+                null
+        );
+        notificationService.create(
+                payment.getIdCliente(),
+                "Pago en efectivo confirmado",
+                "El estudiante confirmo el pago del trabajo #" + jobId + "."
+        );
+        return PaymentResponse.fromEntity(payment, currentUserId);
     }
 
     private void applyProviderStatus(

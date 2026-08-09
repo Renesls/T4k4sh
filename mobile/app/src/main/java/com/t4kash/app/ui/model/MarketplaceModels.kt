@@ -42,6 +42,12 @@ data class CreateTaskRequest(
     val longitud: Double?
 )
 
+data class QuickTaskDto(
+    val tarea: TaskDto,
+    val distanciaKm: Double,
+    val segundosRestantes: Long
+)
+
 data class CreateApplicationRequest(
     val mensaje: String?,
     val precioPropuesto: Double?

@@ -16,6 +16,7 @@ object Routes {
     const val RESET_PASSWORD = "reset-password?email={$RESET_PASSWORD_ARG}"
     const val MARKETPLACE = "marketplace"
     const val OPPORTUNITY_MAP = "opportunity-map"
+    const val QUICK_TASKS = "quick-tasks"
     const val NETWORK = "network"
     const val POST = "post"
     const val CHAT = "chat"
