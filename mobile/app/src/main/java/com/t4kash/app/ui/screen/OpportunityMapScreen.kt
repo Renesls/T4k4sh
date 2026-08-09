@@ -6,6 +6,12 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +19,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -43,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -61,6 +69,7 @@ import com.t4kash.app.ui.theme.T4Text
 import com.t4kash.app.ui.theme.T4TextMuted
 import com.t4kash.app.ui.viewmodel.MarketplaceViewModel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import org.json.JSONArray
@@ -91,16 +100,24 @@ fun OpportunityMapScreen(
     viewModel: MarketplaceViewModel,
     onBack: () -> Unit,
     onTaskSelected: (Int) -> Unit,
-    focusedTaskId: Int? = null
+    focusedTaskId: Int? = null,
+    quickMode: Boolean = false,
+    onQuickClaimed: (Int) -> Unit = {}
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val uiState = viewModel.uiState
-    val locatedTasks = remember(uiState.tasks) {
-        uiState.tasks.filter {
+    val locatedTasks = remember(uiState.tasks, uiState.quickTasks, quickMode) {
+        val source = if (quickMode) {
+            uiState.quickTasks.map { it.tarea }
+        } else {
+            uiState.tasks
+        }
+        source.filter {
             it.hasValidCoordinates() &&
                 it.estadoTarea.equals("PUBLICADA", ignoreCase = true) &&
-                !it.modalidad.equals("REMOTA", ignoreCase = true)
+                !it.modalidad.equals("REMOTA", ignoreCase = true) &&
+                (quickMode || !it.tipoOportunidad.equals("RAPIDA", ignoreCase = true))
         }
     }
     val focusedTask = remember(locatedTasks, focusedTaskId) {
@@ -110,7 +127,9 @@ fun OpportunityMapScreen(
     var isMapLoading by remember { mutableStateOf(true) }
     var mapErrorMessage by remember { mutableStateOf<String?>(null) }
     var hasCenteredOnUser by rememberSaveable { mutableStateOf(false) }
-    var radiusKm by rememberSaveable { mutableFloatStateOf(DEFAULT_RADIUS_KM) }
+    var radiusKm by rememberSaveable(quickMode) {
+        mutableFloatStateOf(if (quickMode) 1f else DEFAULT_RADIUS_KM)
+    }
     var selectedTaskId by rememberSaveable(focusedTaskId) {
         mutableStateOf(focusedTaskId)
     }
@@ -127,7 +146,11 @@ fun OpportunityMapScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.refresh()
+        if (quickMode) {
+            viewModel.clearQuickTaskFeedback()
+        } else {
+            viewModel.refresh()
+        }
         if (!hasLocationPermission) {
             locationPermissionLauncher.launch(LOCATION_PERMISSIONS)
         }
@@ -172,14 +195,48 @@ fun OpportunityMapScreen(
         selectedTask?.let { listOf(it).toGeoJson() }
     }
     val selectedTaskDistance = remember(selectedTask, userPosition) {
+        val serverDistance = if (quickMode) {
+            uiState.quickTasks.firstOrNull {
+                it.tarea.idTarea == selectedTask?.idTarea
+            }?.distanciaKm
+        } else {
+            null
+        }
         val taskPoint = selectedTask?.geoPoint()
         val userPoint = userPosition?.toGeoPoint()
-        if (taskPoint == null || userPoint == null) {
+        if (serverDistance != null) {
+            serverDistance
+        } else if (taskPoint == null || userPoint == null) {
             null
         } else {
             distanceInKilometers(userPoint, taskPoint)
         }
     }
+
+    LaunchedEffect(quickMode, userPosition, radiusKm) {
+        if (!quickMode || userPosition == null) return@LaunchedEffect
+        delay(350)
+        viewModel.searchQuickTasks(
+            latitude = userPosition.latitude,
+            longitude = userPosition.longitude,
+            radiusKm = radiusKm.toDouble()
+        )
+    }
+
+    LaunchedEffect(uiState.claimedQuickJob?.idTrabajo) {
+        uiState.claimedQuickJob?.idTrabajo?.let(onQuickClaimed)
+    }
+
+    val radarTransition = rememberInfiniteTransition(label = "radar")
+    val radarProgress by radarTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1800),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "radar-pulse"
+    )
 
     LaunchedEffect(focusedTask?.idTarea) {
         focusedTask?.let { task ->
@@ -215,8 +272,12 @@ fun OpportunityMapScreen(
     Scaffold(
         topBar = {
             T4TopBar(
-                title = "Mapa",
-                subtitle = "Oportunidades cerca de ti",
+                title = if (quickMode) "Tareas rapidas" else "Mapa",
+                subtitle = if (quickMode) {
+                    "Encuentra una oportunidad urgente cerca de ti"
+                } else {
+                    "Oportunidades cerca de ti"
+                },
                 onBack = onBack
             )
         }
@@ -329,6 +390,23 @@ fun OpportunityMapScreen(
                 }
             }
 
+            if (quickMode && userPosition != null && !isMapLoading) {
+                Canvas(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(220.dp)
+                ) {
+                    listOf(0f, 0.33f, 0.66f).forEach { offset ->
+                        val progress = (radarProgress + offset) % 1f
+                        drawCircle(
+                            color = T4Mint.copy(alpha = (1f - progress) * 0.55f),
+                            radius = size.minDimension * 0.5f * progress,
+                            style = Stroke(width = 2.dp.toPx())
+                        )
+                    }
+                }
+            }
+
             Card(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -356,10 +434,19 @@ fun OpportunityMapScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = when {
-                                    uiState.isLoading -> "Buscando oportunidades..."
-                                    visibleTasks.isEmpty() -> "Sin oportunidades en este radio"
-                                    visibleTasks.size == 1 -> "1 oportunidad en el mapa"
-                                    else -> "${visibleTasks.size} oportunidades en el mapa"
+                                    quickMode && uiState.isLoadingQuickTasks ->
+                                        "Rastreando tareas rapidas..."
+                                    visibleTasks.isEmpty() ->
+                                        if (quickMode) "Sin tareas rapidas en este radio"
+                                        else "Sin oportunidades en este radio"
+                                    visibleTasks.size == 1 ->
+                                        if (quickMode) "1 tarea rapida encontrada"
+                                        else "1 oportunidad en el mapa"
+                                    else -> if (quickMode) {
+                                        "${visibleTasks.size} tareas rapidas encontradas"
+                                    } else {
+                                        "${visibleTasks.size} oportunidades en el mapa"
+                                    }
                                 },
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
@@ -367,13 +454,19 @@ fun OpportunityMapScreen(
                             )
                             Text(
                                 text = when {
-                                    uiState.errorMessage != null -> uiState.errorMessage
+                                    quickMode && uiState.quickTasksError != null ->
+                                        uiState.quickTasksError
+                                    !quickMode && uiState.errorMessage != null ->
+                                        uiState.errorMessage
                                     userPosition == null ->
                                         "Esperando una ubicación válida del teléfono."
                                     focusedTask != null ->
                                         "Mostrando la ubicación de ${focusedTask.titulo}."
-                                    else ->
+                                    else -> if (quickMode) {
+                                        "El radar se actualiza al mover el radio."
+                                    } else {
                                         "Tareas presenciales o hibridas dentro del radio."
+                                    }
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = T4TextMuted
@@ -391,7 +484,11 @@ fun OpportunityMapScreen(
                             color = T4Text
                         )
                         Text(
-                            text = "${radiusKm.roundToInt()} km",
+                            text = if (quickMode) {
+                                String.format("%.2f km", radiusKm)
+                            } else {
+                                "${radiusKm.roundToInt()} km"
+                            },
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
                             color = T4Primary
@@ -400,8 +497,8 @@ fun OpportunityMapScreen(
                     Slider(
                         value = radiusKm,
                         onValueChange = { radiusKm = it },
-                        valueRange = 5f..50f,
-                        steps = 8
+                        valueRange = if (quickMode) 0.25f..5f else 5f..50f,
+                        steps = if (quickMode) 18 else 8
                     )
                 }
             }
@@ -489,10 +586,25 @@ fun OpportunityMapScreen(
                             )
                         }
                         Button(
-                            onClick = { onTaskSelected(task.idTarea) },
+                            onClick = {
+                                if (quickMode) {
+                                    viewModel.claimQuickTask(task.idTarea)
+                                } else {
+                                    onTaskSelected(task.idTarea)
+                                }
+                            },
+                            enabled = uiState.claimingQuickTaskId == null,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Ver oportunidad")
+                            if (quickMode && uiState.claimingQuickTaskId == task.idTarea) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color.White
+                                )
+                            } else {
+                                Text(if (quickMode) "Tomar tarea ahora" else "Ver oportunidad")
+                            }
                         }
                     }
                 }

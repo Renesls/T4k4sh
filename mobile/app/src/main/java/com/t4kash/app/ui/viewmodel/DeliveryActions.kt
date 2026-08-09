@@ -182,6 +182,9 @@ internal class DeliveryActions(
 
     fun approve(delivery: DeliveryDto) {
         scope.launch {
+            val cashPayment = state().jobs.firstOrNull {
+                it.idTrabajo == delivery.idTrabajo
+            }?.pago?.metodoPago.equals("EFECTIVO", ignoreCase = true)
             updateState {
                 it.copy(
                     approvingDeliveryId = delivery.idEntrega,
@@ -202,13 +205,22 @@ internal class DeliveryActions(
                         },
                         jobs = current.jobs.map {
                             if (it.idTrabajo == result.data.idTrabajo) {
-                                it.copy(estadoTrabajo = "FINALIZADO")
+                                it.copy(
+                                    estadoTrabajo = if (cashPayment) {
+                                        "PAGO_EFECTIVO_PENDIENTE"
+                                    } else {
+                                        "FINALIZADO"
+                                    }
+                                )
                             } else {
                                 it
                             }
                         },
-                        deliveryActionMessage =
+                        deliveryActionMessage = if (cashPayment) {
+                            "Entrega aprobada. Falta que el estudiante confirme el efectivo."
+                        } else {
                             "Entrega aprobada. Trabajo finalizado."
+                        }
                     )
                 }
 

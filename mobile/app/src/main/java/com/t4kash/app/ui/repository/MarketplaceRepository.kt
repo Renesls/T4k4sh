@@ -12,6 +12,7 @@ import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.CheckoutDto
 import com.t4kash.app.ui.model.PaymentDto
+import com.t4kash.app.ui.model.QuickTaskDto
 import com.t4kash.app.ui.model.WalletDto
 import com.t4kash.app.ui.model.MarketplaceHomeData
 import com.t4kash.app.ui.model.PendingAttachment
@@ -158,6 +159,28 @@ class MarketplaceRepository(
         }
     }
 
+    suspend fun loadNearbyQuickTasks(
+        latitude: Double,
+        longitude: Double,
+        radiusKm: Double
+    ): ApiResult<List<QuickTaskDto>> {
+        return try {
+            ApiResult.Success(
+                api.getNearbyQuickTasks(latitude, longitude, radiusKm)
+            )
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudieron buscar tareas rapidas."))
+        }
+    }
+
+    suspend fun claimQuickTask(taskId: Int): ApiResult<JobDto> {
+        return try {
+            ApiResult.Success(api.claimQuickTask(taskId))
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudo tomar la tarea rapida."))
+        }
+    }
+
     suspend fun loadWallet(): ApiResult<WalletDto> {
         return try {
             ApiResult.Success(api.getWallet())
@@ -171,6 +194,14 @@ class MarketplaceRepository(
             ApiResult.Success(api.createPaymentCheckout(jobId))
         } catch (e: Exception) {
             ApiResult.Error(e.apiMessage("No se pudo abrir Pagadito Sandbox."))
+        }
+    }
+
+    suspend fun confirmCashReceipt(jobId: Int): ApiResult<PaymentDto> {
+        return try {
+            ApiResult.Success(api.confirmCashReceipt(jobId))
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudo confirmar el pago en efectivo."))
         }
     }
 

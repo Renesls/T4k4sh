@@ -12,6 +12,7 @@ import com.t4kash.api.marketplace.dto.CreateDeliveryRequest;
 import com.t4kash.api.marketplace.dto.CreateTaskRequest;
 import com.t4kash.api.marketplace.dto.DeliveryResponse;
 import com.t4kash.api.marketplace.dto.JobResponse;
+import com.t4kash.api.marketplace.dto.QuickTaskResponse;
 import com.t4kash.api.marketplace.dto.TaskResponse;
 import com.t4kash.api.marketplace.service.ApplicationService;
 import com.t4kash.api.marketplace.service.DeliveryService;
@@ -29,6 +30,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -107,6 +109,32 @@ public class MarketplaceController {
     @Operation(summary = "Obtener detalle de una oportunidad")
     public TaskResponse getTask(@PathVariable Integer idTarea) {
         return enrichTask(taskService.getTask(idTarea));
+    }
+
+    @GetMapping("/quick-tasks/nearby")
+    @Operation(summary = "Buscar tareas rapidas cercanas")
+    @SecurityRequirement(name = "bearerAuth")
+    public List<QuickTaskResponse> listNearbyQuickTasks(
+            @CurrentUser(role = "ESTUDIANTE") AuthenticatedUserResponse user,
+            @RequestParam double latitude,
+            @RequestParam double longitude,
+            @RequestParam(defaultValue = "1.0") double radiusKm
+    ) {
+        return enrichQuickTasks(
+                taskService.listNearbyQuickTasks(
+                        user.idUsuario(), latitude, longitude, radiusKm
+                )
+        );
+    }
+
+    @PostMapping("/quick-tasks/{idTarea}/claim")
+    @Operation(summary = "Tomar una tarea rapida disponible")
+    @SecurityRequirement(name = "bearerAuth")
+    public JobResponse claimQuickTask(
+            @CurrentUser(role = "ESTUDIANTE") AuthenticatedUserResponse user,
+            @PathVariable Integer idTarea
+    ) {
+        return enrichJob(applicationService.claimQuickTask(user.idUsuario(), idTarea));
     }
 
     @GetMapping("/tasks/{idTarea}/applications")
@@ -221,6 +249,15 @@ public class MarketplaceController {
 
     private TaskResponse enrichTask(TaskResponse task) {
         return task.withClient(profileService.getIdentity(task.idCliente()));
+    }
+
+    private List<QuickTaskResponse> enrichQuickTasks(List<QuickTaskResponse> tasks) {
+        Map<Integer, PublicIdentityResponse> identities = profileService.getIdentities(
+                tasks.stream().map(task -> task.tarea().idCliente()).toList()
+        );
+        return tasks.stream()
+                .map(task -> task.withClient(identities.get(task.tarea().idCliente())))
+                .toList();
     }
 
     private List<ApplicationResponse> enrichApplications(

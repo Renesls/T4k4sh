@@ -9,6 +9,7 @@ import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.model.StudentVerificationDto
 import com.t4kash.app.ui.model.ReportDto
+import com.t4kash.app.ui.model.QuickTaskDto
 import com.t4kash.app.ui.model.WalletDto
 
 data class MarketplaceUiState(
@@ -80,5 +81,10 @@ data class MarketplaceUiState(
     val walletError: String? = null,
     val processingPaymentId: Int? = null,
     val checkoutUrl: String? = null,
-    val paymentMessage: String? = null
+    val paymentMessage: String? = null,
+    val quickTasks: List<QuickTaskDto> = emptyList(),
+    val isLoadingQuickTasks: Boolean = false,
+    val quickTasksError: String? = null,
+    val claimingQuickTaskId: Int? = null,
+    val claimedQuickJob: JobDto? = null
 )

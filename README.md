@@ -44,6 +44,7 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 | Veinticuatro categorías de oportunidades | Implementado |
 | Ubicación para tareas presenciales e híbridas | Implementado |
 | Mapa con radio de búsqueda y marcadores interactivos | Implementado |
+| Tareas rápidas con radar, asignación inmediata y efectivo confirmado por ambas partes | Implementado |
 | Postulación desde Android | Implementado |
 | Postulaciones, asignaciones y entregas en la API | Implementado |
 | Navegación, carga y manejo visual de errores | Implementado |
@@ -255,6 +256,8 @@ El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno 
 | `PUT` | `/api/tasks/{idTarea}` | Editar una oportunidad activa |
 | `DELETE` | `/api/tasks/{idTarea}` | Cancelar una oportunidad activa (propietario) |
 | `GET` | `/api/tasks/{idTarea}` | Obtener detalle |
+| `GET` | `/api/quick-tasks/nearby` | Buscar tareas rápidas cercanas por ubicación y radio |
+| `POST` | `/api/quick-tasks/{idTarea}/claim` | Tomar una tarea rápida disponible |
 | `GET` | `/api/tasks/{idTarea}/applications` | Listar postulaciones |
 | `POST` | `/api/tasks/{idTarea}/applications` | Crear postulación |
 | `GET` | `/api/applications/me` | Listar mis postulaciones |
@@ -269,6 +272,7 @@ El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno 
 | `GET` | `/api/wallet` | Consultar balance, pagos y movimientos |
 | `GET` | `/api/jobs/{idTrabajo}/payment` | Consultar el pago de un trabajo |
 | `POST` | `/api/jobs/{idTrabajo}/payment/checkout` | Crear checkout de Pagadito Sandbox |
+| `POST` | `/api/jobs/{idTrabajo}/payment/cash/confirm-receipt` | Confirmar que el estudiante recibió el efectivo |
 | `POST` | `/api/payments/{idPago}/refresh` | Consultar nuevamente el estado en Pagadito |
 | `POST` | `/api/payments/pagadito/webhook` | Recibir eventos firmados de Pagadito |
 | `GET` | `/api/payments/pagadito/return` | Verificar el retorno del checkout |
@@ -476,6 +480,11 @@ Firebase Cloud Messaging queda reservado para notificaciones push posteriores.
 7. Consultar postulaciones, publicaciones y trabajos desde **Perfil**.
 8. Abrir el chat de un trabajo asignado y enviar mensajes al otro participante.
 9. Revisar las notificaciones internas y marcar elementos como leídos.
+10. Abrir **Tareas rápidas** desde Inicio, ajustar un radio de 250 metros a 5 kilómetros
+    y tomar una oportunidad urgente disponible. La asignación es inmediata, el monto no
+    puede superar C$1,000 y el pago se realiza en efectivo sin comisión.
+11. Después de la entrega, el cliente declara el pago y el estudiante confirma que recibió
+    el efectivo. Solo entonces el trabajo queda finalizado.
 
 Las operaciones privadas utilizan el usuario autenticado de la sesión. Android no decide
 el propietario de una tarea, postulación, entrega o archivo.
@@ -641,6 +650,7 @@ Reglas acordadas:
 
 - Las tareas remotas e híbridas requieren pago protegido con Pagadito.
 - Las tareas presenciales permiten elegir Pagadito o efectivo.
+- Las tareas rápidas son presenciales, aceptan hasta C$1,000 y usan únicamente efectivo.
 - El monto acordado indica la ganancia exacta del estudiante.
 - El cliente ve por separado el monto del trabajo, la tarifa de T4KASH del 1 %, el costo
   del procesador y el total antes de confirmar.

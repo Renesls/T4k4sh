@@ -201,6 +201,7 @@ fun NavGraph(
                 onNavigate = onBottomNavigate,
                 onTaskSelected = { task -> navController.navigate(Routes.taskDetails(task.idTarea)) },
                 onOpenMap = { navController.navigate(Routes.OPPORTUNITY_MAP) },
+                onOpenQuickTasks = { navController.navigate(Routes.QUICK_TASKS) },
                 onOpenNotifications = {
                     navController.navigate(Routes.NOTIFICATIONS)
                 },
@@ -364,6 +365,22 @@ fun NavGraph(
                         navController.navigate(Routes.LOGIN) {
                             popUpTo(navController.graph.id) { inclusive = true }
                         }
+                    }
+                }
+            )
+        }
+        composable(Routes.QUICK_TASKS) {
+            OpportunityMapScreen(
+                viewModel = marketplaceViewModel,
+                onBack = { navController.popBackStack() },
+                onTaskSelected = { taskId ->
+                    navController.navigate(Routes.taskDetails(taskId))
+                },
+                quickMode = true,
+                onQuickClaimed = { jobId ->
+                    marketplaceViewModel.clearQuickTaskFeedback()
+                    navController.navigate(Routes.jobDetails(jobId)) {
+                        popUpTo(Routes.QUICK_TASKS) { inclusive = true }
                     }
                 }
             )
