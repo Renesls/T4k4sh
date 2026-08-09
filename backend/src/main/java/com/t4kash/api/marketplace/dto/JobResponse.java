@@ -1,6 +1,7 @@
 package com.t4kash.api.marketplace.dto;
 
 import com.t4kash.api.identity.dto.PublicIdentityResponse;
+import com.t4kash.api.finance.dto.PaymentResponse;
 import com.t4kash.api.marketplace.entity.TrabajoAsignado;
 
 import java.time.LocalDateTime;
@@ -12,7 +13,8 @@ public record JobResponse(
         LocalDateTime fechaInicio,
         LocalDateTime fechaEntregaEsperada,
         String estadoTrabajo,
-        PublicIdentityResponse estudiante
+        PublicIdentityResponse estudiante,
+        PaymentResponse pago
 ) {
     public static JobResponse fromEntity(TrabajoAsignado trabajo) {
         return new JobResponse(
@@ -22,6 +24,7 @@ public record JobResponse(
                 trabajo.getFechaInicio(),
                 trabajo.getFechaEntregaEsperada(),
                 trabajo.getEstadoTrabajo(),
+                null,
                 null
         );
     }
@@ -29,7 +32,14 @@ public record JobResponse(
     public JobResponse withStudent(PublicIdentityResponse publicStudent) {
         return new JobResponse(
                 idTrabajo, idTarea, idEstudiante, fechaInicio,
-                fechaEntregaEsperada, estadoTrabajo, publicStudent
+                fechaEntregaEsperada, estadoTrabajo, publicStudent, pago
+        );
+    }
+
+    public JobResponse withPayment(PaymentResponse payment) {
+        return new JobResponse(
+                idTrabajo, idTarea, idEstudiante, fechaInicio,
+                fechaEntregaEsperada, estadoTrabajo, estudiante, payment
         );
     }
 }

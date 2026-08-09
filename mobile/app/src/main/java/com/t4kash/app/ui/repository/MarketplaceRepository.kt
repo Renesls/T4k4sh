@@ -1,6 +1,7 @@
 package com.t4kash.app.ui.repository
 
 import com.t4kash.app.ui.model.ApplicationDto
+import com.t4kash.app.ui.model.AcceptApplicationRequest
 import com.t4kash.app.ui.model.AdminDashboardData
 import com.t4kash.app.ui.model.AttachmentDto
 import com.t4kash.app.ui.model.CreateApplicationRequest
@@ -9,6 +10,9 @@ import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.model.CreateTaskReportRequest
 import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.JobDto
+import com.t4kash.app.ui.model.CheckoutDto
+import com.t4kash.app.ui.model.PaymentDto
+import com.t4kash.app.ui.model.WalletDto
 import com.t4kash.app.ui.model.MarketplaceHomeData
 import com.t4kash.app.ui.model.PendingAttachment
 import com.t4kash.app.ui.model.ReviewStudentVerificationRequest
@@ -95,9 +99,17 @@ class MarketplaceRepository(
         }
     }
 
-    suspend fun acceptApplication(applicationId: Int): ApiResult<JobDto> {
+    suspend fun acceptApplication(
+        applicationId: Int,
+        paymentMethod: String
+    ): ApiResult<JobDto> {
         return try {
-            ApiResult.Success(api.acceptApplication(applicationId))
+            ApiResult.Success(
+                api.acceptApplication(
+                    applicationId,
+                    AcceptApplicationRequest(paymentMethod)
+                )
+            )
         } catch (e: Exception) {
             ApiResult.Error(e.apiMessage("No se pudo aceptar la postulacion."))
         }
@@ -143,6 +155,30 @@ class MarketplaceRepository(
             ApiResult.Success(api.approveDelivery(deliveryId))
         } catch (e: Exception) {
             ApiResult.Error(e.apiMessage("No se pudo aprobar la entrega."))
+        }
+    }
+
+    suspend fun loadWallet(): ApiResult<WalletDto> {
+        return try {
+            ApiResult.Success(api.getWallet())
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudo cargar tu Wallet."))
+        }
+    }
+
+    suspend fun createPaymentCheckout(jobId: Int): ApiResult<CheckoutDto> {
+        return try {
+            ApiResult.Success(api.createPaymentCheckout(jobId))
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudo abrir Pagadito Sandbox."))
+        }
+    }
+
+    suspend fun refreshPayment(paymentId: Int): ApiResult<PaymentDto> {
+        return try {
+            ApiResult.Success(api.refreshPayment(paymentId))
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudo actualizar el pago."))
         }
     }
 

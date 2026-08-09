@@ -197,8 +197,8 @@ class MarketplaceViewModel(
         applicationActions.load(taskId, force)
     }
 
-    fun acceptApplication(application: ApplicationDto) {
-        applicationActions.accept(application)
+    fun acceptApplication(application: ApplicationDto, paymentMethod: String) {
+        applicationActions.accept(application, paymentMethod)
     }
 
     fun rejectApplication(application: ApplicationDto) {
@@ -260,6 +260,100 @@ class MarketplaceViewModel(
 
     fun clearDeliveryFeedback() {
         deliveryActions.clearFeedback()
+    }
+
+    fun loadWallet() {
+        if (uiState.isLoadingWallet) return
+        viewModelScope.launch {
+            updateState {
+                it.copy(isLoadingWallet = true, walletError = null)
+            }
+            when (val result = repository.loadWallet()) {
+                is ApiResult.Success -> updateState {
+                    it.copy(
+                        wallet = result.data,
+                        isLoadingWallet = false,
+                        walletError = null
+                    )
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        isLoadingWallet = false,
+                        walletError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun openPaymentCheckout(jobId: Int, paymentId: Int) {
+        if (uiState.processingPaymentId != null) return
+        viewModelScope.launch {
+            updateState {
+                it.copy(
+                    processingPaymentId = paymentId,
+                    walletError = null,
+                    paymentMessage = null
+                )
+            }
+            when (val result = repository.createPaymentCheckout(jobId)) {
+                is ApiResult.Success -> updateState {
+                    it.copy(
+                        processingPaymentId = null,
+                        checkoutUrl = result.data.checkoutUrl,
+                        paymentMessage = "Checkout de Pagadito abierto."
+                    )
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        processingPaymentId = null,
+                        walletError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun refreshPayment(paymentId: Int) {
+        if (uiState.processingPaymentId != null) return
+        viewModelScope.launch {
+            updateState {
+                it.copy(
+                    processingPaymentId = paymentId,
+                    walletError = null,
+                    paymentMessage = null
+                )
+            }
+            when (val result = repository.refreshPayment(paymentId)) {
+                is ApiResult.Success -> {
+                    updateState {
+                        it.copy(
+                            processingPaymentId = null,
+                            paymentMessage = "Estado del pago actualizado."
+                        )
+                    }
+                    loadWallet()
+                    refreshJobs(force = true)
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        processingPaymentId = null,
+                        walletError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearCheckoutUrl() {
+        updateState { it.copy(checkoutUrl = null) }
+    }
+
+    fun clearPaymentFeedback() {
+        updateState { it.copy(paymentMessage = null, walletError = null) }
     }
 
     fun loadTaskAttachments(taskId: Int, force: Boolean = false) {

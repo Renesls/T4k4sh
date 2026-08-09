@@ -4,6 +4,7 @@ import com.t4kash.api.identity.dto.AuthenticatedUserResponse;
 import com.t4kash.api.identity.dto.PublicIdentityResponse;
 import com.t4kash.api.identity.service.PublicProfileService;
 import com.t4kash.api.identity.web.CurrentUser;
+import com.t4kash.api.finance.dto.AcceptApplicationRequest;
 import com.t4kash.api.marketplace.dto.ApplicationResponse;
 import com.t4kash.api.marketplace.dto.CategoriaResponse;
 import com.t4kash.api.marketplace.dto.CreateApplicationRequest;
@@ -148,10 +149,13 @@ public class MarketplaceController {
     @SecurityRequirement(name = "bearerAuth")
     public JobResponse acceptApplication(
             @CurrentUser(role = "CLIENTE") AuthenticatedUserResponse user,
-            @PathVariable Integer idPostulacion
+            @PathVariable Integer idPostulacion,
+            @Valid @RequestBody AcceptApplicationRequest request
     ) {
         return enrichJob(
-                applicationService.acceptApplication(user.idUsuario(), idPostulacion)
+                applicationService.acceptApplication(
+                        user.idUsuario(), idPostulacion, request.metodoPago()
+                )
         );
     }
 

@@ -1,6 +1,7 @@
 package com.t4kash.app.ui.service
 
 import com.t4kash.app.ui.model.ApplicationDto
+import com.t4kash.app.ui.model.AcceptApplicationRequest
 import com.t4kash.app.ui.model.AdminSummaryDto
 import com.t4kash.app.ui.model.AttachmentDto
 import com.t4kash.app.ui.model.CategoryDto
@@ -10,6 +11,9 @@ import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.model.CreateTaskReportRequest
 import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.JobDto
+import com.t4kash.app.ui.model.CheckoutDto
+import com.t4kash.app.ui.model.PaymentDto
+import com.t4kash.app.ui.model.WalletDto
 import com.t4kash.app.ui.model.ReviewStudentVerificationRequest
 import com.t4kash.app.ui.model.ReviewReportRequest
 import com.t4kash.app.ui.model.ReportDto
@@ -60,7 +64,8 @@ interface MarketplaceApiService {
 
     @POST("applications/{applicationId}/accept")
     suspend fun acceptApplication(
-        @Path("applicationId") applicationId: Int
+        @Path("applicationId") applicationId: Int,
+        @Body request: AcceptApplicationRequest
     ): JobDto
 
     @POST("applications/{applicationId}/reject")
@@ -86,6 +91,19 @@ interface MarketplaceApiService {
     suspend fun approveDelivery(
         @Path("deliveryId") deliveryId: Int
     ): DeliveryDto
+
+    @GET("wallet")
+    suspend fun getWallet(): WalletDto
+
+    @POST("jobs/{jobId}/payment/checkout")
+    suspend fun createPaymentCheckout(
+        @Path("jobId") jobId: Int
+    ): CheckoutDto
+
+    @POST("payments/{paymentId}/refresh")
+    suspend fun refreshPayment(
+        @Path("paymentId") paymentId: Int
+    ): PaymentDto
 
     @GET("tasks/{taskId}/attachments")
     suspend fun getTaskAttachments(
