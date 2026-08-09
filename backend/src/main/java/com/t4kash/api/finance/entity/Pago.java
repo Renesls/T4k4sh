@@ -32,9 +32,9 @@ public class Pago {
     private String entornoPago;
     @Column(name = "metodo_pago", nullable = false, length = 30)
     private String metodoPago;
-    @Column(name = "moneda_cobro", nullable = false, length = 3)
+    @Column(name = "moneda_cobro", nullable = false, length = 3, columnDefinition = "char(3)")
     private String monedaCobro;
-    @Column(name = "moneda_procesamiento", length = 3)
+    @Column(name = "moneda_procesamiento", length = 3, columnDefinition = "char(3)")
     private String monedaProcesamiento;
     @Column(name = "tipo_cambio", precision = 18, scale = 8)
     private BigDecimal tipoCambio;
