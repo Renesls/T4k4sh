@@ -30,6 +30,7 @@ public class TransaccionPago {
     private String saldoAfectado;
     @Column(name = "monto", nullable = false, precision = 12, scale = 2)
     private BigDecimal monto;
+    @JdbcTypeCode(SqlTypes.CHAR)
     @Column(name = "moneda", nullable = false, length = 3, columnDefinition = "char(3)")
     private String moneda;
     @Column(name = "estado_movimiento", nullable = false, length = 30)

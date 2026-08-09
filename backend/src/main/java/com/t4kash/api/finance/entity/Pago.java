@@ -6,6 +6,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -32,8 +34,10 @@ public class Pago {
     private String entornoPago;
     @Column(name = "metodo_pago", nullable = false, length = 30)
     private String metodoPago;
+    @JdbcTypeCode(SqlTypes.CHAR)
     @Column(name = "moneda_cobro", nullable = false, length = 3, columnDefinition = "char(3)")
     private String monedaCobro;
+    @JdbcTypeCode(SqlTypes.CHAR)
     @Column(name = "moneda_procesamiento", length = 3, columnDefinition = "char(3)")
     private String monedaProcesamiento;
     @Column(name = "tipo_cambio", precision = 18, scale = 8)
