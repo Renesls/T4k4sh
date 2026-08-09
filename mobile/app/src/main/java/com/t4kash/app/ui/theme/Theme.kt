@@ -1,31 +1,9 @@
 package com.t4kash.app.ui.theme
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-
-private val DarkColorScheme = darkColorScheme(
-    primary = T4PrimarySoft,
-    onPrimary = Color.White,
-    primaryContainer = T4PrimaryDark,
-    onPrimaryContainer = Color.White,
-    secondary = T4Mint,
-    onSecondary = T4BrandDark,
-    secondaryContainer = T4MintDark,
-    onSecondaryContainer = T4Mint,
-    tertiary = T4AmberContainer,
-    onTertiary = T4BrandDark,
-    background = T4BrandDark,
-    onBackground = Color.White,
-    surface = Color(0xFF242424),
-    onSurface = Color.White,
-    surfaceVariant = Color(0xFF32322F),
-    onSurfaceVariant = Color(0xFFE7E7E0),
-    outline = Color(0xFF777772),
-    error = T4Danger
-)
 
 private val LightColorScheme = lightColorScheme(
     primary = T4Primary,
@@ -52,17 +30,10 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun T4KASHTheme(
-    // Las pantallas todavia usan colores fijos (T4Background, T4Surface, T4Text...)
-    // en vez de MaterialTheme.colorScheme, asi que DarkColorScheme no se refleja
-    // en la UI. Se deja el modo oscuro fijo en false hasta implementarlo por completo.
-    darkTheme: Boolean = false,
-    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
-
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = LightColorScheme,
         typography = Typography,
         content = content
     )

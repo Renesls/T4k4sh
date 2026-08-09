@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** Owns the Entrega lifecycle: submitting and approving deliveries for a job. */
+/** Gestiona el envio y la aprobacion de entregas asociadas a un trabajo. */
 @Service
 public class DeliveryService {
     private static final String ESTADO_TRABAJO_EN_PROCESO = "EN_PROCESO";

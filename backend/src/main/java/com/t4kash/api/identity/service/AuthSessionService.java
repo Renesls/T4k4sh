@@ -20,10 +20,10 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
 /**
- * Owns the session lifecycle: issuing tokens, resolving the caller from a
- * bearer token and logging out. RegistrationService and LoginService call
- * createSession once a user is verified; AuthenticatedUserService calls
- * getCurrentUser on every authenticated request.
+ * Centraliza el ciclo de vida de las sesiones: emite tokens, identifica al
+ * usuario mediante un token bearer y cierra sesiones. RegistrationService y
+ * LoginService crean la sesion al verificar al usuario, mientras que
+ * AuthenticatedUserService consulta al usuario en cada solicitud protegida.
  */
 @Service
 public class AuthSessionService {
@@ -159,6 +159,7 @@ public class AuthSessionService {
                 .orElse(null);
         return new AuthenticatedUserResponse(
                 usuario.getIdUsuario(),
+                usuario.getNombreUsuario(),
                 usuario.getNombre(),
                 usuario.getApellido(),
                 usuario.getCorreo(),

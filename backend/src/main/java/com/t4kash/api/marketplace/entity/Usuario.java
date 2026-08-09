@@ -20,6 +20,9 @@ public class Usuario {
     @Column(name = "nombre", nullable = false, length = 80)
     private String nombre;
 
+    @Column(name = "nombre_usuario", nullable = false, length = 30)
+    private String nombreUsuario;
+
     @Column(name = "apellido", nullable = false, length = 80)
     private String apellido;
 
@@ -52,6 +55,14 @@ public class Usuario {
 
     public void setNombre(String nombre) {
         this.nombre = nombre;
+    }
+
+    public String getNombreUsuario() {
+        return nombreUsuario;
+    }
+
+    public void setNombreUsuario(String nombreUsuario) {
+        this.nombreUsuario = nombreUsuario;
     }
 
     public String getApellido() {

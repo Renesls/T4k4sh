@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Mail
 import androidx.compose.material.icons.filled.School
@@ -28,12 +30,17 @@ import androidx.compose.material.icons.filled.WorkHistory
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,7 +54,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.t4kash.app.ui.components.T4BottomBar
-import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
 import com.t4kash.app.ui.model.PendingAttachment
 import com.t4kash.app.ui.session.SessionUser
@@ -55,15 +61,19 @@ import com.t4kash.app.ui.navigation.Routes
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
 import com.t4kash.app.ui.theme.T4Mint
+import com.t4kash.app.ui.theme.T4MintDark
 import com.t4kash.app.ui.theme.T4Primary
+import com.t4kash.app.ui.theme.T4PrimaryContainer
 import com.t4kash.app.ui.theme.T4Surface
 import com.t4kash.app.ui.theme.T4Text
 import com.t4kash.app.ui.theme.T4TextMuted
 import com.t4kash.app.ui.viewmodel.MarketplaceViewModel
+import com.t4kash.app.ui.viewmodel.PublicProfileViewModel
 
 @Composable
 fun ProfileScreen(
     viewModel: MarketplaceViewModel,
+    profileViewModel: PublicProfileViewModel,
     user: SessionUser,
     onNavigate: (String) -> Unit,
     onOpenPublications: (String) -> Unit,
@@ -72,6 +82,9 @@ fun ProfileScreen(
     onOpenAdmin: () -> Unit,
     onLogout: () -> Unit
 ) {
+    val profileState = profileViewModel.uiState
+    var showUsernameDialog by remember { mutableStateOf(false) }
+    var usernameDraft by remember(user.username) { mutableStateOf(user.username) }
     var verificationFiles by remember {
         mutableStateOf<List<PendingAttachment>>(emptyList())
     }
@@ -90,6 +103,78 @@ fun ProfileScreen(
     val relatedJobs = viewModel.uiState.jobs.count { job ->
         job.idEstudiante == user.id ||
             ownTasks.any { it.idTarea == job.idTarea }
+    }
+    val completedJobs = viewModel.uiState.jobs.count { job ->
+        (job.idEstudiante == user.id || ownTasks.any { it.idTarea == job.idTarea }) &&
+            job.estadoTrabajo.equals("FINALIZADO", ignoreCase = true)
+    }
+
+    if (showUsernameDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!profileState.isUpdating) {
+                    showUsernameDialog = false
+                    profileViewModel.clearFeedback()
+                }
+            },
+            title = { Text("Cambiar nombre de usuario") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Podras volver a cambiarlo dentro de 30 dias.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = T4TextMuted
+                    )
+                    OutlinedTextField(
+                        value = usernameDraft,
+                        onValueChange = { value ->
+                            usernameDraft = value
+                                .removePrefix("@")
+                                .lowercase()
+                                .take(30)
+                            profileViewModel.clearFeedback()
+                        },
+                        label = { Text("Nombre de usuario") },
+                        prefix = { Text("@") },
+                        supportingText = {
+                            Text("Letras, numeros, puntos y guiones bajos.")
+                        },
+                        singleLine = true
+                    )
+                    profileState.errorMessage?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        profileViewModel.updateUsername(usernameDraft) {
+                            showUsernameDialog = false
+                        }
+                    },
+                    enabled = usernameDraft.length >= 3 && !profileState.isUpdating
+                ) {
+                    if (profileState.isUpdating) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                    } else {
+                        Text("Guardar")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showUsernameDialog = false },
+                    enabled = !profileState.isUpdating
+                ) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 
     LaunchedEffect(Unit) {
@@ -119,29 +204,54 @@ fun ProfileScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
-                T4PatternSurface(
+                Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = T4Surface),
+                    border = BorderStroke(1.dp, T4Border),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
                 ) {
-                    Row(
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(20.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            .height(4.dp)
+                            .background(T4Primary)
+                    )
+                    Row(
+                        modifier = Modifier.padding(18.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
-                            modifier = Modifier
-                                .size(64.dp)
-                                .background(T4Mint, CircleShape),
-                            contentAlignment = Alignment.Center
+                            modifier = Modifier.size(68.dp)
                         ) {
-                            Text(
-                                text = user.initials,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Black,
-                                color = T4Text
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .background(T4Primary, RoundedCornerShape(16.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = user.initials,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .align(Alignment.BottomEnd)
+                                    .background(T4Mint, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.VerifiedUser,
+                                    contentDescription = "Cuenta verificada",
+                                    tint = T4MintDark,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
                         }
                         Column(
                             modifier = Modifier.weight(1f),
@@ -151,18 +261,42 @@ fun ProfileScreen(
                                 text = user.fullName,
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = T4Text
                             )
                             Text(
-                                text = user.email,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = Color.White.copy(alpha = 0.82f)
+                                text = user.careerName ?: user.email,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = T4TextMuted,
+                                maxLines = 2
                             )
-                            Text(
-                                text = "#${user.id}",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = T4Mint
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = user.username
+                                        .takeIf { it.isNotBlank() }
+                                        ?.let { "@$it" }
+                                        ?: "Cuenta T4KASH",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = T4Primary
+                                )
+                                IconButton(
+                                    onClick = {
+                                        usernameDraft = user.username
+                                        profileViewModel.clearFeedback()
+                                        showUsernameDialog = true
+                                    },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Edit,
+                                        contentDescription = "Editar nombre de usuario",
+                                        tint = T4Primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -176,6 +310,13 @@ fun ProfileScreen(
                     onOpenAll = { onOpenPublications("ALL") },
                     onOpenActive = { onOpenPublications("PUBLICADA") },
                     onOpenAssigned = { onOpenPublications("ASIGNADA") }
+                )
+            }
+
+            item {
+                CompletionCard(
+                    completed = completedJobs,
+                    total = relatedJobs
                 )
             }
 
@@ -472,37 +613,31 @@ private fun ProfileStats(
     onOpenActive: () -> Unit,
     onOpenAssigned: () -> Unit
 ) {
-    Card(
+    Row(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = T4Surface),
-        border = BorderStroke(1.dp, T4Border.copy(alpha = 0.65f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            ProfileStat(
-                value = publications,
-                label = "Publicaciones",
-                onClick = onOpenAll,
-                modifier = Modifier.weight(1f)
-            )
-            ProfileStat(
-                value = active,
-                label = "Activas",
-                onClick = onOpenActive,
-                modifier = Modifier.weight(1f)
-            )
-            ProfileStat(
-                value = assigned,
-                label = "Asignadas",
-                onClick = onOpenAssigned,
-                modifier = Modifier.weight(1f)
-            )
-        }
+        ProfileStat(
+            value = publications,
+            label = "Publicadas",
+            icon = Icons.Filled.WorkHistory,
+            onClick = onOpenAll,
+            modifier = Modifier.weight(1f)
+        )
+        ProfileStat(
+            value = active,
+            label = "Activas",
+            icon = Icons.Filled.VerifiedUser,
+            onClick = onOpenActive,
+            modifier = Modifier.weight(1f)
+        )
+        ProfileStat(
+            value = assigned,
+            label = "Asignadas",
+            icon = Icons.Filled.School,
+            onClick = onOpenAssigned,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
@@ -510,26 +645,97 @@ private fun ProfileStats(
 private fun ProfileStat(
     value: Int,
     label: String,
+    icon: ImageVector,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
+    Card(
         modifier = modifier
-            .clickable(onClick = onClick)
-            .padding(vertical = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = T4Surface),
+        border = BorderStroke(1.dp, T4Border),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Text(
-            text = value.toString(),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Black,
-            color = T4Primary
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = T4TextMuted
-        )
+        Column(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 13.dp),
+            horizontalAlignment = Alignment.Start,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = T4Primary,
+                modifier = Modifier.size(20.dp)
+            )
+            Text(
+                text = value.toString(),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Black,
+                color = T4Primary
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = T4TextMuted
+            )
+        }
+    }
+}
+
+@Composable
+private fun CompletionCard(
+    completed: Int,
+    total: Int
+) {
+    val progress = if (total == 0) 0f else completed.toFloat() / total.toFloat()
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = T4Surface),
+        border = BorderStroke(1.dp, T4Border),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Tasa de finalizacion",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = T4Text
+                )
+                Text(
+                    text = "${(progress * 100).toInt()}%",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = T4MintDark
+                )
+            }
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp),
+                color = T4Mint,
+                trackColor = T4PrimaryContainer
+            )
+            Text(
+                text = if (total == 0) {
+                    "Todavia no tienes trabajos asignados."
+                } else {
+                    "$completed de $total trabajos finalizados"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = T4TextMuted
+            )
+        }
     }
 }
 

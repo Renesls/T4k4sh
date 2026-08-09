@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 
-/** Owns the forgot-password / reset-password flow. */
+/** Gestiona la solicitud y confirmacion del restablecimiento de contrasena. */
 @Service
 public class PasswordResetService {
     private static final String ACTIVE_USER = "ACTIVO";

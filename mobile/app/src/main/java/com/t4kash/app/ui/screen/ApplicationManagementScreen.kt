@@ -66,7 +66,8 @@ import com.t4kash.app.ui.viewmodel.MarketplaceViewModel
 fun ApplicationManagementScreen(
     taskId: Int,
     viewModel: MarketplaceViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenProfile: (String) -> Unit
 ) {
     val state = viewModel.uiState
     val task = state.tasks.firstOrNull { it.idTarea == taskId }
@@ -247,6 +248,10 @@ fun ApplicationManagementScreen(
                                 isUpdating = state.updatingApplicationId ==
                                     application.idPostulacion,
                                 actionsEnabled = state.updatingApplicationId == null,
+                                onOpenProfile = {
+                                    application.estudiante?.nombreUsuario
+                                        ?.let(onOpenProfile)
+                                },
                                 onAccept = {
                                     pendingDecision = ApplicationDecision(
                                         application = application,
@@ -275,6 +280,7 @@ private fun ApplicationCard(
     hasAcceptedApplication: Boolean,
     isUpdating: Boolean,
     actionsEnabled: Boolean,
+    onOpenProfile: () -> Unit,
     onAccept: () -> Unit,
     onReject: () -> Unit,
     modifier: Modifier = Modifier
@@ -297,6 +303,10 @@ private fun ApplicationCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
+                    modifier = Modifier.clickable(
+                        enabled = application.estudiante != null,
+                        onClick = onOpenProfile
+                    ),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -307,13 +317,16 @@ private fun ApplicationCard(
                     )
                     Column {
                         Text(
-                            text = "Estudiante #${application.idEstudiante}",
+                            text = application.estudiante?.nombreCompleto
+                                ?: "Estudiante T4KASH",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = T4Text
                         )
                         Text(
-                            text = application.fechaPostulacion.toReadableDate(),
+                            text = application.estudiante?.let {
+                                "@${it.nombreUsuario} · ${application.fechaPostulacion.toReadableDate()}"
+                            } ?: application.fechaPostulacion.toReadableDate(),
                             style = MaterialTheme.typography.bodySmall,
                             color = T4TextMuted
                         )
@@ -408,6 +421,9 @@ private fun DecisionDialog(
     onConfirm: () -> Unit
 ) {
     val action = if (decision.accept) "aceptar" else "rechazar"
+    val studentLabel = decision.application.estudiante?.let {
+        "${it.nombreCompleto} (@${it.nombreUsuario})"
+    } ?: "seleccionado"
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
@@ -431,8 +447,8 @@ private fun DecisionDialog(
         },
         text = {
             Text(
-                "Vas a $action la propuesta del estudiante " +
-                    "#${decision.application.idEstudiante}. Esta decision quedara en el historial."
+                "Vas a $action la propuesta de $studentLabel. " +
+                    "Esta decision quedara en el historial."
             )
         },
         confirmButton = {

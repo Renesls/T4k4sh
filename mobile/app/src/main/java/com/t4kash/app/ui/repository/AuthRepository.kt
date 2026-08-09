@@ -7,11 +7,13 @@ import com.t4kash.app.ui.model.ForgotPasswordRequest
 import com.t4kash.app.ui.model.LoginChallengeResponse
 import com.t4kash.app.ui.model.LoginRequest
 import com.t4kash.app.ui.model.MessageResponse
+import com.t4kash.app.ui.model.PublicProfileDto
 import com.t4kash.app.ui.model.RegisterRequest
 import com.t4kash.app.ui.model.RegistrationResponse
 import com.t4kash.app.ui.model.ResendVerificationRequest
 import com.t4kash.app.ui.model.ResetPasswordRequest
 import com.t4kash.app.ui.model.UniversityDto
+import com.t4kash.app.ui.model.UpdateUsernameRequest
 import com.t4kash.app.ui.model.VerifyEmailRequest
 import com.t4kash.app.ui.model.VerifyLoginRequest
 import com.t4kash.app.ui.service.ApiResult
@@ -82,6 +84,14 @@ class AuthRepository(
 
     suspend fun getCurrentUser(): ApiResult<AuthenticatedUserDto> = execute {
         api.getCurrentUser()
+    }
+
+    suspend fun getPublicProfile(username: String): ApiResult<PublicProfileDto> = execute {
+        api.getPublicProfile(username)
+    }
+
+    suspend fun updateUsername(username: String): ApiResult<PublicProfileDto> = execute {
+        api.updateUsername(UpdateUsernameRequest(username))
     }
 
     suspend fun logout(): ApiResult<Unit> = execute {

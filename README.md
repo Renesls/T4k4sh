@@ -38,7 +38,7 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 | Documentación Swagger/OpenAPI | Implementado |
 | Marketplace y detalle de oportunidades en Android | Implementado |
 | Publicación de tareas desde Android | Implementado |
-| Doce categorías de oportunidades | Implementado |
+| Veinticuatro categorías de oportunidades | Implementado |
 | Ubicación para tareas presenciales e híbridas | Implementado |
 | Mapa con radio de búsqueda y marcadores interactivos | Implementado |
 | Postulación desde Android | Implementado |
@@ -48,13 +48,26 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 | Autenticación en dos pasos (segundo código al iniciar sesión) | Implementado |
 | Recuperación de contraseña por código | Implementado |
 | Verificación de perfil estudiantil con adjunto y revisión administrativa | Implementado |
+| Identidad pública por arroba y cambio de nombre de usuario | Implementado |
 | Conversaciones, mensajes y notificaciones internas | Implementado |
 | Formularios adaptados al teclado y manejo visual de errores | Implementado |
-| Wallet y pagos reales | Pendiente |
+| Modelo financiero para wallet, Pagadito y efectivo | Diseñado en PostgreSQL |
+| Integración con Pagadito Sandbox y wallet transaccional | Pendiente |
+| Puntos T4KASH y catálogo de beneficios | Diseñado en PostgreSQL |
 | Calificaciones y reputación | Pendiente |
 | Notificaciones push con Firebase Cloud Messaging | Pendiente |
 
-El registro valida el dominio de la universidad, relaciona la carrera y activa la cuenta después de confirmar un código enviado por correo. Android conserva la sesión iniciada y utiliza el ID de la cuenta autenticada para publicaciones, postulaciones, trabajos y archivos. Las contraseñas se almacenan con BCrypt y la base conserva únicamente el hash de cada token de sesión.
+El registro detecta automáticamente la universidad a partir del dominio del correo,
+muestra carreras únicamente cuando existe una coincidencia institucional activa y
+activa la cuenta después de confirmar un código enviado por correo.
+Cada cuenta recibe un nombre de usuario público único generado desde el nombre y apellido.
+El usuario puede cambiarlo desde su perfil y debe esperar 30 días antes de escoger otro.
+Las oportunidades, postulaciones, trabajos y conversaciones muestran el nombre y la
+arroba pública; el perfil público no expone correo, carnet, estado interno ni otros datos
+privados de la cuenta.
+Android conserva la sesión iniciada y utiliza internamente el ID autenticado para
+publicaciones, postulaciones, trabajos y archivos. Las contraseñas se almacenan con BCrypt
+y la base conserva únicamente el hash de cada token de sesión.
 
 ## Tecnologías
 
@@ -171,16 +184,17 @@ El modelo original fue diagramado en SQL Server y posteriormente migrado a Postg
 database/schema-postgresql.sql
 ```
 
-El esquema contiene 34 tablas e incluye:
+El esquema contiene 47 tablas e incluye:
 
 - Llaves primarias y foráneas.
 - Restricciones únicas y validaciones.
 - Índices para búsquedas frecuentes.
 - Usuarios, roles y perfiles universitarios.
+- Nombres de usuario públicos y múltiples dominios por universidad.
 - Tareas, habilidades, postulaciones y trabajos.
 - Entregas, pagos, conversaciones y reportes.
 - Sesiones, verificaciones y auditoría.
-- Datos demo para roles, universidad, carreras y doce categorías de oportunidades.
+- Catalogos iniciales con roles, universidades de Managua y Leon, carreras, categorias de oportunidades y habilidades.
 
 `database/sqlserver-original.sql` se conserva únicamente como referencia histórica y no debe utilizarse para Supabase.
 
@@ -219,6 +233,8 @@ El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno 
 | `POST` | `/api/auth/password/reset` | Confirmar código y establecer una contraseña nueva |
 | `GET` | `/api/auth/me` | Consultar el usuario autenticado |
 | `POST` | `/api/auth/logout` | Cerrar la sesión actual |
+| `GET` | `/api/profiles/{username}` | Consultar un perfil público por arroba |
+| `PUT` | `/api/profiles/me/username` | Cambiar la arroba del usuario autenticado |
 | `GET` | `/api/identity/universities` | Listar universidades activas |
 | `GET` | `/api/identity/universities/{id}/careers` | Listar carreras de una universidad |
 | `GET` | `/api/student-verifications/me` | Consultar mi validación estudiantil |
@@ -281,7 +297,7 @@ generan al confirmar ese código con `POST /api/auth/login/verify`.
 
 ```json
 {
-  "correo": "estudiante.demo@unidemo.edu",
+  "correo": "estudiante@uamv.edu.ni",
   "password": "••••••••"
 }
 ```
@@ -290,7 +306,7 @@ generan al confirmar ese código con `POST /api/auth/login/verify`.
 
 ```json
 {
-  "correo": "estudiante.demo@unidemo.edu",
+  "correo": "estudiante@uamv.edu.ni",
   "codigo": "123456"
 }
 ```
@@ -307,7 +323,7 @@ contraseña:
 
 ```json
 {
-  "correo": "estudiante.demo@unidemo.edu",
+  "correo": "estudiante@uamv.edu.ni",
   "codigo": "123456",
   "nuevaPassword": "unaContrasenaNueva123"
 }
@@ -394,7 +410,7 @@ Las tareas remotas se muestran en el marketplace, pero no generan marcadores.
 Flujo actual de exploración y postulación:
 
 1. Android consulta las oportunidades y categorías publicadas.
-2. Los filtros permiten explorar las doce categorías disponibles.
+2. Los filtros permiten explorar las veinticuatro categorías disponibles.
 3. El mapa solicita la ubicación del dispositivo y descarta coordenadas inválidas como `(0, 0)`.
 4. El usuario ajusta un radio de búsqueda entre `5 km` y `50 km`.
 5. Al tocar un marcador se abre el detalle de la oportunidad.
@@ -497,8 +513,8 @@ cd mobile
 
 | Capa | Cantidad actual | Cobertura principal |
 |---|---:|---|
-| Backend | 46 pruebas | Identidad, sesiones, intentos de acceso, correo, marketplace, adjuntos, reportes, conversaciones y arranque de Spring Boot |
-| Android | 17 pruebas unitarias | Formatos, fechas, moneda, distancias, ubicación y políticas de carga/actualización |
+| Backend | 52 pruebas | Identidad y perfiles públicos, catálogos institucionales, nombres de usuario, sesiones, intentos de acceso, correo, marketplace, adjuntos, reportes, conversaciones y arranque de Spring Boot |
+| Android | 20 pruebas unitarias | Dominios de correo, formatos, fechas, moneda, distancias, ubicación y políticas de carga/actualización |
 
 Además de las pruebas unitarias, `lintDebug` revisa problemas estáticos y
 `assembleDebug` confirma que el APK puede generarse. Antes de una entrega se deben
@@ -563,11 +579,72 @@ Los archivos de tareas y entregas se guardan en el bucket privado
 `t4kash-attachments`. PostgreSQL conserva solamente el nombre, tipo, tamaño,
 ruta y propietario del archivo.
 
-- Tamaño máximo: 10 MB por archivo.
+- Tamaño máximo actual desde la aplicación: 10 MB por archivo.
+- El esquema admite hasta 100 MB para la futura integración con Cloudflare R2.
 - Máximo desde Android: 3 archivos por publicación o entrega.
 - Tipos aceptados: PDF, PNG, JPG, WebP, TXT, DOC, DOCX y ZIP.
 - La clave secreta de Supabase se usa únicamente en el backend.
 - Las descargas pasan por la API; Android no recibe acceso directo al bucket.
+
+### Modelo Financiero
+
+PostgreSQL contiene el diseño del ciclo financiero, pero los endpoints y la integración
+con Pagadito todavía no forman parte del MVP ejecutable. Durante el hackathon se usará
+Pagadito Sandbox: los webhooks serán reales como comunicación entre servicios, mientras
+que las operaciones y los fondos serán ficticios.
+
+Reglas acordadas:
+
+- Las tareas remotas e híbridas requieren pago protegido con Pagadito.
+- Las tareas presenciales permiten elegir Pagadito o efectivo.
+- El monto acordado indica la ganancia exacta del estudiante.
+- El cliente ve por separado el monto del trabajo, la tarifa de T4KASH del 1 %, el costo
+  del procesador y el total antes de confirmar.
+- Un pago en efectivo no genera comisión y queda registrado como operación externa sin
+  protección financiera ni reembolso desde T4KASH.
+- Aceptar una postulación reserva el trabajo; el estudiante no debe comenzar hasta que
+  el pago protegido haya sido confirmado.
+
+Las tablas financieras separan la orden de pago, sus movimientos, los eventos webhook,
+los desembolsos, los reembolsos y las disputas. Las claves de idempotencia impiden
+registrar dos veces una notificación o solicitud repetida. La billetera se calculará a
+partir de estos movimientos auditables y no almacenará un saldo aislado susceptible de
+desincronizarse.
+
+Estados principales previstos:
+
+```text
+PENDIENTE_PAGO -> PAGO_CONFIRMADO -> FONDOS_RETENIDOS
+FONDOS_RETENIDOS -> PAGO_DISPONIBLE -> PAGO_LIBERADO
+FONDOS_RETENIDOS -> EN_DISPUTA -> REEMBOLSADO o PAGO_LIBERADO
+PAGO_EXTERNO_PENDIENTE -> PAGO_EXTERNO_CONFIRMADO
+```
+
+### Puntos T4KASH
+
+Los puntos son recompensas internas y no representan dinero electrónico. No pueden
+comprarse, retirarse, convertirse a córdobas ni transferirse entre usuarios. Se obtienen
+por acciones verificadas, como completar un trabajo o mantener una buena participación,
+y se utilizan exclusivamente para beneficios dentro de T4KASH.
+
+El esquema separa:
+
+- `catalogo_beneficios_puntos`: define los beneficios disponibles y su costo.
+- `movimientos_puntos`: registra entradas, salidas, ajustes y expiraciones sin guardar un
+  saldo aislado.
+- `canjes_puntos`: conserva el beneficio solicitado, su costo histórico y su vigencia.
+
+El catálogo inicial permite destacar una tarea, una publicación o un perfil. Cada evento
+usa una clave de idempotencia para impedir que una recompensa o un canje se aplique dos
+veces. El saldo visible se obtiene sumando movimientos aplicados de entrada y restando
+los de salida.
+
+El esquema PostgreSQL completo contiene 47 tablas organizadas en identidad, marketplace,
+finanzas, puntos, comunicación, moderación y auditoría.
+
+Las 47 tablas tienen Row Level Security habilitado sin políticas para las claves públicas
+de Supabase. Android accede exclusivamente mediante la API Spring Boot; el backend usa su
+conexión PostgreSQL de servidor y las claves privadas nunca se incluyen en la aplicación.
 
 ## Diseño y Diagramas
 
@@ -638,7 +715,7 @@ cierre obligatorio del hackathon y mejoras que pueden desarrollarse después.
    - Ejecutar el ciclo completo con dos cuentas: publicar, postular, aceptar, conversar,
      entregar y aprobar.
    - Probar verificación estudiantil, reportes y moderación con una cuenta administradora.
-   - Ejecutar las 46 pruebas del backend, las 17 de Android, `lintDebug` y `assembleDebug`.
+   - Ejecutar las 52 pruebas del backend, las 20 de Android, `lintDebug` y `assembleDebug`.
 2. **Integración final**
    - Resolver diferencias entre ramas y completar los Pull Requests pendientes.
    - Integrar la versión validada en `main` y comprobar el despliegue automático de Render.
@@ -652,7 +729,10 @@ cierre obligatorio del hackathon y mejoras que pueden desarrollarse después.
 ### Mejoras Posteriores al MVP
 
 1. **Finanzas y reputación**
-   - Implementar movimientos reales del wallet y el ciclo de pagos.
+   - Integrar Pagadito Sandbox sobre el modelo financiero definido en PostgreSQL.
+   - Implementar checkout, webhooks idempotentes, wallet, reembolsos y disputas.
+   - Validar con Pagadito el modelo de marketplace antes de utilizar producción.
+   - Implementar las reglas de obtención y canje de puntos T4KASH.
    - Agregar calificaciones y recomendaciones al finalizar trabajos.
 2. **Perfil profesional y networking**
    - Completar habilidades, portafolio y conexiones entre usuarios.

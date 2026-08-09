@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.LocationOn
@@ -67,12 +68,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.t4kash.app.ui.components.StatusChip
+import com.t4kash.app.ui.components.SearchableSelectionDialog
+import com.t4kash.app.ui.components.SelectionOption
 import com.t4kash.app.ui.components.T4BottomBar
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
 import com.t4kash.app.ui.components.isSoftwareKeyboardVisible
 import com.t4kash.app.ui.components.keepVisibleAboveKeyboard
-import com.t4kash.app.ui.components.t4CategoryColors
 import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.model.PendingAttachment
 import com.t4kash.app.ui.navigation.Routes
@@ -125,6 +127,7 @@ fun PostTaskScreen(
         mutableStateOf<Long?>(null)
     }
     var selectedCategoryId by remember { mutableStateOf<Int?>(null) }
+    var showCategoryDialog by rememberSaveable { mutableStateOf(false) }
     var validationError by remember { mutableStateOf<String?>(null) }
     var pendingAttachments by remember { mutableStateOf<List<PendingAttachment>>(emptyList()) }
     var captureLocationRequested by remember { mutableStateOf(false) }
@@ -306,6 +309,24 @@ fun PostTaskScreen(
     }
 
     val keyboardVisible = isSoftwareKeyboardVisible()
+    val selectedCategory = uiState.categories.firstOrNull {
+        it.idCategoria == selectedCategoryId
+    }
+
+    if (showCategoryDialog) {
+        SearchableSelectionDialog(
+            title = "Seleccionar categoria",
+            options = uiState.categories.map {
+                SelectionOption(it.idCategoria, it.nombreCategoria)
+            },
+            selectedId = selectedCategoryId,
+            onDismiss = { showCategoryDialog = false },
+            onSelected = {
+                selectedCategoryId = it
+                validationError = null
+            }
+        )
+    }
 
     Scaffold(
         containerColor = T4Background,
@@ -518,28 +539,20 @@ fun PostTaskScreen(
                             fontWeight = FontWeight.SemiBold,
                             color = T4Text
                         )
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(
-                                items = uiState.categories,
-                                key = { it.idCategoria }
-                            ) { category ->
-                                val selected = selectedCategoryId == category.idCategoria
-                                val categoryColors = t4CategoryColors(category.idCategoria)
-                                FilterChip(
-                                    selected = selected,
-                                    onClick = {
-                                        selectedCategoryId = category.idCategoria
-                                        validationError = null
-                                    },
-                                    label = { Text(category.nombreCategoria) },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        containerColor = categoryColors.container,
-                                        labelColor = categoryColors.content,
-                                        selectedContainerColor = T4Mint,
-                                        selectedLabelColor = T4MintDark
-                                    )
-                                )
-                            }
+                        OutlinedButton(
+                            onClick = { showCategoryDialog = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = selectedCategory?.nombreCategoria
+                                    ?: "Seleccionar categoria",
+                                modifier = Modifier.weight(1f)
+                            )
+                            Icon(
+                                imageVector = Icons.Filled.ArrowDropDown,
+                                contentDescription = null
+                            )
                         }
 
                         Text(

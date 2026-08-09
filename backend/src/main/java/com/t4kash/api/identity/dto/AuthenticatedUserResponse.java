@@ -4,6 +4,7 @@ import java.util.List;
 
 public record AuthenticatedUserResponse(
         Integer idUsuario,
+        String nombreUsuario,
         String nombre,
         String apellido,
         String correo,

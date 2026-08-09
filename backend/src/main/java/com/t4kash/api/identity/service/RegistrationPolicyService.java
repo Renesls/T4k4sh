@@ -1,8 +1,10 @@
 package com.t4kash.api.identity.service;
 
 import com.t4kash.api.exception.ResourceNotFoundException;
+import com.t4kash.api.identity.entity.DominioUniversidad;
 import com.t4kash.api.identity.entity.Universidad;
 import com.t4kash.api.identity.repository.CarreraRepository;
+import com.t4kash.api.identity.repository.DominioUniversidadRepository;
 import com.t4kash.api.identity.repository.UniversidadRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -16,15 +18,18 @@ import java.util.stream.Collectors;
 public class RegistrationPolicyService {
     private final UniversidadRepository universidadRepository;
     private final CarreraRepository carreraRepository;
+    private final DominioUniversidadRepository dominioRepository;
     private final Set<String> evaluatorEmails;
 
     public RegistrationPolicyService(
             UniversidadRepository universidadRepository,
             CarreraRepository carreraRepository,
+            DominioUniversidadRepository dominioRepository,
             @Value("${app.auth.evaluator-emails:}") String evaluatorEmails
     ) {
         this.universidadRepository = universidadRepository;
         this.carreraRepository = carreraRepository;
+        this.dominioRepository = dominioRepository;
         this.evaluatorEmails = parseEmails(evaluatorEmails);
     }
 
@@ -42,7 +47,7 @@ public class RegistrationPolicyService {
             }
             if (!evaluator && belongsToRegisteredUniversity(normalizedEmail)) {
                 throw new IllegalArgumentException(
-                        "Este correo es institucional. Selecciona tu universidad y carrera."
+                        "Este correo institucional requiere una carrera valida."
                 );
             }
             return new RegistrationProfile(evaluator, evaluator, null, null);
@@ -58,48 +63,45 @@ public class RegistrationPolicyService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "La universidad seleccionada no existe o esta inactiva."
                 ));
-        carreraRepository.findByIdCarreraAndIdUniversidad(
+        carreraRepository.findByIdCarreraAndIdUniversidadAndEstadoTrue(
                 careerId,
                 university.getIdUniversidad()
         ).orElseThrow(() -> new IllegalArgumentException(
                 "La carrera no pertenece a la universidad seleccionada."
         ));
-        boolean universityHasDomain = university.getDominioCorreo() != null
-                && !university.getDominioCorreo().isBlank();
-        if (!evaluator && universityHasDomain && !emailDomain(normalizedEmail).equals(
-                normalizeDomain(university.getDominioCorreo())
-        )) {
+        DominioUniversidad registeredDomain = dominioRepository
+                .findByDominioCorreoIgnoreCaseAndEstadoTrue(emailDomain(normalizedEmail))
+                .orElse(null);
+        if (!evaluator && registeredDomain != null
+                && !registeredDomain.getIdUniversidad().equals(university.getIdUniversidad())) {
             throw new IllegalArgumentException(
-                    "El correo no pertenece al dominio de la universidad seleccionada."
+                "El correo no pertenece al dominio de la universidad seleccionada."
             );
         }
+        boolean automaticAccess = evaluator || (
+                registeredDomain != null
+                        && registeredDomain.getIdUniversidad().equals(
+                                university.getIdUniversidad()
+                        )
+                        && registeredDomain.isVerificacionAutomatica()
+        );
         return new RegistrationProfile(
                 true,
-                evaluator || universityHasDomain,
+                automaticAccess,
                 university,
                 careerId
         );
     }
 
     private boolean belongsToRegisteredUniversity(String email) {
-        String domain = emailDomain(email);
-        return universidadRepository.findAllByEstadoTrueOrderByNombreUniversidad()
-                .stream()
-                .map(Universidad::getDominioCorreo)
-                .filter(value -> value != null && !value.isBlank())
-                .map(this::normalizeDomain)
-                .anyMatch(domain::equals);
+        return dominioRepository
+                .findByDominioCorreoIgnoreCaseAndEstadoTrue(emailDomain(email))
+                .isPresent();
     }
 
     private String emailDomain(String email) {
         return email.substring(email.lastIndexOf('@') + 1)
                 .toLowerCase(Locale.ROOT);
-    }
-
-    private String normalizeDomain(String domain) {
-        return domain.trim()
-                .toLowerCase(Locale.ROOT)
-                .replaceFirst("^@", "");
     }
 
     private Set<String> parseEmails(String configuredEmails) {

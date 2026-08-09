@@ -6,10 +6,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Resolves the authenticated caller from the Authorization header.
- * When {@link #role()} is set, the request is rejected with 403 unless the
- * caller has that role - replaces the old "requireRole" boilerplate that was
- * copy-pasted into every controller method.
+ * Obtiene al usuario autenticado desde el encabezado Authorization. Cuando se
+ * indica {@link #role()}, rechaza con 403 las cuentas que no poseen ese rol y
+ * evita repetir la misma validacion en cada controlador.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.PARAMETER)

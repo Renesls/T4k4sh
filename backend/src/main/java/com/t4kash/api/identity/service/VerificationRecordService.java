@@ -8,9 +8,8 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 
 /**
- * Creates VerificacionUsuario records. Shared by RegistrationService (email
- * verification) and LoginService (2FA challenges) so the record shape stays
- * identical between both flows.
+ * Crea registros de VerificacionUsuario para el registro y el inicio de
+ * sesion, manteniendo la misma estructura en ambos flujos.
  */
 @Service
 public class VerificationRecordService {

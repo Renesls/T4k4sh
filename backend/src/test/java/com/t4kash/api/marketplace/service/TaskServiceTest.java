@@ -45,7 +45,9 @@ class TaskServiceTest {
                 postulacionRepository,
                 trabajoRepository
         );
-        lenient().when(categoriaRepository.existsById(1)).thenReturn(true);
+        lenient().when(
+                categoriaRepository.existsByIdCategoriaAndEstadoTrue(1)
+        ).thenReturn(true);
     }
 
     @Test
