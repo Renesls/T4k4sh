@@ -44,7 +44,7 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 | Veinticuatro categorías de oportunidades | Implementado |
 | Ubicación para tareas presenciales e híbridas | Implementado |
 | Mapa con radio de búsqueda y marcadores interactivos | Implementado |
-| Tareas rápidas con radar, asignación inmediata y efectivo confirmado por ambas partes | Implementado |
+| Tareas rápidas con radar, vigencia automática de 24 horas, asignación inmediata y efectivo confirmado por ambas partes | Implementado |
 | Postulación desde Android | Implementado |
 | Postulaciones, asignaciones y entregas en la API | Implementado |
 | Navegación, carga y manejo visual de errores | Implementado |
@@ -482,7 +482,8 @@ Firebase Cloud Messaging queda reservado para notificaciones push posteriores.
 9. Revisar las notificaciones internas y marcar elementos como leídos.
 10. Abrir **Tareas rápidas** desde Inicio, ajustar un radio de 250 metros a 5 kilómetros
     y tomar una oportunidad urgente disponible. La asignación es inmediata, el monto no
-    puede superar C$1,000 y el pago se realiza en efectivo sin comisión.
+    puede superar C$1,000 y el pago se realiza en efectivo sin comisión. La publicación
+    vence automáticamente en 24 horas y, al tomarla, comienza un plazo de 3 horas.
 11. Después de la entrega, el cliente declara el pago y el estudiante confirma que recibió
     el efectivo. Solo entonces el trabajo queda finalizado.
 

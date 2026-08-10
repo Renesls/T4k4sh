@@ -48,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -90,6 +91,7 @@ fun JobDetailScreen(
     val job = state.jobs.firstOrNull { it.idTrabajo == jobId }
     val task = state.tasks.firstOrNull { it.idTarea == job?.idTarea }
     val focusManager = LocalFocusManager.current
+    val uriHandler = LocalUriHandler.current
     var description by remember(jobId) { mutableStateOf("") }
     var validationError by remember(jobId) { mutableStateOf<String?>(null) }
     var pendingAttachments by remember(jobId) {
@@ -112,6 +114,13 @@ fun JobDetailScreen(
             pendingAttachments = emptyList()
             validationError = null
             focusManager.clearFocus()
+        }
+    }
+
+    LaunchedEffect(state.checkoutUrl) {
+        state.checkoutUrl?.let { url ->
+            runCatching { uriHandler.openUri(url) }
+            viewModel.clearCheckoutUrl()
         }
     }
 
@@ -168,6 +177,9 @@ fun JobDetailScreen(
                 val cashPayment = job.pago?.takeIf {
                     it.metodoPago.equals("EFECTIVO", ignoreCase = true)
                 }
+                val protectedPayment = job.pago?.takeUnless {
+                    it.metodoPago.equals("EFECTIVO", ignoreCase = true)
+                }
 
                 LazyColumn(
                     modifier = Modifier
@@ -181,6 +193,7 @@ fun JobDetailScreen(
                         JobSummary(
                             job = job,
                             task = task,
+                            isStudent = isStudent,
                             onOpenProfile = onOpenProfile,
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
@@ -201,6 +214,25 @@ fun JobDetailScreen(
                                         payment.idPago
                                     )
                                 },
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
+                        }
+                    }
+
+                    protectedPayment?.let { payment ->
+                        item {
+                            ProtectedPaymentStatus(
+                                payment = payment,
+                                jobStatus = job.estadoTrabajo,
+                                isStudent = isStudent,
+                                isClient = isClient,
+                                processing = state.processingPaymentId == payment.idPago,
+                                message = state.paymentMessage,
+                                error = state.walletError,
+                                onOpenCheckout = {
+                                    viewModel.openPaymentCheckout(job.idTrabajo, payment.idPago)
+                                },
+                                onRefresh = { viewModel.refreshPayment(payment.idPago) },
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )
                         }
@@ -399,6 +431,115 @@ fun JobDetailScreen(
 }
 
 @Composable
+private fun ProtectedPaymentStatus(
+    payment: PaymentDto,
+    jobStatus: String,
+    isStudent: Boolean,
+    isClient: Boolean,
+    processing: Boolean,
+    message: String?,
+    error: String?,
+    onOpenCheckout: () -> Unit,
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val pending = jobStatus.equals("PENDIENTE_PAGO", ignoreCase = true)
+    val confirmed = payment.estadoPago.equals("FONDOS_RETENIDOS", ignoreCase = true) ||
+        payment.estadoPago.equals("PAGO_LIBERADO", ignoreCase = true)
+    val explanation = when {
+        confirmed -> "El pago protegido fue confirmado y el trabajo ya puede continuar."
+        pending && isStudent ->
+            "El cliente debe completar el pago. Podrás entregar apenas Pagadito lo confirme."
+        pending -> "Completa el pago protegido para que el estudiante pueda comenzar."
+        else -> "El pago de este acuerdo se procesa de forma protegida con Pagadito."
+    }
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = T4Surface),
+        border = BorderStroke(1.dp, T4Border.copy(alpha = 0.7f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Payments,
+                    contentDescription = null,
+                    tint = T4Primary
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Pago protegido",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = T4Text
+                    )
+                    Text(
+                        text = formatNioCurrency(payment.montoEstudiante),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = T4TextMuted
+                    )
+                }
+                StatusChip(
+                    text = if (confirmed) "Confirmado" else "Pendiente",
+                    containerColor = if (confirmed) T4Mint else T4PrimaryContainer,
+                    contentColor = if (confirmed) T4MintDark else T4PrimaryDark
+                )
+            }
+            Text(
+                text = explanation,
+                style = MaterialTheme.typography.bodyMedium,
+                color = T4Text
+            )
+            if (pending && isClient && !confirmed) {
+                Button(
+                    onClick = onOpenCheckout,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !processing
+                ) {
+                    if (processing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Icon(Icons.Filled.Payments, contentDescription = null)
+                    }
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text(if (processing) "Preparando pago..." else "Completar pago")
+                }
+            } else if (pending && isStudent) {
+                OutlinedButton(
+                    onClick = onRefresh,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !processing
+                ) {
+                    Icon(Icons.Filled.Refresh, contentDescription = null)
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text(if (processing) "Comprobando..." else "Comprobar pago")
+                }
+            }
+            message?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = T4MintDark)
+            }
+            error?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = T4Danger)
+            }
+        }
+    }
+
+}
+
+@Composable
 private fun CashPaymentStatus(
     payment: PaymentDto,
     jobStatus: String,
@@ -529,9 +670,11 @@ private fun LoadingJobState(innerPadding: PaddingValues) {
 private fun JobSummary(
     job: JobDto,
     task: TaskDto?,
+    isStudent: Boolean,
     onOpenProfile: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val agreedAmount = job.pago?.montoEstudiante ?: task?.presupuesto
     T4PatternSurface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp)
@@ -586,9 +729,19 @@ private fun JobSummary(
 
             SummaryRow(
                 icon = Icons.Filled.Payments,
-                label = "Presupuesto",
-                value = task?.presupuesto?.let(::formatNioCurrency) ?: "Sin monto"
+                label = if (isStudent) "Ganancia acordada" else "Monto acordado",
+                value = agreedAmount?.let(::formatNioCurrency) ?: "Sin monto"
             )
+            if (
+                job.pago != null && task != null &&
+                job.pago.montoEstudiante != task.presupuesto
+            ) {
+                SummaryRow(
+                    icon = Icons.Filled.Payments,
+                    label = "Presupuesto original",
+                    value = formatNioCurrency(task.presupuesto)
+                )
+            }
             SummaryRow(
                 icon = Icons.Filled.Schedule,
                 label = "Inicio",

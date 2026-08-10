@@ -42,8 +42,8 @@ public class TaskService {
     private static final String MODALIDAD_PRESENCIAL = "PRESENCIAL";
     private static final double RADIO_RAPIDO_MINIMO_KM = 0.25;
     private static final double RADIO_RAPIDO_MAXIMO_KM = 5.0;
-    private static final long MAX_HORAS_POSTULACION_RAPIDA = 24;
-    private static final long MAX_HORAS_ENTREGA_RAPIDA = 48;
+    private static final long HORAS_DISPONIBLE_TAREA_RAPIDA = 24;
+    public static final long HORAS_ENTREGA_TAREA_RAPIDA = 3;
     private static final BigDecimal PAGO_MAXIMO_TAREA_RAPIDA = new BigDecimal("1000.00");
     private static final Set<String> MODALIDADES_VALIDAS =
             Set.of(MODALIDAD_REMOTA, "PRESENCIAL", "HIBRIDA");
@@ -142,18 +142,25 @@ public class TaskService {
             throw new ResourceNotFoundException("La categoria indicada no existe o esta inactiva.");
         }
         LocalDateTime now = LocalDateTime.now();
-        validateTaskDates(request, now);
         String opportunityType = normalizeOpportunityType(request.tipoOportunidad());
         String modalidad = normalizeModality(request.modalidad());
-        validateQuickTask(request, opportunityType, modalidad, now);
+        validateQuickTask(request, opportunityType, modalidad);
+        LocalDateTime applicationDeadline = request.fechaLimitePostulacion();
+        LocalDateTime taskDeadline = request.fechaLimite();
+        if (TIPO_TAREA_RAPIDA.equals(opportunityType)) {
+            applicationDeadline = now.plusHours(HORAS_DISPONIBLE_TAREA_RAPIDA);
+            taskDeadline = applicationDeadline.plusHours(HORAS_ENTREGA_TAREA_RAPIDA);
+        } else {
+            validateTaskDates(request, now);
+        }
 
         Tarea tarea = new Tarea();
         tarea.setTitulo(request.titulo().trim());
         tarea.setDescripcion(request.descripcion().trim());
         tarea.setPresupuesto(request.presupuesto());
         tarea.setFechaPublicacion(now);
-        tarea.setFechaLimitePostulacion(request.fechaLimitePostulacion());
-        tarea.setFechaLimite(request.fechaLimite());
+        tarea.setFechaLimitePostulacion(applicationDeadline);
+        tarea.setFechaLimite(taskDeadline);
         tarea.setEstadoTarea(ESTADO_TAREA_PUBLICADA);
         tarea.setIdCategoria(request.idCategoria());
         tarea.setIdCliente(currentUserId);
@@ -180,16 +187,31 @@ public class TaskService {
             throw new ResourceNotFoundException("La categoria indicada no existe o esta inactiva.");
         }
         LocalDateTime now = LocalDateTime.now();
-        validateTaskDates(request, now);
         String opportunityType = normalizeOpportunityType(request.tipoOportunidad());
         String modalidad = normalizeModality(request.modalidad());
-        validateQuickTask(request, opportunityType, modalidad, now);
+        validateQuickTask(request, opportunityType, modalidad);
+        LocalDateTime applicationDeadline = request.fechaLimitePostulacion();
+        LocalDateTime taskDeadline = request.fechaLimite();
+        if (TIPO_TAREA_RAPIDA.equals(opportunityType)) {
+            boolean alreadyQuick = TIPO_TAREA_RAPIDA.equalsIgnoreCase(
+                    tarea.getTipoOportunidad()
+            );
+            if (alreadyQuick && tarea.getFechaLimitePostulacion() != null) {
+                applicationDeadline = tarea.getFechaLimitePostulacion();
+                taskDeadline = tarea.getFechaLimite();
+            } else {
+                applicationDeadline = now.plusHours(HORAS_DISPONIBLE_TAREA_RAPIDA);
+                taskDeadline = applicationDeadline.plusHours(HORAS_ENTREGA_TAREA_RAPIDA);
+            }
+        } else {
+            validateTaskDates(request, now);
+        }
 
         tarea.setTitulo(request.titulo().trim());
         tarea.setDescripcion(request.descripcion().trim());
         tarea.setPresupuesto(request.presupuesto());
-        tarea.setFechaLimitePostulacion(request.fechaLimitePostulacion());
-        tarea.setFechaLimite(request.fechaLimite());
+        tarea.setFechaLimitePostulacion(applicationDeadline);
+        tarea.setFechaLimite(taskDeadline);
         tarea.setIdCategoria(request.idCategoria());
         tarea.setTipoOportunidad(opportunityType);
         tarea.setModalidad(modalidad);
@@ -317,8 +339,7 @@ public class TaskService {
     private void validateQuickTask(
             CreateTaskRequest request,
             String opportunityType,
-            String modality,
-            LocalDateTime now
+            String modality
     ) {
         if (!TIPO_TAREA_RAPIDA.equals(opportunityType)) {
             return;
@@ -336,21 +357,6 @@ public class TaskService {
         if (request.presupuesto().compareTo(PAGO_MAXIMO_TAREA_RAPIDA) > 0) {
             throw new IllegalArgumentException(
                     "El pago de una tarea rapida no puede superar C$1,000."
-            );
-        }
-        if (request.fechaLimitePostulacion() == null || request.fechaLimite() == null) {
-            throw new IllegalArgumentException(
-                    "Las tareas rapidas requieren una vigencia y una fecha limite."
-            );
-        }
-        if (request.fechaLimitePostulacion().isAfter(now.plusHours(MAX_HORAS_POSTULACION_RAPIDA))) {
-            throw new IllegalArgumentException(
-                    "Una tarea rapida puede permanecer disponible como maximo 24 horas."
-            );
-        }
-        if (request.fechaLimite().isAfter(now.plusHours(MAX_HORAS_ENTREGA_RAPIDA))) {
-            throw new IllegalArgumentException(
-                    "Una tarea rapida debe completarse dentro de las proximas 48 horas."
             );
         }
     }

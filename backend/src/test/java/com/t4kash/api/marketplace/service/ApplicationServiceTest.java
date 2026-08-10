@@ -22,6 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -283,6 +284,10 @@ class ApplicationServiceTest {
         assertEquals(50, response.idTrabajo());
         assertEquals("ASIGNADA", task.getEstadoTarea());
         assertEquals("EN_PROCESO", response.estadoTrabajo());
+        assertEquals(3, Duration.between(
+                response.fechaInicio(),
+                response.fechaEntregaEsperada()
+        ).toHours());
         verify(conversationService).ensureForAcceptedApplication(any(), any());
     }
 

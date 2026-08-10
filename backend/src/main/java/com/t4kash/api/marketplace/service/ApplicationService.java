@@ -207,7 +207,9 @@ public class ApplicationService {
         trabajo.setIdTarea(idTarea);
         trabajo.setIdEstudiante(currentUserId);
         trabajo.setFechaInicio(now);
-        trabajo.setFechaEntregaEsperada(tarea.getFechaLimite());
+        trabajo.setFechaEntregaEsperada(
+                now.plusHours(TaskService.HORAS_ENTREGA_TAREA_RAPIDA)
+        );
         trabajo.setEstadoTrabajo(ESTADO_TRABAJO_EN_PROCESO);
         TrabajoAsignado savedJob = trabajoRepository.save(trabajo);
 

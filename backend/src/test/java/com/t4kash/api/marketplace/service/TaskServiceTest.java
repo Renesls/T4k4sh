@@ -15,12 +15,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -197,6 +199,38 @@ class TaskServiceTest {
                 "El pago de una tarea rapida no puede superar C$1,000.",
                 error.getMessage()
         );
+    }
+
+    @Test
+    void quickTaskUsesAutomaticPublicationAndDeliveryWindows() {
+        mockTaskSave();
+        LocalDateTime beforeCreation = LocalDateTime.now();
+        CreateTaskRequest request = new CreateTaskRequest(
+                "Imprimir material urgente",
+                "Necesito imprimir material cerca del campus universitario.",
+                new BigDecimal("30.00"),
+                null,
+                null,
+                1,
+                "RAPIDA",
+                "PRESENCIAL",
+                "PUBLICA",
+                "Entrada principal",
+                new BigDecimal("12.114990"),
+                new BigDecimal("-86.236170")
+        );
+
+        TaskResponse response = service.createTask(1, request);
+
+        long publicationMinutes = Duration.between(
+                beforeCreation,
+                response.fechaLimitePostulacion()
+        ).toMinutes();
+        assertEquals(3, Duration.between(
+                response.fechaLimitePostulacion(),
+                response.fechaLimite()
+        ).toHours());
+        assertTrue(publicationMinutes >= 1439 && publicationMinutes <= 1440);
     }
 
     private CreateTaskRequest request(

@@ -1,6 +1,7 @@
 package com.t4kash.app.ui.screen
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -54,6 +55,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -64,7 +68,6 @@ import com.t4kash.app.ui.components.EmptyState
 import com.t4kash.app.ui.components.T4BottomBar
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
-import com.t4kash.app.ui.components.isSoftwareKeyboardVisible
 import com.t4kash.app.ui.components.keepVisibleAboveKeyboard
 import com.t4kash.app.ui.formatApiDateTime
 import com.t4kash.app.ui.formatDaySeparator
@@ -97,7 +100,6 @@ fun ChatScreen(
     onOpenNotifications: () -> Unit
 ) {
     val state = viewModel.uiState
-    val keyboardVisible = isSoftwareKeyboardVisible()
     var query by remember { mutableStateOf("") }
     val conversations = remember(state.conversations, query) {
         state.conversations.filter {
@@ -128,13 +130,11 @@ fun ChatScreen(
             )
         },
         bottomBar = {
-            if (!keyboardVisible) {
-                T4BottomBar(
-                    currentRoute = Routes.CHAT,
-                    onNavigate = onNavigate,
-                    onReselect = { viewModel.refreshOverview() }
-                )
-            }
+            T4BottomBar(
+                currentRoute = Routes.CHAT,
+                onNavigate = onNavigate,
+                onReselect = { viewModel.refreshOverview() }
+            )
         }
     ) { innerPadding ->
         PullToRefreshBox(
@@ -330,62 +330,115 @@ fun ConversationScreen(
             )
         }
     ) { innerPadding ->
-        LazyColumn(
-            state = listState,
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(
-                horizontal = 14.dp,
-                vertical = 16.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(innerPadding)
         ) {
-            if (state.isLoadingMessages && messages.isEmpty()) {
-                item { LoadingBlock() }
-            } else if (state.messageError != null && messages.isEmpty()) {
-                item {
-                    ConnectionErrorState(
-                        message = state.messageError,
-                        onRetry = {
-                            viewModel.loadMessages(conversationId)
+            ChatPatternBackground(
+                conversationId = conversationId,
+                modifier = Modifier.fillMaxSize()
+            )
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    horizontal = 14.dp,
+                    vertical = 16.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (state.isLoadingMessages && messages.isEmpty()) {
+                    item { LoadingBlock() }
+                } else if (state.messageError != null && messages.isEmpty()) {
+                    item {
+                        ConnectionErrorState(
+                            message = state.messageError,
+                            onRetry = {
+                                viewModel.loadMessages(conversationId)
+                            }
+                        )
+                    }
+                } else if (messages.isEmpty()) {
+                    item {
+                        EmptyState(
+                            title = "Inicia la conversacion",
+                            message = "Escribe el primer mensaje sobre este trabajo."
+                        )
+                    }
+                } else {
+                    itemsIndexed(
+                        items = chatItems,
+                        key = { index, chatItem ->
+                            when (chatItem) {
+                                is ChatListItem.DateHeader -> "date-header-$index"
+                                is ChatListItem.MessageItem -> chatItem.message.idMensaje
+                            }
                         }
-                    )
-                }
-            } else if (messages.isEmpty()) {
-                item {
-                    EmptyState(
-                        title = "Inicia la conversacion",
-                        message = "Escribe el primer mensaje sobre este trabajo."
-                    )
-                }
-            } else {
-                itemsIndexed(
-                    items = chatItems,
-                    key = { index, chatItem ->
+                    ) { _, chatItem ->
                         when (chatItem) {
-                            is ChatListItem.DateHeader -> "date-header-$index"
-                            is ChatListItem.MessageItem -> chatItem.message.idMensaje
+                            is ChatListItem.DateHeader -> DateSeparator(chatItem.label)
+                            is ChatListItem.MessageItem -> MessageBubble(message = chatItem.message)
                         }
                     }
-                ) { _, chatItem ->
-                    when (chatItem) {
-                        is ChatListItem.DateHeader -> DateSeparator(chatItem.label)
-                        is ChatListItem.MessageItem -> MessageBubble(message = chatItem.message)
+                }
+
+                if (state.messageError != null && messages.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = state.messageError,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
                     }
                 }
             }
+        }
+    }
+}
 
-            if (state.messageError != null && messages.isNotEmpty()) {
-                item {
-                    Text(
-                        text = state.messageError,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(horizontal = 8.dp)
+@Composable
+private fun ChatPatternBackground(
+    conversationId: Int,
+    modifier: Modifier = Modifier
+) {
+    val variant = Math.floorMod(conversationId, 3)
+    Canvas(modifier = modifier) {
+        drawRect(T4Background)
+        val step = 108.dp.toPx()
+        val shapeSize = 40.dp.toPx()
+        var row = 0
+        var y = 24.dp.toPx()
+        while (y < size.height) {
+            var column = 0
+            var x = 18.dp.toPx()
+            while (x < size.width) {
+                val shiftedX = x + if (row % 2 == 0) 0f else step / 2f
+                when ((variant + row + column) % 3) {
+                    0 -> drawCircle(
+                        color = T4Mint.copy(alpha = 0.07f),
+                        radius = shapeSize / 2f,
+                        center = Offset(shiftedX, y)
+                    )
+                    1 -> drawRoundRect(
+                        color = T4Primary.copy(alpha = 0.045f),
+                        topLeft = Offset(shiftedX - shapeSize / 2f, y - shapeSize / 2f),
+                        size = Size(shapeSize, shapeSize),
+                        cornerRadius = CornerRadius(10.dp.toPx(), 10.dp.toPx())
+                    )
+                    else -> drawLine(
+                        color = T4BrandDark.copy(alpha = 0.04f),
+                        start = Offset(shiftedX - shapeSize / 2f, y + shapeSize / 2f),
+                        end = Offset(shiftedX + shapeSize / 2f, y - shapeSize / 2f),
+                        strokeWidth = 5.dp.toPx()
                     )
                 }
+                column++
+                x += step
             }
+            row++
+            y += step
         }
     }
 }

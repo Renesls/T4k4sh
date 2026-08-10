@@ -202,6 +202,7 @@ fun NavGraph(
                 onTaskSelected = { task -> navController.navigate(Routes.taskDetails(task.idTarea)) },
                 onOpenMap = { navController.navigate(Routes.OPPORTUNITY_MAP) },
                 onOpenQuickTasks = { navController.navigate(Routes.QUICK_TASKS) },
+                onOpenProfile = { navController.navigateBottom(Routes.PROFILE) },
                 onOpenNotifications = {
                     navController.navigate(Routes.NOTIFICATIONS)
                 },
