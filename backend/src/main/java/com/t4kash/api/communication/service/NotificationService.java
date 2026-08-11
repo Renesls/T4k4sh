@@ -1,6 +1,7 @@
 package com.t4kash.api.communication.service;
 
 import com.t4kash.api.communication.dto.NotificationResponse;
+import com.t4kash.api.config.PaginationSupport;
 import com.t4kash.api.communication.entity.Notificacion;
 import com.t4kash.api.communication.repository.NotificacionRepository;
 import com.t4kash.api.exception.ForbiddenOperationException;
@@ -32,8 +33,16 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public List<NotificationResponse> listMine(Integer userId) {
+        return listMine(userId, 0, PaginationSupport.DEFAULT_SIZE);
+    }
+
+    @Transactional(readOnly = true)
+    public List<NotificationResponse> listMine(Integer userId, int page, int size) {
         return notificationRepository
-                .findByIdUsuarioOrderByFechaCreacionDesc(userId)
+                .findByIdUsuarioOrderByFechaCreacionDesc(
+                        userId,
+                        PaginationSupport.page(page, size)
+                )
                 .stream()
                 .map(NotificationResponse::fromEntity)
                 .toList();
@@ -64,12 +73,7 @@ public class NotificationService {
 
     @Transactional
     public void markAllRead(Integer userId) {
-        List<Notificacion> notifications =
-                notificationRepository.findByIdUsuarioOrderByFechaCreacionDesc(userId);
-        notifications.stream()
-                .filter(item -> !item.isLeida())
-                .forEach(item -> item.setLeida(true));
-        notificationRepository.saveAll(notifications);
+        notificationRepository.markAllAsRead(userId);
     }
 
     private String limit(String value, int maximum) {

@@ -3,6 +3,7 @@ package com.t4kash.api.finance.repository;
 import com.t4kash.api.finance.entity.Pago;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -26,6 +27,16 @@ public interface PagoRepository extends JpaRepository<Pago, Integer> {
             ORDER BY pago.fechaActualizacion DESC
             """)
     List<Pago> findVisibleToUser(@Param("idUsuario") Integer idUsuario);
+
+    @Query("""
+            SELECT pago FROM Pago pago
+            WHERE pago.idCliente = :idUsuario OR pago.idEstudiante = :idUsuario
+            ORDER BY pago.fechaActualizacion DESC
+            """)
+    List<Pago> findVisibleToUser(
+            @Param("idUsuario") Integer idUsuario,
+            Pageable pageable
+    );
 
     @Query("""
             SELECT COALESCE(SUM(pago.montoEstudiante), 0) FROM Pago pago

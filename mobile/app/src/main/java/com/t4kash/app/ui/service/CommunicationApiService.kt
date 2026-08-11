@@ -8,6 +8,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface CommunicationApiService {
     @GET("conversations")
@@ -15,7 +16,9 @@ interface CommunicationApiService {
 
     @GET("conversations/{conversationId}/messages")
     suspend fun getMessages(
-        @Path("conversationId") conversationId: Int
+        @Path("conversationId") conversationId: Int,
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 100
     ): List<MessageDto>
 
     @POST("conversations/{conversationId}/messages")
@@ -30,7 +33,10 @@ interface CommunicationApiService {
     )
 
     @GET("notifications")
-    suspend fun getNotifications(): List<NotificationDto>
+    suspend fun getNotifications(
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 50
+    ): List<NotificationDto>
 
     @POST("notifications/{notificationId}/read")
     suspend fun markNotificationRead(

@@ -148,7 +148,8 @@ data class DeliveryDto(
 data class PendingAttachment(
     val name: String,
     val mimeType: String,
-    val content: ByteArray
+    val localPath: String,
+    val sizeBytes: Long
 )
 
 data class AttachmentDto(

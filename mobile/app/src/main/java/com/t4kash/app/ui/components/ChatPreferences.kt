@@ -1,6 +1,7 @@
 package com.t4kash.app.ui.components
 
 import android.content.Context
+import androidx.core.content.edit
 
 enum class ChatBackgroundTheme(
     val storageValue: String,
@@ -51,8 +52,6 @@ object AppPreferences {
 
     fun setChatBackgroundTheme(context: Context, theme: ChatBackgroundTheme) {
         context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(CHAT_BACKGROUND_KEY, theme.storageValue)
-            .apply()
+            .edit { putString(CHAT_BACKGROUND_KEY, theme.storageValue) }
     }
 }

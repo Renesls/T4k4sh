@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -26,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -106,17 +109,17 @@ class TaskServiceTest {
 
     @Test
     void listingTasksClosesExpiredPublications() {
-        Tarea expiredTask = task(
+        Tarea closedTask = task(
                 10,
-                "PUBLICADA",
+                "CERRADA",
                 LocalDateTime.now().minusMinutes(1)
         );
-        when(tareaRepository.findAllByOrderByFechaPublicacionDesc())
-                .thenReturn(List.of(expiredTask));
+        when(tareaRepository.findAllByOrderByFechaPublicacionDesc(any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(closedTask)));
 
         List<TaskResponse> response = service.listTasks();
 
-        assertEquals("CERRADA", expiredTask.getEstadoTarea());
+        verify(tareaRepository).closeExpiredPublishedTasks(any(LocalDateTime.class));
         assertEquals("CERRADA", response.getFirst().estadoTarea());
     }
 

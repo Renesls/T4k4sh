@@ -555,16 +555,36 @@ cd mobile
 .\gradlew.bat :app:testDebugUnitTest
 .\gradlew.bat :app:lintDebug
 .\gradlew.bat :app:assembleDebug
+.\gradlew.bat :app:assembleRelease
 ```
 
 | Capa | Cantidad actual | Cobertura principal |
 |---|---:|---|
-| Backend | 52 pruebas | Identidad y perfiles públicos, catálogos institucionales, nombres de usuario, sesiones, intentos de acceso, correo, marketplace, adjuntos, reportes, conversaciones y arranque de Spring Boot |
-| Android | 20 pruebas unitarias | Dominios de correo, formatos, fechas, moneda, distancias, ubicación y políticas de carga/actualización |
+| Backend | 65 pruebas | 63 pruebas unitarias de identidad, seguridad, marketplace, pagos, adjuntos, reportes y comunicación; 2 pruebas integrales con PostgreSQL mediante Testcontainers |
+| Android | 22 pruebas unitarias | Dominios de correo, formatos, fechas, moneda, distancias, fondos de chat y políticas de carga/actualización |
 
-Además de las pruebas unitarias, `lintDebug` revisa problemas estáticos y
-`assembleDebug` confirma que el APK puede generarse. Antes de una entrega se deben
-ejecutar los cuatro comandos sobre una copia limpia del repositorio.
+Las pruebas integrales se ejecutan cuando Docker está disponible y se omiten sin fallar
+la compilación cuando está apagado. Además, `lintDebug` revisa problemas estáticos,
+`assembleDebug` confirma el APK de desarrollo y `assembleRelease` valida la reducción
+con R8. Los APK se generan en:
+
+```text
+mobile/app/build/outputs/apk/debug/app-debug.apk
+mobile/app/build/outputs/apk/release/app-release-unsigned.apk
+```
+
+### Optimización y límites
+
+- Los listados de tareas, conversaciones, mensajes, notificaciones, reportes y movimientos
+  de Wallet aceptan `page` y `size`; el backend limita cada solicitud a 100 elementos.
+- Tareas vencidas y notificaciones leídas se actualizan con una sola sentencia SQL.
+- Conversaciones y reportes cargan usuarios y recursos relacionados en bloques para evitar
+  consultas repetidas por cada fila.
+- Los archivos seleccionados se copian a la caché temporal y se suben desde disco, evitando
+  conservar hasta 30 MB de adjuntos completos en memoria.
+- Producción exige HTTPS, oculta los cuerpos HTTP del registro y excluye la sesión cifrada
+  de las copias de seguridad. Debug conserva HTTP únicamente para las pruebas locales.
+- PostgreSQL incluye índices compuestos para marketplace, chat, notificaciones y moderación.
 
 ## Problemas Comunes
 
@@ -772,7 +792,7 @@ cierre obligatorio del hackathon y mejoras que pueden desarrollarse después.
    - Ejecutar el ciclo completo con dos cuentas: publicar, postular, aceptar, conversar,
      entregar y aprobar.
    - Probar verificación estudiantil, reportes y moderación con una cuenta administradora.
-   - Ejecutar las 55 pruebas del backend, las pruebas de Android, `lintDebug` y `assembleDebug`.
+   - Ejecutar las 65 pruebas del backend, las 22 pruebas de Android, `lintDebug`, `assembleDebug` y `assembleRelease`.
 2. **Integración final**
    - Resolver diferencias entre ramas y completar los Pull Requests pendientes.
    - Integrar la versión validada en `main` y comprobar el despliegue automático de Render.

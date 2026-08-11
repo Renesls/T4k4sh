@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -45,20 +46,26 @@ public class CommunicationController {
     @GetMapping("/conversations")
     @Operation(summary = "Listar mis conversaciones")
     public List<ConversationResponse> listConversations(
-            @CurrentUser AuthenticatedUserResponse user
+            @CurrentUser AuthenticatedUserResponse user,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size
     ) {
-        return conversationService.listMine(user.idUsuario());
+        return conversationService.listMine(user.idUsuario(), page, size);
     }
 
     @GetMapping("/conversations/{conversationId}/messages")
     @Operation(summary = "Listar mensajes de una conversacion")
     public List<MessageResponse> listMessages(
             @CurrentUser AuthenticatedUserResponse user,
-            @PathVariable Integer conversationId
+            @PathVariable Integer conversationId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size
     ) {
         return conversationService.listMessages(
                 user.idUsuario(),
-                conversationId
+                conversationId,
+                page,
+                size
         );
     }
 
@@ -90,9 +97,11 @@ public class CommunicationController {
     @GetMapping("/notifications")
     @Operation(summary = "Listar mis notificaciones")
     public List<NotificationResponse> listNotifications(
-            @CurrentUser AuthenticatedUserResponse user
+            @CurrentUser AuthenticatedUserResponse user,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size
     ) {
-        return notificationService.listMine(user.idUsuario());
+        return notificationService.listMine(user.idUsuario(), page, size);
     }
 
     @PostMapping("/notifications/{notificationId}/read")

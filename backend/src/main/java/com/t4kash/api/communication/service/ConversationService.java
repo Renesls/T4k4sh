@@ -7,6 +7,7 @@ import com.t4kash.api.communication.entity.Conversacion;
 import com.t4kash.api.communication.entity.Mensaje;
 import com.t4kash.api.communication.repository.ConversacionRepository;
 import com.t4kash.api.communication.repository.MensajeRepository;
+import com.t4kash.api.config.PaginationSupport;
 import com.t4kash.api.exception.ForbiddenOperationException;
 import com.t4kash.api.exception.ResourceConflictException;
 import com.t4kash.api.exception.ResourceNotFoundException;
@@ -22,7 +23,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class ConversationService {
@@ -62,13 +70,80 @@ public class ConversationService {
         return ensureForJob(job, application.getIdPostulacion());
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public List<ConversationResponse> listMine(Integer currentUserId) {
-        jobRepository.findVisibleToUser(currentUserId)
-                .forEach(job -> ensureForJob(job, null));
-        return conversationRepository.findVisibleToUser(currentUserId)
+        return listMine(currentUserId, 0, PaginationSupport.DEFAULT_SIZE);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ConversationResponse> listMine(
+            Integer currentUserId,
+            int page,
+            int size
+    ) {
+        List<Conversacion> conversations = conversationRepository
+                .findVisibleToUser(
+                        currentUserId,
+                        PaginationSupport.page(page, size)
+                );
+        if (conversations.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Integer, Tarea> tasks = mapById(
+                taskRepository.findAllById(ids(conversations, Conversacion::getIdTarea)),
+                Tarea::getIdTarea
+        );
+        Map<Integer, TrabajoAsignado> jobs = mapById(
+                jobRepository.findAllById(
+                        nullableIds(conversations, Conversacion::getIdTrabajo)
+                ),
+                TrabajoAsignado::getIdTrabajo
+        );
+        Map<Integer, Postulacion> applications = mapById(
+                applicationRepository.findAllById(
+                        nullableIds(conversations, Conversacion::getIdPostulacion)
+                ),
+                Postulacion::getIdPostulacion
+        );
+
+        Set<Integer> participantIds = new HashSet<>();
+        conversations.forEach(conversation -> {
+            Tarea task = required(tasks, conversation.getIdTarea(), "oportunidad");
+            participantIds.add(task.getIdCliente());
+            participantIds.add(resolveStudentId(conversation, jobs, applications));
+        });
+        Map<Integer, Usuario> users = mapById(
+                userRepository.findAllById(participantIds),
+                Usuario::getIdUsuario
+        );
+
+        List<Integer> conversationIds = conversations.stream()
+                .map(Conversacion::getIdConversacion)
+                .toList();
+        Map<Integer, Mensaje> latestMessages = mapById(
+                messageRepository.findLatestByConversationIds(conversationIds),
+                Mensaje::getIdConversacion
+        );
+        Map<Integer, Long> unreadCounts = messageRepository
+                .countUnreadByConversationIds(conversationIds, currentUserId)
                 .stream()
-                .map(item -> toResponse(item, currentUserId))
+                .collect(Collectors.toMap(
+                        item -> item.getIdConversacion(),
+                        item -> item.getTotal()
+                ));
+
+        return conversations.stream()
+                .map(conversation -> toResponse(
+                        conversation,
+                        currentUserId,
+                        tasks,
+                        jobs,
+                        applications,
+                        users,
+                        latestMessages,
+                        unreadCounts
+                ))
                 .toList();
     }
 
@@ -77,16 +152,44 @@ public class ConversationService {
             Integer currentUserId,
             Integer conversationId
     ) {
+        return listMessages(
+                currentUserId,
+                conversationId,
+                0,
+                PaginationSupport.MAXIMUM_SIZE
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<MessageResponse> listMessages(
+            Integer currentUserId,
+            Integer conversationId,
+            int page,
+            int size
+    ) {
         Conversacion conversation = requireParticipant(
                 conversationId,
                 currentUserId
         );
-        return messageRepository
-                .findByIdConversacionOrderByFechaEnvioAsc(
-                        conversation.getIdConversacion()
+        List<Mensaje> messages = new ArrayList<>(messageRepository
+                .findByIdConversacionOrderByFechaEnvioDesc(
+                        conversation.getIdConversacion(),
+                        PaginationSupport.page(page, size)
                 )
-                .stream()
-                .map(item -> toMessageResponse(item, currentUserId))
+                .getContent());
+        Collections.reverse(messages);
+        Map<Integer, Usuario> users = mapById(
+                userRepository.findAllById(
+                        ids(messages, Mensaje::getIdUsuarioEmisor)
+                ),
+                Usuario::getIdUsuario
+        );
+        return messages.stream()
+                .map(item -> toMessageResponse(
+                        item,
+                        currentUserId,
+                        required(users, item.getIdUsuarioEmisor(), "usuario")
+                ))
                 .toList();
     }
 
@@ -159,19 +262,21 @@ public class ConversationService {
 
     private ConversationResponse toResponse(
             Conversacion conversation,
-            Integer currentUserId
+            Integer currentUserId,
+            Map<Integer, Tarea> tasks,
+            Map<Integer, TrabajoAsignado> jobs,
+            Map<Integer, Postulacion> applications,
+            Map<Integer, Usuario> users,
+            Map<Integer, Mensaje> latestMessages,
+            Map<Integer, Long> unreadCounts
     ) {
-        Tarea task = requireTask(conversation.getIdTarea());
-        Integer counterpartId = resolveCounterpartId(
-                conversation,
-                currentUserId
-        );
-        Usuario counterpart = requireUser(counterpartId);
-        Mensaje lastMessage = messageRepository
-                .findFirstByIdConversacionOrderByFechaEnvioDesc(
-                        conversation.getIdConversacion()
-                )
-                .orElse(null);
+        Tarea task = required(tasks, conversation.getIdTarea(), "oportunidad");
+        Integer studentId = resolveStudentId(conversation, jobs, applications);
+        Integer counterpartId = task.getIdCliente().equals(currentUserId)
+                ? studentId
+                : task.getIdCliente();
+        Usuario counterpart = required(users, counterpartId, "usuario");
+        Mensaje lastMessage = latestMessages.get(conversation.getIdConversacion());
         return new ConversationResponse(
                 conversation.getIdConversacion(),
                 conversation.getIdTarea(),
@@ -185,11 +290,7 @@ public class ConversationService {
                 lastMessage == null
                         ? conversation.getFechaCreacion()
                         : lastMessage.getFechaEnvio(),
-                messageRepository
-                        .countByIdConversacionAndIdUsuarioEmisorNotAndLeidoFalse(
-                                conversation.getIdConversacion(),
-                                currentUserId
-                        )
+                unreadCounts.getOrDefault(conversation.getIdConversacion(), 0L)
         );
     }
 
@@ -197,7 +298,18 @@ public class ConversationService {
             Mensaje message,
             Integer currentUserId
     ) {
-        Usuario sender = requireUser(message.getIdUsuarioEmisor());
+        return toMessageResponse(
+                message,
+                currentUserId,
+                requireUser(message.getIdUsuarioEmisor())
+        );
+    }
+
+    private MessageResponse toMessageResponse(
+            Mensaje message,
+            Integer currentUserId,
+            Usuario sender
+    ) {
         return new MessageResponse(
                 message.getIdMensaje(),
                 message.getIdConversacion(),
@@ -267,6 +379,65 @@ public class ConversationService {
         throw new ResourceConflictException(
                 "La conversacion no tiene participantes completos."
         );
+    }
+
+    private Integer resolveStudentId(
+            Conversacion conversation,
+            Map<Integer, TrabajoAsignado> jobs,
+            Map<Integer, Postulacion> applications
+    ) {
+        if (conversation.getIdTrabajo() != null) {
+            return required(jobs, conversation.getIdTrabajo(), "trabajo")
+                    .getIdEstudiante();
+        }
+        if (conversation.getIdPostulacion() != null) {
+            return required(
+                    applications,
+                    conversation.getIdPostulacion(),
+                    "postulacion"
+            ).getIdEstudiante();
+        }
+        throw new ResourceConflictException(
+                "La conversacion no tiene participantes completos."
+        );
+    }
+
+    private <T, K> Map<K, T> mapById(
+            Iterable<T> items,
+            Function<T, K> idExtractor
+    ) {
+        Map<K, T> result = new java.util.HashMap<>();
+        items.forEach(item -> result.put(idExtractor.apply(item), item));
+        return result;
+    }
+
+    private <T> Set<Integer> ids(
+            List<T> items,
+            Function<T, Integer> idExtractor
+    ) {
+        return items.stream()
+                .map(idExtractor)
+                .collect(Collectors.toSet());
+    }
+
+    private <T> Set<Integer> nullableIds(
+            List<T> items,
+            Function<T, Integer> idExtractor
+    ) {
+        return items.stream()
+                .map(idExtractor)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+    }
+
+    private <K, T> T required(Map<K, T> items, K id, String resource) {
+        T item = items.get(id);
+        if (item == null) {
+            throw new ResourceNotFoundException(
+                    "No se encontro el recurso asociado: " + resource + "."
+            );
+        }
+        return item;
     }
 
     private Tarea requireTask(Integer taskId) {

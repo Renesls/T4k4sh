@@ -3,6 +3,7 @@ package com.t4kash.api.marketplace.service;
 import com.t4kash.api.exception.ForbiddenOperationException;
 import com.t4kash.api.exception.ResourceConflictException;
 import com.t4kash.api.exception.ResourceNotFoundException;
+import com.t4kash.api.config.PaginationSupport;
 import com.t4kash.api.marketplace.dto.CategoriaResponse;
 import com.t4kash.api.marketplace.dto.CreateTaskRequest;
 import com.t4kash.api.marketplace.dto.QuickTaskResponse;
@@ -75,9 +76,14 @@ public class TaskService {
 
     @Transactional
     public List<TaskResponse> listTasks() {
-        List<Tarea> tareas = tareaRepository.findAllByOrderByFechaPublicacionDesc();
-        tareas.forEach(tarea -> closeExpiredTask(tarea, LocalDateTime.now()));
-        return tareas
+        return listTasks(0, PaginationSupport.DEFAULT_SIZE);
+    }
+
+    @Transactional
+    public List<TaskResponse> listTasks(int page, int size) {
+        tareaRepository.closeExpiredPublishedTasks(LocalDateTime.now());
+        return tareaRepository
+                .findAllByOrderByFechaPublicacionDesc(PaginationSupport.page(page, size))
                 .stream()
                 .map(TaskResponse::fromEntity)
                 .toList();
@@ -86,6 +92,11 @@ public class TaskService {
     @Transactional
     public List<TaskResponse> listTasksForAdmin() {
         return listTasks();
+    }
+
+    @Transactional
+    public List<TaskResponse> listTasksForAdmin(int page, int size) {
+        return listTasks(page, size);
     }
 
     @Transactional

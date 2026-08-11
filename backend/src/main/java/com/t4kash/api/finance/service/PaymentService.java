@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.t4kash.api.communication.service.NotificationService;
+import com.t4kash.api.config.PaginationSupport;
 import com.t4kash.api.exception.ForbiddenOperationException;
 import com.t4kash.api.exception.PaymentProviderException;
 import com.t4kash.api.exception.ResourceConflictException;
@@ -182,7 +183,15 @@ public class PaymentService {
 
     @Transactional(readOnly = true)
     public WalletResponse getWallet(Integer currentUserId) {
-        List<Pago> payments = paymentRepository.findVisibleToUser(currentUserId);
+        return getWallet(currentUserId, 0, PaginationSupport.DEFAULT_SIZE);
+    }
+
+    @Transactional(readOnly = true)
+    public WalletResponse getWallet(Integer currentUserId, int page, int size) {
+        List<Pago> payments = paymentRepository.findVisibleToUser(
+                currentUserId,
+                PaginationSupport.page(page, size)
+        );
         List<WalletMovementResponse> movements = movementRepository
                 .findTop30ByIdUsuarioOrderByFechaRegistroDesc(currentUserId)
                 .stream()

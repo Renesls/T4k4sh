@@ -33,8 +33,12 @@ public class PaymentController {
     @GetMapping("/wallet")
     @Operation(summary = "Consultar billetera e historial")
     @SecurityRequirement(name = "bearerAuth")
-    public WalletResponse getWallet(@CurrentUser AuthenticatedUserResponse user) {
-        return paymentService.getWallet(user.idUsuario());
+    public WalletResponse getWallet(
+            @CurrentUser AuthenticatedUserResponse user,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size
+    ) {
+        return paymentService.getWallet(user.idUsuario(), page, size);
     }
 
     @GetMapping("/jobs/{idTrabajo}/payment")

@@ -36,7 +36,10 @@ interface MarketplaceApiService {
     suspend fun getCategories(): List<CategoryDto>
 
     @GET("tasks")
-    suspend fun getTasks(): List<TaskDto>
+    suspend fun getTasks(
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 50
+    ): List<TaskDto>
 
     @POST("tasks")
     suspend fun createTask(@Body request: CreateTaskRequest): TaskDto
@@ -105,7 +108,10 @@ interface MarketplaceApiService {
     ): DeliveryDto
 
     @GET("wallet")
-    suspend fun getWallet(): WalletDto
+    suspend fun getWallet(
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 50
+    ): WalletDto
 
     @POST("jobs/{jobId}/payment/checkout")
     suspend fun createPaymentCheckout(
@@ -159,16 +165,25 @@ interface MarketplaceApiService {
     ): ReportDto
 
     @GET("reports/me")
-    suspend fun getMyReports(): List<ReportDto>
+    suspend fun getMyReports(
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 50
+    ): List<ReportDto>
 
     @GET("admin/summary")
     suspend fun getAdminSummary(): AdminSummaryDto
 
     @GET("admin/tasks")
-    suspend fun getAdminTasks(): List<TaskDto>
+    suspend fun getAdminTasks(
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 50
+    ): List<TaskDto>
 
     @GET("admin/reports")
-    suspend fun getAdminReports(): List<ReportDto>
+    suspend fun getAdminReports(
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 50
+    ): List<ReportDto>
 
     @DELETE("admin/tasks/{taskId}")
     suspend fun cancelTaskAsAdmin(

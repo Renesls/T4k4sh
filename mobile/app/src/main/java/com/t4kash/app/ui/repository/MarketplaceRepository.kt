@@ -24,25 +24,33 @@ import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.service.ApiResult
 import com.t4kash.app.ui.service.MarketplaceApiService
 import com.t4kash.app.ui.service.RetrofitClient
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import org.json.JSONObject
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
 import retrofit2.HttpException
+import java.io.File
 
 class MarketplaceRepository(
     private val api: MarketplaceApiService = RetrofitClient.marketplaceApiService
 ) {
     suspend fun loadHomeData(): ApiResult<MarketplaceHomeData> {
         return try {
-            ApiResult.Success(
-                MarketplaceHomeData(
-                    categories = api.getCategories(),
-                    tasks = api.getTasks()
+            coroutineScope {
+                val categories = async { api.getCategories() }
+                val tasks = async { api.getTasks() }
+                ApiResult.Success(
+                    MarketplaceHomeData(
+                        categories = categories.await(),
+                        tasks = tasks.await()
+                    )
                 )
-            )
+            }
         } catch (e: Exception) {
-            ApiResult.Error(e.message ?: "No se pudo conectar con la API.")
+            ApiResult.Error(e.apiMessage("No se pudo conectar con la API."))
         }
     }
 
@@ -274,14 +282,20 @@ class MarketplaceRepository(
 
     suspend fun loadAdminDashboard(): ApiResult<AdminDashboardData> {
         return try {
-            ApiResult.Success(
-                AdminDashboardData(
-                    summary = api.getAdminSummary(),
-                    verifications = api.getPendingStudentVerifications(),
-                    reports = api.getAdminReports(),
-                    tasks = api.getAdminTasks()
+            coroutineScope {
+                val summary = async { api.getAdminSummary() }
+                val verifications = async { api.getPendingStudentVerifications() }
+                val reports = async { api.getAdminReports() }
+                val tasks = async { api.getAdminTasks() }
+                ApiResult.Success(
+                    AdminDashboardData(
+                        summary = summary.await(),
+                        verifications = verifications.await(),
+                        reports = reports.await(),
+                        tasks = tasks.await()
+                    )
                 )
-            )
+            }
         } catch (e: Exception) {
             ApiResult.Error(e.apiMessage("No se pudo cargar el panel administrativo."))
         }
@@ -355,13 +369,19 @@ class MarketplaceRepository(
     ): ApiResult<AttachmentDto> {
         return try {
             val mediaType = attachment.mimeType.toMediaType()
-            val fileBody = attachment.content.toRequestBody(mediaType)
+            val localFile = File(attachment.localPath)
+            if (!localFile.isFile) {
+                return ApiResult.Error("El archivo ${attachment.name} ya no esta disponible.")
+            }
+            val fileBody = localFile.asRequestBody(mediaType)
             val filePart = MultipartBody.Part.createFormData(
                 "file",
                 attachment.name,
                 fileBody
             )
-            ApiResult.Success(upload(filePart))
+            ApiResult.Success(upload(filePart)).also {
+                localFile.delete()
+            }
         } catch (e: Exception) {
             ApiResult.Error(e.apiMessage("No se pudo subir ${attachment.name}."))
         }
@@ -369,6 +389,7 @@ class MarketplaceRepository(
 }
 
 private fun Exception.apiMessage(fallback: String): String {
+    if (this is CancellationException) throw this
     if (this is HttpException) {
         val detail = runCatching {
             val body = response()?.errorBody()?.string().orEmpty()

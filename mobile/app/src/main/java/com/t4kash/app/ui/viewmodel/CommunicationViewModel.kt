@@ -10,6 +10,7 @@ import com.t4kash.app.ui.model.MessageDto
 import com.t4kash.app.ui.model.NotificationDto
 import com.t4kash.app.ui.repository.CommunicationRepository
 import com.t4kash.app.ui.service.ApiResult
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 data class CommunicationUiState(
@@ -37,9 +38,12 @@ class CommunicationViewModel(
 ) : ViewModel() {
     var uiState by mutableStateOf(CommunicationUiState())
         private set
+    private var overviewJob: Job? = null
+    private var messageLoadJob: Job? = null
 
     fun refreshOverview() {
-        viewModelScope.launch {
+        if (overviewJob?.isActive == true) return
+        overviewJob = viewModelScope.launch {
             uiState = uiState.copy(
                 isLoadingOverview = true,
                 overviewError = null
@@ -68,13 +72,11 @@ class CommunicationViewModel(
         conversationId: Int,
         silent: Boolean = false
     ) {
-        if (
-            uiState.isLoadingMessages &&
-            uiState.activeConversationId == conversationId
-        ) {
-            return
+        if (uiState.activeConversationId != conversationId) {
+            messageLoadJob?.cancel()
         }
-        viewModelScope.launch {
+        if (messageLoadJob?.isActive == true) return
+        messageLoadJob = viewModelScope.launch {
             uiState = uiState.copy(
                 activeConversationId = conversationId,
                 isLoadingMessages = !silent,
@@ -82,6 +84,7 @@ class CommunicationViewModel(
             )
             when (val result = repository.loadMessages(conversationId)) {
                 is ApiResult.Success -> {
+                    if (uiState.activeConversationId != conversationId) return@launch
                     uiState = uiState.copy(
                         messages = result.data,
                         isLoadingMessages = false,
@@ -98,6 +101,7 @@ class CommunicationViewModel(
                 }
 
                 is ApiResult.Error -> {
+                    if (uiState.activeConversationId != conversationId) return@launch
                     uiState = uiState.copy(
                         isLoadingMessages = false,
                         messageError = result.message
@@ -112,6 +116,7 @@ class CommunicationViewModel(
         if (cleanContent.isBlank() || uiState.isSending) {
             return
         }
+        messageLoadJob?.cancel()
         viewModelScope.launch {
             uiState = uiState.copy(
                 isSending = true,
@@ -204,6 +209,8 @@ class CommunicationViewModel(
     }
 
     fun clearSession() {
+        overviewJob?.cancel()
+        messageLoadJob?.cancel()
         uiState = CommunicationUiState()
     }
 }

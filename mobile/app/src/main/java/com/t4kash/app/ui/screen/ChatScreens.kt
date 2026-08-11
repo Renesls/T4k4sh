@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -54,7 +55,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -659,17 +659,18 @@ private fun ConversationCard(
 
 @Composable
 private fun MessageBubble(message: MessageDto) {
-    val maxBubbleWidth = (LocalConfiguration.current.screenWidthDp * 0.78f).dp
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (message.propio) {
-            Arrangement.End
-        } else {
-            Arrangement.Start
-        }
-    ) {
-        Surface(
-            modifier = Modifier.widthIn(max = maxBubbleWidth),
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val maxBubbleWidth = maxWidth * 0.78f
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = if (message.propio) {
+                Arrangement.End
+            } else {
+                Arrangement.Start
+            }
+        ) {
+            Surface(
+                modifier = Modifier.widthIn(max = maxBubbleWidth),
             shape = RoundedCornerShape(
                 topStart = 16.dp,
                 topEnd = 16.dp,
@@ -683,8 +684,8 @@ private fun MessageBubble(message: MessageDto) {
             } else {
                 BorderStroke(1.dp, T4Border)
             }
-        ) {
-            Column(
+            ) {
+                Column(
                 modifier = Modifier.padding(
                     horizontal = 13.dp,
                     vertical = 9.dp
@@ -735,6 +736,7 @@ private fun MessageBubble(message: MessageDto) {
                             }
                         )
                     }
+                }
                 }
             }
         }

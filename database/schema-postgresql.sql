@@ -1199,6 +1199,13 @@ ALTER TABLE auditoria_sistema
     FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario);
 
 CREATE INDEX idx_tareas_estado ON tareas (estado_tarea);
+CREATE INDEX idx_tareas_estado_publicacion
+    ON tareas (estado_tarea, fecha_publicacion DESC);
+CREATE INDEX idx_tareas_rapidas_busqueda
+    ON tareas (tipo_oportunidad, estado_tarea, latitud, longitud)
+    WHERE tipo_oportunidad = 'RAPIDA'
+      AND latitud IS NOT NULL
+      AND longitud IS NOT NULL;
 CREATE INDEX idx_dominios_universidad_universidad
     ON dominios_universidad (id_universidad, estado);
 CREATE UNIQUE INDEX uq_usuarios_nombre_usuario
@@ -1257,8 +1264,19 @@ CREATE INDEX idx_movimientos_puntos_usuario_fecha
 CREATE INDEX idx_movimientos_puntos_expiracion
     ON movimientos_puntos (fecha_expiracion)
     WHERE fecha_expiracion IS NOT NULL AND estado_movimiento = 'APLICADO';
-CREATE INDEX idx_notificaciones_usuario ON notificaciones (id_usuario);
-CREATE INDEX idx_mensajes_conversacion ON mensajes (id_conversacion);
+CREATE INDEX idx_notificaciones_usuario_fecha
+    ON notificaciones (id_usuario, fecha_creacion DESC);
+CREATE INDEX idx_mensajes_conversacion_fecha
+    ON mensajes (id_conversacion, fecha_envio DESC);
+CREATE INDEX idx_mensajes_no_leidos
+    ON mensajes (id_conversacion, id_usuario_emisor)
+    WHERE leido = false;
+CREATE UNIQUE INDEX uq_conversaciones_trabajo
+    ON conversaciones (id_trabajo)
+    WHERE id_trabajo IS NOT NULL;
+CREATE UNIQUE INDEX uq_conversaciones_postulacion
+    ON conversaciones (id_postulacion)
+    WHERE id_postulacion IS NOT NULL;
 CREATE UNIQUE INDEX uq_conexiones_usuarios_par
     ON conexiones_usuarios (
         LEAST(id_usuario_solicitante, id_usuario_receptor),
@@ -1268,7 +1286,10 @@ CREATE INDEX idx_archivos_verificacion ON archivos_adjuntos (id_verificacion)
     WHERE id_verificacion IS NOT NULL;
 CREATE INDEX idx_archivos_apelacion ON archivos_adjuntos (id_apelacion)
     WHERE id_apelacion IS NOT NULL;
-CREATE INDEX idx_reportes_estado ON reportes (estado_reporte);
+CREATE INDEX idx_reportes_estado_fecha
+    ON reportes (estado_reporte, fecha_reporte DESC);
+CREATE INDEX idx_reportes_usuario_fecha
+    ON reportes (id_usuario_reporta, fecha_reporte DESC);
 CREATE INDEX idx_sanciones_usuario_estado
     ON sanciones_usuario (id_usuario_sancionado, estado_sancion, fecha_inicio DESC);
 CREATE INDEX idx_sanciones_usuario_vencimiento

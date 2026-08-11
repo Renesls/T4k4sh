@@ -69,8 +69,11 @@ public class MarketplaceController {
 
     @GetMapping("/tasks")
     @Operation(summary = "Listar oportunidades")
-    public List<TaskResponse> listTasks() {
-        return enrichTasks(taskService.listTasks());
+    public List<TaskResponse> listTasks(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size
+    ) {
+        return enrichTasks(taskService.listTasks(page, size));
     }
 
     @PostMapping("/tasks")
