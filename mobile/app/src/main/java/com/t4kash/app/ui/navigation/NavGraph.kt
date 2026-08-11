@@ -32,6 +32,7 @@ import com.t4kash.app.ui.screen.PublicProfileScreen
 import com.t4kash.app.ui.screen.RegisterScreen
 import com.t4kash.app.ui.screen.ForgotPasswordScreen
 import com.t4kash.app.ui.screen.ResetPasswordScreen
+import com.t4kash.app.ui.screen.SettingsScreen
 import com.t4kash.app.ui.screen.SplashScreen
 import com.t4kash.app.ui.screen.WalletScreen
 import com.t4kash.app.ui.screen.VerifyEmailScreen
@@ -360,6 +361,7 @@ fun NavGraph(
                 },
                 onOpenJobs = { navController.navigate(Routes.ASSIGNED_JOBS) },
                 onOpenWallet = { navController.navigate(Routes.WALLET) },
+                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                 onOpenAdmin = { navController.navigate(Routes.ADMIN) },
                 onLogout = {
                     authViewModel.logout {
@@ -369,6 +371,9 @@ fun NavGraph(
                     }
                 }
             )
+        }
+        composable(Routes.SETTINGS) {
+            SettingsScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.QUICK_TASKS) {
             OpportunityMapScreen(

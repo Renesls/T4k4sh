@@ -1,7 +1,6 @@
 package com.t4kash.app.ui.screen
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -55,15 +54,15 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.t4kash.app.ui.components.ConnectionErrorState
+import com.t4kash.app.ui.components.AppPreferences
+import com.t4kash.app.ui.components.ChatBackground
 import com.t4kash.app.ui.components.EmptyState
 import com.t4kash.app.ui.components.T4BottomBar
 import com.t4kash.app.ui.components.T4PatternSurface
@@ -270,6 +269,8 @@ fun ConversationScreen(
     }
     val chatItems = remember(messages) { buildChatItems(messages) }
     val listState = rememberLazyListState()
+    val context = LocalContext.current
+    val chatTheme = remember { AppPreferences.getChatBackgroundTheme(context) }
     var draft by remember(conversationId) { mutableStateOf("") }
     var stickToBottom by remember(conversationId) { mutableStateOf(true) }
 
@@ -335,8 +336,8 @@ fun ConversationScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            ChatPatternBackground(
-                conversationId = conversationId,
+            ChatBackground(
+                theme = chatTheme,
                 modifier = Modifier.fillMaxSize()
             )
             LazyColumn(
@@ -394,51 +395,6 @@ fun ConversationScreen(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun ChatPatternBackground(
-    conversationId: Int,
-    modifier: Modifier = Modifier
-) {
-    val variant = Math.floorMod(conversationId, 3)
-    Canvas(modifier = modifier) {
-        drawRect(T4Background)
-        val step = 108.dp.toPx()
-        val shapeSize = 40.dp.toPx()
-        var row = 0
-        var y = 24.dp.toPx()
-        while (y < size.height) {
-            var column = 0
-            var x = 18.dp.toPx()
-            while (x < size.width) {
-                val shiftedX = x + if (row % 2 == 0) 0f else step / 2f
-                when ((variant + row + column) % 3) {
-                    0 -> drawCircle(
-                        color = T4Mint.copy(alpha = 0.07f),
-                        radius = shapeSize / 2f,
-                        center = Offset(shiftedX, y)
-                    )
-                    1 -> drawRoundRect(
-                        color = T4Primary.copy(alpha = 0.045f),
-                        topLeft = Offset(shiftedX - shapeSize / 2f, y - shapeSize / 2f),
-                        size = Size(shapeSize, shapeSize),
-                        cornerRadius = CornerRadius(10.dp.toPx(), 10.dp.toPx())
-                    )
-                    else -> drawLine(
-                        color = T4BrandDark.copy(alpha = 0.04f),
-                        start = Offset(shiftedX - shapeSize / 2f, y + shapeSize / 2f),
-                        end = Offset(shiftedX + shapeSize / 2f, y - shapeSize / 2f),
-                        strokeWidth = 5.dp.toPx()
-                    )
-                }
-                column++
-                x += step
-            }
-            row++
-            y += step
         }
     }
 }

@@ -54,6 +54,7 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 | Verificación de perfil estudiantil con adjunto y revisión administrativa | Implementado |
 | Identidad pública por arroba y cambio de nombre de usuario | Implementado |
 | Conversaciones, mensajes y notificaciones internas | Implementado |
+| Configuración local con cuatro temas de fondo para el chat | Implementado |
 | Formularios adaptados al teclado y manejo visual de errores | Implementado |
 | Modelo financiero para wallet, Pagadito y efectivo | Implementado |
 | Integración con Pagadito Sandbox y wallet transaccional | Implementado; requiere credenciales Sandbox |
