@@ -22,3 +22,8 @@ local.properties
 .DS_Store
 Thumbs.db
 *.log
+
+# graphify (herramienta local de análisis, no forma parte del proyecto)
+.claude/
+CLAUDE.md
+graphify-out/

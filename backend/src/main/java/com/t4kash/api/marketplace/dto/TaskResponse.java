@@ -1,5 +1,6 @@
 package com.t4kash.api.marketplace.dto;
 
+import com.t4kash.api.identity.dto.PublicIdentityResponse;
 import com.t4kash.api.marketplace.entity.Tarea;
 
 import java.math.BigDecimal;
@@ -18,7 +19,11 @@ public record TaskResponse(
         Integer idCliente,
         String tipoOportunidad,
         String modalidad,
-        String visibilidad
+        String visibilidad,
+        String direccionReferencia,
+        BigDecimal latitud,
+        BigDecimal longitud,
+        PublicIdentityResponse cliente
 ) {
     public static TaskResponse fromEntity(Tarea tarea) {
         return new TaskResponse(
@@ -34,7 +39,20 @@ public record TaskResponse(
                 tarea.getIdCliente(),
                 tarea.getTipoOportunidad(),
                 tarea.getModalidad(),
-                tarea.getVisibilidad()
+                tarea.getVisibilidad(),
+                tarea.getDireccionReferencia(),
+                tarea.getLatitud(),
+                tarea.getLongitud(),
+                null
+        );
+    }
+
+    public TaskResponse withClient(PublicIdentityResponse publicClient) {
+        return new TaskResponse(
+                idTarea, titulo, descripcion, presupuesto, fechaPublicacion,
+                fechaLimitePostulacion, fechaLimite, estadoTarea, idCategoria,
+                idCliente, tipoOportunidad, modalidad, visibilidad,
+                direccionReferencia, latitud, longitud, publicClient
         );
     }
 }
