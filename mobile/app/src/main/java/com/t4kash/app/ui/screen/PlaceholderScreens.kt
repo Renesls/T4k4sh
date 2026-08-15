@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -61,7 +60,7 @@ fun NetworkScreen(
 }
 
 @Composable
-fun ChatScreen(
+fun ChatPlaceholderScreen(
     onNavigate: (String) -> Unit
 ) {
     FeatureScreen(
@@ -81,86 +80,6 @@ fun ChatScreen(
             title = "Aún no hay mensajes",
             message = "Cuando exista actividad en una oportunidad, aparecerá aquí."
         )
-    }
-}
-
-@Composable
-fun WalletScreen(
-    onNavigate: (String) -> Unit
-) {
-    FeatureScreen(
-        route = Routes.WALLET,
-        title = "Wallet",
-        subtitle = "Pagos y actividad",
-        heroTitle = "Seguimiento financiero simple.",
-        heroBody = "Más adelante esta vista mostrará pagos, movimientos confirmados y reportes de actividad.",
-        onNavigate = onNavigate
-    ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = T4Primary),
-            shape = MaterialTheme.shapes.large
-        ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = "$0.00",
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Text(
-                    text = "Balance disponible",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.76f)
-                )
-            }
-        }
-        InfoCard(
-            title = "Movimiento esperado",
-            body = "Pagos aprobados, entregas cerradas y reportes financieros.",
-            chips = listOf("Balance", "Pagos", "Historial")
-        )
-        EmptyState(
-            title = "Sin transacciones",
-            message = "Los movimientos aparecerán cuando conectemos el flujo de pagos."
-        )
-    }
-}
-
-@Composable
-fun ApplicationSentScreen(
-    onBackHome: () -> Unit
-) {
-    Scaffold(
-        containerColor = T4Background,
-        topBar = {
-            T4TopBar(
-                title = "Aplicación enviada",
-                subtitle = "Estado de solicitud"
-            )
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .background(T4Background)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Center
-        ) {
-            EmptyState(
-                title = "Solicitud preparada",
-                message = "La acción está lista en la interfaz. El siguiente paso será conectarla al endpoint de postulaciones.",
-                action = {
-                    Button(onClick = onBackHome) {
-                        Text("Volver al inicio")
-                    }
-                }
-            )
-        }
     }
 }
 
