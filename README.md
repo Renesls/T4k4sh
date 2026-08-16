@@ -14,7 +14,9 @@ Muchos estudiantes necesitan generar ingresos o experiencia mientras estudian, p
 - Riesgo de estafas o incumplimientos.
 - Dificultad para organizar postulaciones.
 
-T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportunidades universitarias. No pretende funcionar como una red social ni incluir un feed de publicaciones.
+T4KASH centraliza estas interacciones en un flujo trazable y añade una red
+universitaria donde los usuarios pueden publicar, compartir proyectos, conectar
+con otros perfiles y convertir una interacción social en una oportunidad real.
 
 ## Flujo Principal
 
@@ -296,6 +298,20 @@ El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno 
 | `GET` | `/api/notifications` | Listar notificaciones |
 | `POST` | `/api/notifications/{id}/read` | Marcar una notificación como leída |
 | `POST` | `/api/notifications/read-all` | Marcar todas como leídas |
+| `GET` | `/api/network/feed` | Consultar el feed para ti, conexiones o universidad |
+| `GET` | `/api/network/saved` | Consultar publicaciones guardadas |
+| `GET` | `/api/network/posts/{id}` | Consultar una publicación visible |
+| `POST` | `/api/network/posts` | Crear una publicación social |
+| `PUT` | `/api/network/posts/{id}` | Editar una publicación propia |
+| `DELETE` | `/api/network/posts/{id}` | Eliminar una publicación propia |
+| `PUT` | `/api/network/posts/{id}/reaction` | Agregar o cambiar una reacción |
+| `DELETE` | `/api/network/posts/{id}/reaction` | Quitar una reacción |
+| `PUT` | `/api/network/posts/{id}/saved` | Guardar una publicación |
+| `DELETE` | `/api/network/posts/{id}/saved` | Quitar una publicación guardada |
+| `GET` | `/api/network/posts/{id}/comments` | Listar comentarios y respuestas |
+| `POST` | `/api/network/posts/{id}/comments` | Comentar o responder |
+| `PUT` | `/api/network/comments/{id}` | Editar un comentario propio |
+| `DELETE` | `/api/network/comments/{id}` | Eliminar un comentario propio |
 | `GET` | `/api/admin/summary` | Consultar resumen administrativo |
 | `GET` | `/api/admin/tasks` | Listar publicaciones para moderación |
 | `DELETE` | `/api/admin/tasks/{idTarea}` | Retirar una publicación (admin) |
@@ -434,6 +450,21 @@ El administrador revisa los reportes desde su panel y puede:
 Las revisiones y los retiros administrativos se registran en `auditoria_sistema` con el
 administrador responsable, la dirección IP, el dispositivo y los estados antes y después
 de la operación.
+
+### Network Universitario
+
+Network separa las publicaciones sociales de las oportunidades del marketplace. El feed
+acepta el parámetro `alcance` con los valores `PARA_TI`, `CONEXIONES` o `UNIVERSIDAD` y
+aplica la visibilidad de cada publicación antes de devolverla.
+
+Una publicación puede ser de texto, imagen, video, proyecto, logro, pregunta, recurso,
+evento o contenido compartido. Los usuarios pueden comentar, responder, reaccionar y
+guardar contenido. La API excluye publicaciones ocultas y contenido de cuentas bloqueadas,
+y solo permite que el autor edite o elimine sus propias publicaciones y comentarios.
+
+Las reacciones admitidas son `ME_GUSTA`, `APOYO`, `CELEBRAR` e `INTERESA`. Cada usuario
+mantiene como máximo una reacción por publicación; enviar otra cambia la anterior sin
+crear un registro duplicado.
 
 ## Aplicación Android
 
@@ -578,7 +609,7 @@ cd mobile
 
 | Capa | Cantidad actual | Cobertura principal |
 |---|---:|---|
-| Backend | 65 pruebas | 63 pruebas unitarias de identidad, seguridad, marketplace, pagos, adjuntos, reportes y comunicación; 2 pruebas integrales con PostgreSQL mediante Testcontainers |
+| Backend | 87 pruebas | 84 pruebas unitarias de identidad, seguridad, marketplace, pagos, adjuntos, reportes, comunicación y Network; 3 pruebas integrales con PostgreSQL mediante Testcontainers |
 | Android | 22 pruebas unitarias | Dominios de correo, formatos, fechas, moneda, distancias, fondos de chat y políticas de carga/actualización |
 
 Las pruebas integrales se ejecutan cuando Docker está disponible y se omiten sin fallar
@@ -593,8 +624,9 @@ mobile/app/build/outputs/apk/release/app-release-unsigned.apk
 
 ### Optimización y límites
 
-- Los listados de tareas, conversaciones, mensajes, notificaciones, reportes y movimientos
-  de Wallet aceptan `page` y `size`; el backend limita cada solicitud a 100 elementos.
+- Los listados de tareas, publicaciones sociales, comentarios, conversaciones, mensajes,
+  notificaciones, reportes y movimientos de Wallet aceptan `page` y `size`; el backend
+  limita cada solicitud a 100 elementos.
 - Tareas vencidas y notificaciones leídas se actualizan con una sola sentencia SQL.
 - Conversaciones y reportes cargan usuarios y recursos relacionados en bloques para evitar
   consultas repetidas por cada fila.
@@ -602,7 +634,8 @@ mobile/app/build/outputs/apk/release/app-release-unsigned.apk
   conservar hasta 30 MB de adjuntos completos en memoria.
 - Producción exige HTTPS, oculta los cuerpos HTTP del registro y excluye la sesión cifrada
   de las copias de seguridad. Debug conserva HTTP únicamente para las pruebas locales.
-- PostgreSQL incluye índices compuestos para marketplace, chat, notificaciones y moderación.
+- PostgreSQL incluye índices compuestos para marketplace, feed social, chat,
+  notificaciones y moderación.
 
 ## Problemas Comunes
 
@@ -816,7 +849,7 @@ cierre obligatorio del hackathon y mejoras que pueden desarrollarse después.
    - Ejecutar el ciclo completo con dos cuentas: publicar, postular, aceptar, conversar,
      entregar y aprobar.
    - Probar verificación estudiantil, reportes y moderación con una cuenta administradora.
-   - Ejecutar las 65 pruebas del backend, las 22 pruebas de Android, `lintDebug`, `assembleDebug` y `assembleRelease`.
+   - Ejecutar las 87 pruebas del backend, las 22 pruebas de Android, `lintDebug`, `assembleDebug` y `assembleRelease`.
 2. **Integración final**
    - Resolver diferencias entre ramas y completar los Pull Requests pendientes.
    - Integrar la versión validada en `main` y comprobar el despliegue automático de Render.
