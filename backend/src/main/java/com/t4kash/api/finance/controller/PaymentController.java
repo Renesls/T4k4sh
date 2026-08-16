@@ -1,15 +1,19 @@
 package com.t4kash.api.finance.controller;
 
 import com.t4kash.api.finance.dto.CheckoutResponse;
+import com.t4kash.api.finance.dto.CreatePaymentDisputeRequest;
+import com.t4kash.api.finance.dto.PaymentDisputeResponse;
 import com.t4kash.api.finance.dto.PaymentResponse;
 import com.t4kash.api.finance.dto.WalletResponse;
 import com.t4kash.api.finance.service.PagaditoWebhookVerifier;
+import com.t4kash.api.finance.service.PaymentDisputeService;
 import com.t4kash.api.finance.service.PaymentService;
 import com.t4kash.api.identity.dto.AuthenticatedUserResponse;
 import com.t4kash.api.identity.web.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,14 +24,21 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api")
 @Tag(name = "Wallet y pagos", description = "Balance, pagos protegidos y Pagadito Sandbox")
 public class PaymentController {
     private final PaymentService paymentService;
+    private final PaymentDisputeService disputeService;
 
-    public PaymentController(PaymentService paymentService) {
+    public PaymentController(
+            PaymentService paymentService,
+            PaymentDisputeService disputeService
+    ) {
         this.paymentService = paymentService;
+        this.disputeService = disputeService;
     }
 
     @GetMapping("/wallet")
@@ -79,6 +90,28 @@ public class PaymentController {
             @PathVariable Integer idPago
     ) {
         return paymentService.refreshStatus(user.idUsuario(), idPago);
+    }
+
+    @PostMapping("/payments/{idPago}/disputes")
+    @Operation(summary = "Abrir una disputa sobre fondos retenidos")
+    @SecurityRequirement(name = "bearerAuth")
+    public PaymentDisputeResponse openDispute(
+            @CurrentUser AuthenticatedUserResponse user,
+            @PathVariable Integer idPago,
+            @Valid @RequestBody CreatePaymentDisputeRequest request
+    ) {
+        return disputeService.open(user.idUsuario(), idPago, request);
+    }
+
+    @GetMapping("/disputes/me")
+    @Operation(summary = "Consultar mis disputas financieras")
+    @SecurityRequirement(name = "bearerAuth")
+    public List<PaymentDisputeResponse> listMyDisputes(
+            @CurrentUser AuthenticatedUserResponse user,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size
+    ) {
+        return disputeService.listForUser(user.idUsuario(), page, size);
     }
 
     @PostMapping("/payments/pagadito/webhook")

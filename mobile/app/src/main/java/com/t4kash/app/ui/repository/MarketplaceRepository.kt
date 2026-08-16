@@ -7,14 +7,17 @@ import com.t4kash.app.ui.model.AttachmentDto
 import com.t4kash.app.ui.model.CreateApplicationRequest
 import com.t4kash.app.ui.model.CreateDeliveryCommentRequest
 import com.t4kash.app.ui.model.CreateDeliveryRequest
+import com.t4kash.app.ui.model.CreatePaymentDisputeRequest
 import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.model.CreateTaskReportRequest
 import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.CheckoutDto
 import com.t4kash.app.ui.model.PaymentDto
+import com.t4kash.app.ui.model.PaymentDisputeDto
 import com.t4kash.app.ui.model.QuickTaskDto
 import com.t4kash.app.ui.model.RequestDeliveryChangesRequest
+import com.t4kash.app.ui.model.ResolvePaymentDisputeRequest
 import com.t4kash.app.ui.model.WalletDto
 import com.t4kash.app.ui.model.MarketplaceHomeData
 import com.t4kash.app.ui.model.PendingAttachment
@@ -245,6 +248,24 @@ class MarketplaceRepository(
         }
     }
 
+    suspend fun openPaymentDispute(
+        paymentId: Int,
+        reason: String,
+        description: String,
+        requestedSolution: String
+    ): ApiResult<PaymentDisputeDto> {
+        return try {
+            ApiResult.Success(
+                api.openPaymentDispute(
+                    paymentId,
+                    CreatePaymentDisputeRequest(reason, description, requestedSolution)
+                )
+            )
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudo abrir la disputa."))
+        }
+    }
+
     suspend fun loadTaskAttachments(taskId: Int): ApiResult<List<AttachmentDto>> {
         return try {
             ApiResult.Success(api.getTaskAttachments(taskId))
@@ -311,12 +332,14 @@ class MarketplaceRepository(
                 val verifications = async { api.getPendingStudentVerifications() }
                 val reports = async { api.getAdminReports() }
                 val tasks = async { api.getAdminTasks() }
+                val paymentDisputes = async { api.getAdminPaymentDisputes() }
                 ApiResult.Success(
                     AdminDashboardData(
                         summary = summary.await(),
                         verifications = verifications.await(),
                         reports = reports.await(),
-                        tasks = tasks.await()
+                        tasks = tasks.await(),
+                        paymentDisputes = paymentDisputes.await()
                     )
                 )
             }
@@ -384,6 +407,23 @@ class MarketplaceRepository(
             )
         } catch (e: Exception) {
             ApiResult.Error(e.apiMessage("No se pudo revisar el reporte."))
+        }
+    }
+
+    suspend fun resolvePaymentDispute(
+        disputeId: Int,
+        decision: String,
+        resolution: String
+    ): ApiResult<PaymentDisputeDto> {
+        return try {
+            ApiResult.Success(
+                api.resolvePaymentDispute(
+                    disputeId,
+                    ResolvePaymentDisputeRequest(decision, resolution)
+                )
+            )
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudo resolver la disputa."))
         }
     }
 

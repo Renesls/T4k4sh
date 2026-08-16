@@ -11,12 +11,16 @@ import com.t4kash.api.exception.ResourceConflictException;
 import com.t4kash.api.exception.ResourceNotFoundException;
 import com.t4kash.api.finance.dto.CheckoutResponse;
 import com.t4kash.api.finance.dto.PaymentResponse;
+import com.t4kash.api.finance.dto.PaymentDisputeResponse;
+import com.t4kash.api.finance.dto.PayoutResponse;
+import com.t4kash.api.finance.dto.RefundResponse;
 import com.t4kash.api.finance.dto.WalletMovementResponse;
 import com.t4kash.api.finance.dto.WalletResponse;
 import com.t4kash.api.finance.entity.EventoWebhookPago;
 import com.t4kash.api.finance.entity.Pago;
 import com.t4kash.api.finance.entity.TransaccionPago;
 import com.t4kash.api.finance.repository.EventoWebhookPagoRepository;
+import com.t4kash.api.finance.repository.DisputaPagoRepository;
 import com.t4kash.api.finance.repository.PagoRepository;
 import com.t4kash.api.finance.repository.TransaccionPagoRepository;
 import com.t4kash.api.marketplace.entity.Postulacion;
@@ -44,6 +48,8 @@ public class PaymentService {
     public static final String PAYMENT_PENDING = "PENDIENTE_PAGO";
     public static final String FUNDS_HELD = "FONDOS_RETENIDOS";
     public static final String PAYMENT_RELEASED = "PAGO_LIBERADO";
+    public static final String PAYMENT_DISPUTED = "EN_DISPUTA";
+    public static final String PAYMENT_REFUNDED = "REEMBOLSADO";
     public static final String EXTERNAL_PENDING = "PAGO_EXTERNO_PENDIENTE";
     public static final String EXTERNAL_CONFIRMED = "PAGO_EXTERNO_CONFIRMADO";
     public static final String JOB_CASH_CONFIRMATION_PENDING = "PAGO_EFECTIVO_PENDIENTE";
@@ -59,6 +65,8 @@ public class PaymentService {
 
     private final PagoRepository paymentRepository;
     private final TransaccionPagoRepository movementRepository;
+    private final DisputaPagoRepository disputeRepository;
+    private final FinancialLedgerService ledgerService;
     private final EventoWebhookPagoRepository webhookRepository;
     private final TrabajoAsignadoRepository jobRepository;
     private final TaskService taskService;
@@ -76,6 +84,8 @@ public class PaymentService {
     public PaymentService(
             PagoRepository paymentRepository,
             TransaccionPagoRepository movementRepository,
+            DisputaPagoRepository disputeRepository,
+            FinancialLedgerService ledgerService,
             EventoWebhookPagoRepository webhookRepository,
             TrabajoAsignadoRepository jobRepository,
             TaskService taskService,
@@ -92,6 +102,8 @@ public class PaymentService {
     ) {
         this.paymentRepository = paymentRepository;
         this.movementRepository = movementRepository;
+        this.disputeRepository = disputeRepository;
+        this.ledgerService = ledgerService;
         this.webhookRepository = webhookRepository;
         this.jobRepository = jobRepository;
         this.taskService = taskService;
@@ -191,9 +203,10 @@ public class PaymentService {
 
     @Transactional(readOnly = true)
     public WalletResponse getWallet(Integer currentUserId, int page, int size) {
+        var pageable = PaginationSupport.page(page, size);
         List<Pago> payments = paymentRepository.findVisibleToUser(
                 currentUserId,
-                PaginationSupport.page(page, size)
+                pageable
         );
         List<WalletMovementResponse> movements = movementRepository
                 .findTop30ByIdUsuarioOrderByFechaRegistroDesc(currentUserId)
@@ -204,9 +217,9 @@ public class PaymentService {
                 currentUserId,
                 PAYMENT_RELEASED
         );
-        BigDecimal held = paymentRepository.sumStudentAmountByStatus(
+        BigDecimal held = paymentRepository.sumStudentAmountByStatuses(
                 currentUserId,
-                FUNDS_HELD
+                List.of(FUNDS_HELD, PAYMENT_DISPUTED)
         );
         BigDecimal earned = paymentRepository.sumStudentAmountByStatuses(
                 currentUserId,
@@ -220,7 +233,16 @@ public class PaymentService {
                 payments.stream().map(payment ->
                         PaymentResponse.fromEntity(payment, currentUserId)
                 ).toList(),
-                movements
+                movements,
+                disputeRepository.findVisibleToUser(currentUserId, pageable).stream()
+                        .map(PaymentDisputeResponse::fromEntity)
+                        .toList(),
+                ledgerService.findRefunds(currentUserId, pageable).stream()
+                        .map(RefundResponse::fromEntity)
+                        .toList(),
+                ledgerService.findPayouts(currentUserId, pageable).stream()
+                        .map(PayoutResponse::fromEntity)
+                        .toList()
         );
     }
 
@@ -406,6 +428,7 @@ public class PaymentService {
             }
             payment.setEstadoPago(PAYMENT_RELEASED);
             payment.setFechaLiberacion(now);
+            ledgerService.registerSandboxPayout(payment);
             recordMovement(
                     payment,
                     payment.getIdEstudiante(),
@@ -507,6 +530,9 @@ public class PaymentService {
     }
 
     private boolean canApplyProviderStatus(String currentState, String providerStatus) {
+        if (PAYMENT_DISPUTED.equals(currentState) || PAYMENT_REFUNDED.equals(currentState)) {
+            return false;
+        }
         if (FUNDS_HELD.equals(currentState) || PAYMENT_RELEASED.equals(currentState)) {
             return "COMPLETED".equals(providerStatus);
         }
@@ -520,7 +546,10 @@ public class PaymentService {
     }
 
     private void confirmProtectedPayment(Pago payment, String providerReference, String idempotencyKey) {
-        if (FUNDS_HELD.equals(payment.getEstadoPago()) || PAYMENT_RELEASED.equals(payment.getEstadoPago())) {
+        if (FUNDS_HELD.equals(payment.getEstadoPago())
+                || PAYMENT_RELEASED.equals(payment.getEstadoPago())
+                || PAYMENT_DISPUTED.equals(payment.getEstadoPago())
+                || PAYMENT_REFUNDED.equals(payment.getEstadoPago())) {
             return;
         }
         payment.setEstadoPago(FUNDS_HELD);

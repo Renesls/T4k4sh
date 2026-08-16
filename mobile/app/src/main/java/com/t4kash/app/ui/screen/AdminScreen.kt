@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.TaskAlt
@@ -62,6 +63,7 @@ import com.t4kash.app.ui.components.T4TopBar
 import com.t4kash.app.ui.components.keepVisibleAboveKeyboard
 import com.t4kash.app.ui.model.AdminSummaryDto
 import com.t4kash.app.ui.model.ReportDto
+import com.t4kash.app.ui.model.PaymentDisputeDto
 import com.t4kash.app.ui.model.StudentVerificationDto
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.theme.T4Background
@@ -89,6 +91,9 @@ fun AdminScreen(
     var rejectionTarget by remember { mutableStateOf<StudentVerificationDto?>(null) }
     var cancellationTarget by remember { mutableStateOf<TaskDto?>(null) }
     var reportReviewTarget by remember { mutableStateOf<ReportReviewTarget?>(null) }
+    var disputeResolutionTarget by remember {
+        mutableStateOf<DisputeResolutionTarget?>(null)
+    }
 
     LaunchedEffect(Unit) {
         viewModel.loadAdminDashboard()
@@ -182,6 +187,21 @@ fun AdminScreen(
             }
         )
     }
+    disputeResolutionTarget?.let { target ->
+        ResolvePaymentDisputeDialog(
+            dispute = target.dispute,
+            decision = target.decision,
+            onDismiss = { disputeResolutionTarget = null },
+            onConfirm = { resolution ->
+                viewModel.resolvePaymentDispute(
+                    target.dispute.idDisputa,
+                    target.decision,
+                    resolution
+                )
+                disputeResolutionTarget = null
+            }
+        )
+    }
 
     Scaffold(
         containerColor = T4Background,
@@ -238,7 +258,8 @@ fun AdminScreen(
                         listOf(
                             "Perfiles",
                             "Reportes",
-                            "Tareas"
+                            "Tareas",
+                            "Finanzas"
                         ).forEachIndexed { index, label ->
                             Tab(
                                 selected = selectedTab == index,
@@ -304,7 +325,7 @@ fun AdminScreen(
                             )
                         }
                     }
-                } else {
+                } else if (selectedTab == 2) {
                     items(
                         items = state.adminTasks,
                         key = { it.idTarea }
@@ -313,6 +334,36 @@ fun AdminScreen(
                             task = task,
                             isWorking = state.adminActionKey == "task:${task.idTarea}",
                             onCancel = { cancellationTarget = task }
+                        )
+                    }
+                } else if (state.adminPaymentDisputes.isEmpty()) {
+                    item {
+                        EmptyState(
+                            title = "Sin disputas activas",
+                            message = "Los pagos congelados para revision apareceran aqui."
+                        )
+                    }
+                } else {
+                    items(
+                        items = state.adminPaymentDisputes,
+                        key = { it.idDisputa }
+                    ) { dispute ->
+                        PaymentDisputeAdminCard(
+                            dispute = dispute,
+                            isWorking = state.adminActionKey ==
+                                "dispute:${dispute.idDisputa}",
+                            onRelease = {
+                                disputeResolutionTarget = DisputeResolutionTarget(
+                                    dispute,
+                                    "LIBERAR_ESTUDIANTE"
+                                )
+                            },
+                            onRefund = {
+                                disputeResolutionTarget = DisputeResolutionTarget(
+                                    dispute,
+                                    "REEMBOLSAR_CLIENTE"
+                                )
+                            }
                         )
                     }
                 }
@@ -706,6 +757,113 @@ private data class ReportReviewTarget(
     val report: ReportDto,
     val resolved: Boolean
 )
+
+private data class DisputeResolutionTarget(
+    val dispute: PaymentDisputeDto,
+    val decision: String
+)
+
+@Composable
+private fun PaymentDisputeAdminCard(
+    dispute: PaymentDisputeDto,
+    isWorking: Boolean,
+    onRelease: () -> Unit,
+    onRefund: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = T4Surface),
+        border = BorderStroke(1.dp, T4Border.copy(alpha = 0.75f))
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Gavel, contentDescription = null, tint = T4Primary)
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text(
+                        "Disputa #${dispute.idDisputa}",
+                        fontWeight = FontWeight.Bold,
+                        color = T4Text
+                    )
+                }
+                StatusChip(dispute.prioridad)
+            }
+            Text(dispute.motivo, fontWeight = FontWeight.SemiBold, color = T4Text)
+            Text(dispute.descripcion, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                "Pago #${dispute.idPago} · ${formatCordobas(dispute.montoDisputado)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = T4TextMuted
+            )
+            Text(
+                "Solicita: ${dispute.solucionSolicitada.lowercase().replace('_', ' ')}",
+                style = MaterialTheme.typography.bodySmall,
+                color = T4TextMuted
+            )
+            if (isWorking) {
+                CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onRelease, modifier = Modifier.weight(1f)) {
+                        Text("Liberar")
+                    }
+                    OutlinedButton(onClick = onRefund, modifier = Modifier.weight(1f)) {
+                        Text("Reembolsar")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ResolvePaymentDisputeDialog(
+    dispute: PaymentDisputeDto,
+    decision: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var resolution by remember { mutableStateOf("") }
+    val release = decision == "LIBERAR_ESTUDIANTE"
+    AlertDialog(
+        modifier = Modifier.imePadding(),
+        onDismissRequest = onDismiss,
+        title = {
+            Text(if (release) "Liberar pago al estudiante" else "Reembolsar al cliente")
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "Esta decision resolvera la disputa #${dispute.idDisputa} y quedara auditada."
+                )
+                OutlinedTextField(
+                    value = resolution,
+                    onValueChange = { resolution = it.take(1000) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Fundamento de la resolucion") },
+                    minLines = 3
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = resolution.trim().length >= 10,
+                onClick = { onConfirm(resolution.trim()) }
+            ) {
+                Text("Confirmar")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+    )
+}
 
 @Composable
 private fun AdminTaskCard(

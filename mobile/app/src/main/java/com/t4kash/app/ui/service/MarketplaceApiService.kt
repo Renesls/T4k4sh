@@ -8,14 +8,17 @@ import com.t4kash.app.ui.model.CategoryDto
 import com.t4kash.app.ui.model.CreateApplicationRequest
 import com.t4kash.app.ui.model.CreateDeliveryCommentRequest
 import com.t4kash.app.ui.model.CreateDeliveryRequest
+import com.t4kash.app.ui.model.CreatePaymentDisputeRequest
 import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.model.CreateTaskReportRequest
 import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.CheckoutDto
 import com.t4kash.app.ui.model.PaymentDto
+import com.t4kash.app.ui.model.PaymentDisputeDto
 import com.t4kash.app.ui.model.QuickTaskDto
 import com.t4kash.app.ui.model.RequestDeliveryChangesRequest
+import com.t4kash.app.ui.model.ResolvePaymentDisputeRequest
 import com.t4kash.app.ui.model.WalletDto
 import com.t4kash.app.ui.model.ReviewStudentVerificationRequest
 import com.t4kash.app.ui.model.ReviewReportRequest
@@ -142,6 +145,12 @@ interface MarketplaceApiService {
         @Path("paymentId") paymentId: Int
     ): PaymentDto
 
+    @POST("payments/{paymentId}/disputes")
+    suspend fun openPaymentDispute(
+        @Path("paymentId") paymentId: Int,
+        @Body request: CreatePaymentDisputeRequest
+    ): PaymentDisputeDto
+
     @GET("tasks/{taskId}/attachments")
     suspend fun getTaskAttachments(
         @Path("taskId") taskId: Int
@@ -199,6 +208,9 @@ interface MarketplaceApiService {
         @Query("size") size: Int = 50
     ): List<ReportDto>
 
+    @GET("admin/payment-disputes")
+    suspend fun getAdminPaymentDisputes(): List<PaymentDisputeDto>
+
     @DELETE("admin/tasks/{taskId}")
     suspend fun cancelTaskAsAdmin(
         @Path("taskId") taskId: Int
@@ -209,6 +221,12 @@ interface MarketplaceApiService {
         @Path("reportId") reportId: Int,
         @Body request: ReviewReportRequest
     ): ReportDto
+
+    @POST("admin/payment-disputes/{disputeId}/resolve")
+    suspend fun resolvePaymentDispute(
+        @Path("disputeId") disputeId: Int,
+        @Body request: ResolvePaymentDisputeRequest
+    ): PaymentDisputeDto
 
     @GET("student-verifications/pending")
     suspend fun getPendingStudentVerifications(): List<StudentVerificationDto>

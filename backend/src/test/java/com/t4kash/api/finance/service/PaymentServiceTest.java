@@ -6,6 +6,7 @@ import com.t4kash.api.finance.dto.PaymentResponse;
 import com.t4kash.api.finance.entity.EventoWebhookPago;
 import com.t4kash.api.finance.entity.Pago;
 import com.t4kash.api.finance.repository.EventoWebhookPagoRepository;
+import com.t4kash.api.finance.repository.DisputaPagoRepository;
 import com.t4kash.api.finance.repository.PagoRepository;
 import com.t4kash.api.finance.repository.TransaccionPagoRepository;
 import com.t4kash.api.marketplace.entity.Postulacion;
@@ -36,6 +37,8 @@ class PaymentServiceTest {
     private PagoRepository paymentRepository;
     private TransaccionPagoRepository movementRepository;
     private EventoWebhookPagoRepository webhookRepository;
+    private DisputaPagoRepository disputeRepository;
+    private FinancialLedgerService ledgerService;
     private TrabajoAsignadoRepository jobRepository;
     private PagaditoClient pagaditoClient;
     private PagaditoWebhookVerifier webhookVerifier;
@@ -46,12 +49,16 @@ class PaymentServiceTest {
         paymentRepository = mock(PagoRepository.class);
         movementRepository = mock(TransaccionPagoRepository.class);
         webhookRepository = mock(EventoWebhookPagoRepository.class);
+        disputeRepository = mock(DisputaPagoRepository.class);
+        ledgerService = mock(FinancialLedgerService.class);
         jobRepository = mock(TrabajoAsignadoRepository.class);
         pagaditoClient = mock(PagaditoClient.class);
         webhookVerifier = mock(PagaditoWebhookVerifier.class);
         service = new PaymentService(
                 paymentRepository,
                 movementRepository,
+                disputeRepository,
+                ledgerService,
                 webhookRepository,
                 jobRepository,
                 mock(TaskService.class),
@@ -117,6 +124,7 @@ class PaymentServiceTest {
         payment.setUuidPago(UUID.randomUUID());
         payment.setMetodoPago("PAGADITO");
         payment.setProveedorPago("PAGADITO");
+        payment.setEntornoPago("SANDBOX");
         payment.setMonedaCobro("NIO");
         payment.setMontoEstudiante(new BigDecimal("100.00"));
         payment.setEstadoPago("FONDOS_RETENIDOS");
@@ -127,6 +135,7 @@ class PaymentServiceTest {
 
         assertEquals("PAGO_LIBERADO", payment.getEstadoPago());
         verify(movementRepository).save(any());
+        verify(ledgerService).registerSandboxPayout(payment);
         verify(paymentRepository).save(payment);
     }
 

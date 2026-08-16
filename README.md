@@ -24,12 +24,13 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 4. Los estudiantes revisan y se postulan.
 5. El cliente acepta o rechaza postulaciones.
 6. Una postulación aceptada se convierte en trabajo asignado.
-7. Cliente y estudiante coordinan el trabajo mediante la conversación interna.
-8. El estudiante registra una entrega.
-9. El cliente elige pago protegido; solo las tareas presenciales permiten efectivo.
-10. Pagadito confirma el pago y habilita el inicio del trabajo.
-11. El estudiante registra una entrega.
-12. El cliente aprueba la entrega y el monto pasa al balance disponible.
+7. El cliente elige pago protegido; solo las tareas presenciales permiten efectivo.
+8. Pagadito confirma el pago y habilita el inicio del trabajo.
+9. Cliente y estudiante coordinan el trabajo mediante la conversación interna.
+10. El estudiante registra una entrega y atiende las correcciones solicitadas.
+11. El cliente aprueba la entrega y se registra el desembolso Sandbox.
+12. Si surge un desacuerdo con fondos retenidos, el pago se congela hasta que
+    administración resuelva su liberación o reembolso.
 
 ## Estado del MVP
 
@@ -58,6 +59,7 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 | Formularios adaptados al teclado y manejo visual de errores | Implementado |
 | Modelo financiero para wallet, Pagadito y efectivo | Implementado |
 | Integración con Pagadito Sandbox y wallet transaccional | Implementado; requiere credenciales Sandbox |
+| Disputas, reembolsos y desembolsos financieros auditables | Implementado en Sandbox |
 | Puntos T4KASH y catálogo de beneficios | Diseñado en PostgreSQL |
 | Calificaciones y reputación | Pendiente |
 | Notificaciones push con Firebase Cloud Messaging | Pendiente |
@@ -272,11 +274,13 @@ El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno 
 | `POST` | `/api/deliveries/{idEntrega}/approve` | Aprobar entrega |
 | `POST` | `/api/deliveries/{idEntrega}/request-changes` | Solicitar correcciones sobre una entrega |
 | `POST` | `/api/deliveries/{idEntrega}/comments` | Comentar en el historial de una entrega |
-| `GET` | `/api/wallet` | Consultar balance, pagos y movimientos |
+| `GET` | `/api/wallet` | Consultar balance, pagos, disputas, reembolsos, desembolsos y movimientos |
 | `GET` | `/api/jobs/{idTrabajo}/payment` | Consultar el pago de un trabajo |
 | `POST` | `/api/jobs/{idTrabajo}/payment/checkout` | Crear checkout de Pagadito Sandbox |
 | `POST` | `/api/jobs/{idTrabajo}/payment/cash/confirm-receipt` | Confirmar que el estudiante recibió el efectivo |
 | `POST` | `/api/payments/{idPago}/refresh` | Consultar nuevamente el estado en Pagadito |
+| `POST` | `/api/payments/{idPago}/disputes` | Congelar fondos retenidos y abrir una disputa |
+| `GET` | `/api/disputes/me` | Consultar disputas propias |
 | `POST` | `/api/payments/pagadito/webhook` | Recibir eventos firmados de Pagadito |
 | `GET` | `/api/payments/pagadito/return` | Verificar el retorno del checkout |
 | `GET` | `/api/tasks/{taskId}/attachments` | Listar archivos adjuntos de una tarea |
@@ -297,6 +301,8 @@ El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno 
 | `DELETE` | `/api/admin/tasks/{idTarea}` | Retirar una publicación (admin) |
 | `GET` | `/api/admin/reports` | Listar reportes de moderación |
 | `POST` | `/api/admin/reports/{idReporte}/review` | Resolver o descartar un reporte |
+| `GET` | `/api/admin/payment-disputes` | Listar disputas financieras activas |
+| `POST` | `/api/admin/payment-disputes/{idDisputa}/resolve` | Liberar o reembolsar un pago disputado en Sandbox |
 
 Los endpoints privados de identidad, marketplace y archivos requieren el encabezado
 `Authorization: Bearer <token>`. El token completo se entrega únicamente al cliente;
@@ -692,6 +698,12 @@ Reglas acordadas:
   protección financiera ni reembolso desde T4KASH.
 - Aceptar una postulación reserva el trabajo; el estudiante no debe comenzar hasta que
   el pago protegido haya sido confirmado.
+- Una disputa solo puede abrirse mientras los fondos estén retenidos, cubre el monto
+  completo y bloquea cualquier liberación automática.
+- Administración debe registrar una explicación antes de liberar el pago al estudiante
+  o confirmar un reembolso al cliente.
+- Los desembolsos y reembolsos del MVP se identifican expresamente como operaciones
+  Sandbox; no representan transferencias bancarias reales.
 
 Las tablas financieras separan la orden de pago, sus movimientos, los eventos webhook,
 los desembolsos, los reembolsos y las disputas. Las claves de idempotencia impiden
@@ -818,7 +830,8 @@ cierre obligatorio del hackathon y mejoras que pueden desarrollarse después.
 ### Mejoras Posteriores al MVP
 
 1. **Finanzas y reputación**
-   - Completar reembolsos, desembolsos y resolución de disputas sobre el flujo implementado.
+   - Conectar reembolsos y desembolsos con operaciones reales solo después de validar
+     el modelo de marketplace y las obligaciones aplicables.
    - Validar con Pagadito el modelo de marketplace antes de utilizar producción.
    - Implementar las reglas de obtención y canje de puntos T4KASH.
    - Agregar calificaciones y recomendaciones al finalizar trabajos.
