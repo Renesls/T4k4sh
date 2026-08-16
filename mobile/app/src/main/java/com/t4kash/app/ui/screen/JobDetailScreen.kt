@@ -19,9 +19,11 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.RateReview
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.AlertDialog
@@ -68,6 +70,8 @@ import com.t4kash.app.ui.model.PaymentDto
 import com.t4kash.app.ui.model.PendingAttachment
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.theme.T4Background
+import com.t4kash.app.ui.theme.T4Amber
+import com.t4kash.app.ui.theme.T4AmberContainer
 import com.t4kash.app.ui.theme.T4Border
 import com.t4kash.app.ui.theme.T4Danger
 import com.t4kash.app.ui.theme.T4Mint
@@ -98,6 +102,12 @@ fun JobDetailScreen(
         mutableStateOf<List<PendingAttachment>>(emptyList())
     }
     var pendingApproval by remember { mutableStateOf<DeliveryDto?>(null) }
+    var pendingChanges by remember { mutableStateOf<DeliveryDto?>(null) }
+    var changeObservation by remember { mutableStateOf("") }
+    var changeObservationError by remember { mutableStateOf<String?>(null) }
+    var pendingComment by remember { mutableStateOf<DeliveryDto?>(null) }
+    var deliveryComment by remember { mutableStateOf("") }
+    var deliveryCommentError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(jobId) {
         viewModel.clearDeliveryFeedback()
@@ -172,8 +182,13 @@ fun JobDetailScreen(
             else -> {
                 val isStudent = job.idEstudiante == UserSession.requireUserId()
                 val isClient = task?.idCliente == UserSession.requireUserId()
+                val hasPendingReview = state.deliveries.any {
+                    it.estadoEntrega.equals("ENVIADA", ignoreCase = true)
+                }
                 val canSend = isStudent &&
-                    job.estadoTrabajo.equals("EN_PROCESO", ignoreCase = true)
+                    job.estadoTrabajo.equals("EN_PROCESO", ignoreCase = true) &&
+                    !state.isLoadingDeliveries &&
+                    !hasPendingReview
                 val cashPayment = job.pago?.takeIf {
                     it.metodoPago.equals("EFECTIVO", ignoreCase = true)
                 }
@@ -287,6 +302,37 @@ fun JobDetailScreen(
                         }
                     }
 
+                    if (isStudent && hasPendingReview) {
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Schedule,
+                                    contentDescription = null,
+                                    tint = T4Primary
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Entrega en revisión",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = T4Text
+                                    )
+                                    Text(
+                                        text = "Podrás enviar otra versión si el cliente solicita cambios.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = T4TextMuted
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     state.deliveryActionMessage?.let { message ->
                         item {
                             Text(
@@ -376,12 +422,30 @@ fun JobDetailScreen(
                                         "FINALIZADO",
                                         ignoreCase = true
                                     ),
+                                canComment = !job.estadoTrabajo.equals(
+                                    "FINALIZADO",
+                                    ignoreCase = true
+                                ),
                                 isApproving =
                                     state.approvingDeliveryId == delivery.idEntrega,
+                                isReviewing =
+                                    state.reviewingDeliveryId == delivery.idEntrega,
+                                isCommenting =
+                                    state.commentingDeliveryId == delivery.idEntrega,
                                 attachments = state.jobAttachments.filter {
                                     it.idEntrega == delivery.idEntrega
                                 },
                                 onApprove = { pendingApproval = delivery },
+                                onRequestChanges = {
+                                    changeObservation = ""
+                                    changeObservationError = null
+                                    pendingChanges = delivery
+                                },
+                                onComment = {
+                                    deliveryComment = ""
+                                    deliveryCommentError = null
+                                    pendingComment = delivery
+                                },
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )
                         }
@@ -423,6 +487,129 @@ fun JobDetailScreen(
             },
             dismissButton = {
                 TextButton(onClick = { pendingApproval = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    pendingChanges?.let { delivery ->
+        AlertDialog(
+            onDismissRequest = { pendingChanges = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Filled.RateReview,
+                    contentDescription = null,
+                    tint = T4Amber
+                )
+            },
+            title = { Text("Solicitar cambios") },
+            text = {
+                OutlinedTextField(
+                    value = changeObservation,
+                    onValueChange = {
+                        if (it.length <= MAX_REVIEW_LENGTH) {
+                            changeObservation = it
+                            changeObservationError = null
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .keepVisibleAboveKeyboard(),
+                    label = { Text("Cambios necesarios") },
+                    supportingText = {
+                        Text(
+                            changeObservationError
+                                ?: "${changeObservation.length}/$MAX_REVIEW_LENGTH"
+                        )
+                    },
+                    isError = changeObservationError != null,
+                    minLines = 3,
+                    maxLines = 6,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(
+                        onDone = { focusManager.clearFocus() }
+                    )
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (changeObservation.trim().length < MIN_REVIEW_LENGTH) {
+                            changeObservationError =
+                                "Describe los cambios con al menos $MIN_REVIEW_LENGTH caracteres."
+                        } else {
+                            pendingChanges = null
+                            viewModel.requestDeliveryChanges(delivery, changeObservation)
+                        }
+                    }
+                ) {
+                    Text("Enviar solicitud")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingChanges = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    pendingComment?.let { delivery ->
+        AlertDialog(
+            onDismissRequest = { pendingComment = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Filled.ChatBubbleOutline,
+                    contentDescription = null,
+                    tint = T4Primary
+                )
+            },
+            title = { Text("Comentar entrega") },
+            text = {
+                OutlinedTextField(
+                    value = deliveryComment,
+                    onValueChange = {
+                        if (it.length <= MAX_REVIEW_LENGTH) {
+                            deliveryComment = it
+                            deliveryCommentError = null
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .keepVisibleAboveKeyboard(),
+                    label = { Text("Comentario") },
+                    supportingText = {
+                        Text(
+                            deliveryCommentError
+                                ?: "${deliveryComment.length}/$MAX_REVIEW_LENGTH"
+                        )
+                    },
+                    isError = deliveryCommentError != null,
+                    minLines = 2,
+                    maxLines = 5,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(
+                        onDone = { focusManager.clearFocus() }
+                    )
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (deliveryComment.trim().length < MIN_COMMENT_LENGTH) {
+                            deliveryCommentError = "Escribe un comentario antes de enviarlo."
+                        } else {
+                            pendingComment = null
+                            viewModel.commentDelivery(delivery, deliveryComment)
+                        }
+                    }
+                ) {
+                    Text("Comentar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingComment = null }) {
                     Text("Cancelar")
                 }
             }
@@ -870,12 +1057,28 @@ private fun DeliveryForm(
 private fun DeliveryCard(
     delivery: DeliveryDto,
     canApprove: Boolean,
+    canComment: Boolean,
     isApproving: Boolean,
+    isReviewing: Boolean,
+    isCommenting: Boolean,
     attachments: List<com.t4kash.app.ui.model.AttachmentDto>,
     onApprove: () -> Unit,
+    onRequestChanges: () -> Unit,
+    onComment: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val approved = delivery.estadoEntrega.equals("APROBADA", ignoreCase = true)
+    val changesRequested = delivery.estadoEntrega.equals(
+        "CAMBIOS_SOLICITADOS",
+        ignoreCase = true
+    )
+    val statusColors = when {
+        approved -> T4Mint to T4MintDark
+        changesRequested -> T4AmberContainer to T4Amber
+        else -> T4PrimaryContainer to T4PrimaryDark
+    }
+    val latestObservation = delivery.revisiones
+        .lastOrNull { !it.observacion.isNullOrBlank() }
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -908,8 +1111,8 @@ private fun DeliveryCard(
                 }
                 StatusChip(
                     text = delivery.estadoEntrega,
-                    containerColor = if (approved) T4Mint else T4PrimaryContainer,
-                    contentColor = if (approved) T4MintDark else T4PrimaryDark
+                    containerColor = statusColors.first,
+                    contentColor = statusColors.second
                 )
             }
 
@@ -923,16 +1126,108 @@ private fun DeliveryCard(
                 StoredAttachmentRow(attachment = attachment)
             }
 
+            latestObservation?.let { review ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.RateReview,
+                        contentDescription = null,
+                        tint = T4Amber
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Cambios solicitados",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = T4Text
+                        )
+                        Text(
+                            text = review.observacion.orEmpty(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = T4TextMuted
+                        )
+                        Text(
+                            text = formatApiDateTime(review.fechaRevision),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = T4TextMuted
+                        )
+                    }
+                }
+            }
+
+            delivery.comentarios.forEach { comment ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.ChatBubbleOutline,
+                        contentDescription = null,
+                        tint = T4Primary
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (comment.tipoComentario.equals(
+                                    "ESTUDIANTE",
+                                    ignoreCase = true
+                                )
+                            ) {
+                                "Estudiante"
+                            } else {
+                                "Cliente"
+                            },
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = T4Text
+                        )
+                        Text(
+                            text = comment.comentario,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = T4TextMuted
+                        )
+                        Text(
+                            text = formatApiDateTime(comment.fechaComentario),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = T4TextMuted
+                        )
+                    }
+                }
+            }
+
             if (canApprove) {
                 OutlinedButton(
+                    onClick = onRequestChanges,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isApproving && !isReviewing
+                ) {
+                    if (isReviewing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Filled.RateReview,
+                            contentDescription = null
+                        )
+                    }
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text(if (isReviewing) "Solicitando..." else "Solicitar cambios")
+                }
+                Button(
                     onClick = onApprove,
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = !isApproving
+                    enabled = !isApproving && !isReviewing
                 ) {
                     if (isApproving) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                     } else {
                         Icon(
@@ -944,9 +1239,34 @@ private fun DeliveryCard(
                     Text(if (isApproving) "Aprobando..." else "Aprobar entrega")
                 }
             }
+
+            if (canComment) {
+                TextButton(
+                    onClick = onComment,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isCommenting
+                ) {
+                    if (isCommenting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Filled.ChatBubbleOutline,
+                            contentDescription = null
+                        )
+                    }
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text(if (isCommenting) "Comentando..." else "Agregar comentario")
+                }
+            }
         }
     }
 }
 
 private const val MIN_DELIVERY_LENGTH = 10
 private const val MAX_DELIVERY_LENGTH = 1000
+private const val MIN_REVIEW_LENGTH = 10
+private const val MIN_COMMENT_LENGTH = 2
+private const val MAX_REVIEW_LENGTH = 700

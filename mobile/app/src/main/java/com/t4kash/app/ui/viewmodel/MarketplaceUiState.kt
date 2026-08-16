@@ -43,6 +43,8 @@ data class MarketplaceUiState(
     val deliveriesError: String? = null,
     val isSendingDelivery: Boolean = false,
     val approvingDeliveryId: Int? = null,
+    val reviewingDeliveryId: Int? = null,
+    val commentingDeliveryId: Int? = null,
     val deliveryActionMessage: String? = null,
     val loadedTaskAttachmentsTaskId: Int? = null,
     val loadingTaskAttachmentsTaskId: Int? = null,

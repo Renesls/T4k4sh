@@ -5,6 +5,7 @@ import com.t4kash.app.ui.model.AcceptApplicationRequest
 import com.t4kash.app.ui.model.AdminDashboardData
 import com.t4kash.app.ui.model.AttachmentDto
 import com.t4kash.app.ui.model.CreateApplicationRequest
+import com.t4kash.app.ui.model.CreateDeliveryCommentRequest
 import com.t4kash.app.ui.model.CreateDeliveryRequest
 import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.model.CreateTaskReportRequest
@@ -13,6 +14,7 @@ import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.CheckoutDto
 import com.t4kash.app.ui.model.PaymentDto
 import com.t4kash.app.ui.model.QuickTaskDto
+import com.t4kash.app.ui.model.RequestDeliveryChangesRequest
 import com.t4kash.app.ui.model.WalletDto
 import com.t4kash.app.ui.model.MarketplaceHomeData
 import com.t4kash.app.ui.model.PendingAttachment
@@ -164,6 +166,28 @@ class MarketplaceRepository(
             ApiResult.Success(api.approveDelivery(deliveryId))
         } catch (e: Exception) {
             ApiResult.Error(e.apiMessage("No se pudo aprobar la entrega."))
+        }
+    }
+
+    suspend fun requestDeliveryChanges(
+        deliveryId: Int,
+        request: RequestDeliveryChangesRequest
+    ): ApiResult<DeliveryDto> {
+        return try {
+            ApiResult.Success(api.requestDeliveryChanges(deliveryId, request))
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudieron solicitar los cambios."))
+        }
+    }
+
+    suspend fun commentDelivery(
+        deliveryId: Int,
+        request: CreateDeliveryCommentRequest
+    ): ApiResult<DeliveryDto> {
+        return try {
+            ApiResult.Success(api.commentDelivery(deliveryId, request))
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudo registrar el comentario."))
         }
     }
 

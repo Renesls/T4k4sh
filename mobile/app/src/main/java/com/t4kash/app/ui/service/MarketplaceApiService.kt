@@ -6,6 +6,7 @@ import com.t4kash.app.ui.model.AdminSummaryDto
 import com.t4kash.app.ui.model.AttachmentDto
 import com.t4kash.app.ui.model.CategoryDto
 import com.t4kash.app.ui.model.CreateApplicationRequest
+import com.t4kash.app.ui.model.CreateDeliveryCommentRequest
 import com.t4kash.app.ui.model.CreateDeliveryRequest
 import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.model.CreateTaskReportRequest
@@ -14,6 +15,7 @@ import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.CheckoutDto
 import com.t4kash.app.ui.model.PaymentDto
 import com.t4kash.app.ui.model.QuickTaskDto
+import com.t4kash.app.ui.model.RequestDeliveryChangesRequest
 import com.t4kash.app.ui.model.WalletDto
 import com.t4kash.app.ui.model.ReviewStudentVerificationRequest
 import com.t4kash.app.ui.model.ReviewReportRequest
@@ -105,6 +107,18 @@ interface MarketplaceApiService {
     @POST("deliveries/{deliveryId}/approve")
     suspend fun approveDelivery(
         @Path("deliveryId") deliveryId: Int
+    ): DeliveryDto
+
+    @POST("deliveries/{deliveryId}/request-changes")
+    suspend fun requestDeliveryChanges(
+        @Path("deliveryId") deliveryId: Int,
+        @Body request: RequestDeliveryChangesRequest
+    ): DeliveryDto
+
+    @POST("deliveries/{deliveryId}/comments")
+    suspend fun commentDelivery(
+        @Path("deliveryId") deliveryId: Int,
+        @Body request: CreateDeliveryCommentRequest
     ): DeliveryDto
 
     @GET("wallet")

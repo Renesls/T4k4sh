@@ -270,6 +270,8 @@ El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno 
 | `GET` | `/api/jobs/{idTrabajo}/deliveries` | Listar entregas |
 | `POST` | `/api/jobs/{idTrabajo}/deliveries` | Registrar entrega |
 | `POST` | `/api/deliveries/{idEntrega}/approve` | Aprobar entrega |
+| `POST` | `/api/deliveries/{idEntrega}/request-changes` | Solicitar correcciones sobre una entrega |
+| `POST` | `/api/deliveries/{idEntrega}/comments` | Comentar en el historial de una entrega |
 | `GET` | `/api/wallet` | Consultar balance, pagos y movimientos |
 | `GET` | `/api/jobs/{idTrabajo}/payment` | Consultar el pago de un trabajo |
 | `POST` | `/api/jobs/{idTrabajo}/payment/checkout` | Crear checkout de Pagadito Sandbox |
@@ -469,6 +471,16 @@ Flujo actual de comunicación:
 La mensajería pertenece al trabajo asignado: otros usuarios no pueden consultar ni
 enviar mensajes dentro de esa conversación. El MVP utiliza actualización periódica;
 Firebase Cloud Messaging queda reservado para notificaciones push posteriores.
+
+Flujo de revisión de entregas:
+
+1. El estudiante registra una versión con su descripción y archivos.
+2. Mientras la entrega está `ENVIADA`, no puede registrar otra versión del mismo trabajo.
+3. El cliente puede aprobarla o solicitar cambios con una observación obligatoria.
+4. Una solicitud cambia la entrega a `CAMBIOS_SOLICITADOS` y habilita una nueva versión.
+5. Los participantes pueden añadir comentarios sin alterar la decisión de revisión.
+6. `revisiones_entrega` conserva cada decisión y `comentarios_entrega` mantiene la conversación.
+7. Solo una entrega `APROBADA` libera el pago protegido o inicia la confirmación de efectivo.
 
 ## Uso del MVP
 

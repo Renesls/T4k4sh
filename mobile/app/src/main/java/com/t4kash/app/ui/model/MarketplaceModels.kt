@@ -137,12 +137,41 @@ data class CreateDeliveryRequest(
     val descripcionEntrega: String
 )
 
+data class RequestDeliveryChangesRequest(
+    val observacion: String
+)
+
+data class CreateDeliveryCommentRequest(
+    val comentario: String
+)
+
+data class DeliveryCommentDto(
+    val idComentarioEntrega: Int,
+    val idEntrega: Int,
+    val idUsuario: Int,
+    val comentario: String,
+    val tipoComentario: String,
+    val fechaComentario: String
+)
+
+data class DeliveryReviewDto(
+    val idRevisionEntrega: Int,
+    val idEntrega: Int,
+    val idUsuarioRevisa: Int,
+    val resultadoRevision: String,
+    val observacion: String?,
+    val fechaRevision: String,
+    val estadoRevision: String
+)
+
 data class DeliveryDto(
     val idEntrega: Int,
     val idTrabajo: Int,
     val descripcionEntrega: String,
     val fechaEntrega: String,
-    val estadoEntrega: String
+    val estadoEntrega: String,
+    val comentarios: List<DeliveryCommentDto> = emptyList(),
+    val revisiones: List<DeliveryReviewDto> = emptyList()
 )
 
 data class PendingAttachment(

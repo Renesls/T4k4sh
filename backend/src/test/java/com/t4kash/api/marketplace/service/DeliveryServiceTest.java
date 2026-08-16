@@ -2,15 +2,22 @@ package com.t4kash.api.marketplace.service;
 
 import com.t4kash.api.communication.service.NotificationService;
 import com.t4kash.api.exception.ForbiddenOperationException;
+import com.t4kash.api.exception.ResourceConflictException;
 import com.t4kash.api.finance.service.PaymentService;
+import com.t4kash.api.marketplace.dto.CreateDeliveryCommentRequest;
 import com.t4kash.api.marketplace.dto.CreateDeliveryRequest;
 import com.t4kash.api.marketplace.dto.DeliveryResponse;
+import com.t4kash.api.marketplace.dto.RequestDeliveryChangesRequest;
+import com.t4kash.api.marketplace.entity.ComentarioEntrega;
 import com.t4kash.api.marketplace.entity.Entrega;
+import com.t4kash.api.marketplace.entity.RevisionEntrega;
 import com.t4kash.api.marketplace.entity.Tarea;
 import com.t4kash.api.marketplace.entity.TrabajoAsignado;
 import com.t4kash.api.marketplace.repository.CategoriaTareaRepository;
+import com.t4kash.api.marketplace.repository.ComentarioEntregaRepository;
 import com.t4kash.api.marketplace.repository.EntregaRepository;
 import com.t4kash.api.marketplace.repository.PostulacionRepository;
+import com.t4kash.api.marketplace.repository.RevisionEntregaRepository;
 import com.t4kash.api.marketplace.repository.TareaRepository;
 import com.t4kash.api.marketplace.repository.TrabajoAsignadoRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -41,6 +49,10 @@ class DeliveryServiceTest {
     private TrabajoAsignadoRepository trabajoRepository;
     @Mock
     private EntregaRepository entregaRepository;
+    @Mock
+    private ComentarioEntregaRepository comentarioRepository;
+    @Mock
+    private RevisionEntregaRepository revisionRepository;
     @Mock
     private NotificationService notificationService;
 
@@ -57,17 +69,22 @@ class DeliveryServiceTest {
         JobService jobService = new JobService(trabajoRepository, taskService);
         service = new DeliveryService(
                 entregaRepository,
+                comentarioRepository,
+                revisionRepository,
                 trabajoRepository,
                 taskService,
                 jobService,
-                notificationService
+                notificationService,
+                null
         );
     }
 
     @Test
     void creatingDeliveryRegistersItAsSent() {
         TrabajoAsignado job = job(50, "EN_PROCESO");
-        when(trabajoRepository.findById(50)).thenReturn(Optional.of(job));
+        when(trabajoRepository.findByIdForUpdate(50)).thenReturn(Optional.of(job));
+        when(entregaRepository.existsByIdTrabajoAndEstadoEntrega(50, "ENVIADA"))
+                .thenReturn(false);
         when(tareaRepository.findById(10)).thenReturn(Optional.of(task(
                 10,
                 "ASIGNADA",
@@ -95,8 +112,8 @@ class DeliveryServiceTest {
     void approvingDeliveryFinalizesAssignedJob() {
         TrabajoAsignado job = job(50, "EN_PROCESO");
         Entrega delivery = delivery(200, 50, "ENVIADA");
-        when(entregaRepository.findById(200)).thenReturn(Optional.of(delivery));
-        when(trabajoRepository.findById(50)).thenReturn(Optional.of(job));
+        when(entregaRepository.findByIdForUpdate(200)).thenReturn(Optional.of(delivery));
+        when(trabajoRepository.findByIdForUpdate(50)).thenReturn(Optional.of(job));
         when(tareaRepository.findById(10)).thenReturn(Optional.of(task(
                 10,
                 "ASIGNADA",
@@ -109,6 +126,7 @@ class DeliveryServiceTest {
         assertEquals("APROBADA", response.estadoEntrega());
         assertEquals("FINALIZADO", job.getEstadoTrabajo());
         verify(trabajoRepository).save(job);
+        verify(revisionRepository).save(any(RevisionEntrega.class));
     }
 
     @Test
@@ -122,6 +140,8 @@ class DeliveryServiceTest {
         );
         DeliveryService cashService = new DeliveryService(
                 entregaRepository,
+                comentarioRepository,
+                revisionRepository,
                 trabajoRepository,
                 taskService,
                 new JobService(trabajoRepository, taskService),
@@ -130,8 +150,8 @@ class DeliveryServiceTest {
         );
         TrabajoAsignado job = job(50, "EN_PROCESO");
         Entrega delivery = delivery(200, 50, "ENVIADA");
-        when(entregaRepository.findById(200)).thenReturn(Optional.of(delivery));
-        when(trabajoRepository.findById(50)).thenReturn(Optional.of(job));
+        when(entregaRepository.findByIdForUpdate(200)).thenReturn(Optional.of(delivery));
+        when(trabajoRepository.findByIdForUpdate(50)).thenReturn(Optional.of(job));
         when(tareaRepository.findById(10)).thenReturn(Optional.of(task(
                 10,
                 "ASIGNADA",
@@ -148,7 +168,7 @@ class DeliveryServiceTest {
     @Test
     void creatingDeliveryRejectsUsersWhoAreNotAssigned() {
         TrabajoAsignado job = job(50, "EN_PROCESO");
-        when(trabajoRepository.findById(50)).thenReturn(Optional.of(job));
+        when(trabajoRepository.findByIdForUpdate(50)).thenReturn(Optional.of(job));
 
         assertThrows(
                 ForbiddenOperationException.class,
@@ -158,6 +178,76 @@ class DeliveryServiceTest {
                         new CreateDeliveryRequest("Entrega ajena.")
                 )
         );
+    }
+
+    @Test
+    void creatingDeliveryRejectsAnotherPendingReview() {
+        TrabajoAsignado job = job(50, "EN_PROCESO");
+        when(trabajoRepository.findByIdForUpdate(50)).thenReturn(Optional.of(job));
+        when(entregaRepository.existsByIdTrabajoAndEstadoEntrega(50, "ENVIADA"))
+                .thenReturn(true);
+
+        ResourceConflictException error = assertThrows(
+                ResourceConflictException.class,
+                () -> service.createDelivery(
+                        1,
+                        50,
+                        new CreateDeliveryRequest("Una segunda version del resultado.")
+                )
+        );
+
+        assertEquals(
+                "Ya existe una entrega pendiente de revision. Espera la respuesta del cliente.",
+                error.getMessage()
+        );
+        verify(entregaRepository, never()).save(any());
+    }
+
+    @Test
+    void requestingChangesKeepsJobActiveAndRegistersReview() {
+        TrabajoAsignado job = job(50, "EN_PROCESO");
+        Entrega delivery = delivery(200, 50, "ENVIADA");
+        when(entregaRepository.findByIdForUpdate(200)).thenReturn(Optional.of(delivery));
+        when(trabajoRepository.findByIdForUpdate(50)).thenReturn(Optional.of(job));
+        when(tareaRepository.findById(10)).thenReturn(Optional.of(task(
+                10,
+                "ASIGNADA",
+                LocalDateTime.now().plusDays(1)
+        )));
+        when(entregaRepository.save(delivery)).thenReturn(delivery);
+
+        DeliveryResponse response = service.requestChanges(
+                1,
+                200,
+                new RequestDeliveryChangesRequest(
+                        "Corrige el formato del documento y adjunta la fuente."
+                )
+        );
+
+        assertEquals("CAMBIOS_SOLICITADOS", response.estadoEntrega());
+        assertEquals("EN_PROCESO", job.getEstadoTrabajo());
+        verify(revisionRepository).save(any(RevisionEntrega.class));
+    }
+
+    @Test
+    void participantCanCommentOnActiveDelivery() {
+        TrabajoAsignado job = job(50, "EN_PROCESO");
+        Entrega delivery = delivery(200, 50, "CAMBIOS_SOLICITADOS");
+        when(entregaRepository.findById(200)).thenReturn(Optional.of(delivery));
+        when(trabajoRepository.findById(50)).thenReturn(Optional.of(job));
+        when(tareaRepository.findById(10)).thenReturn(Optional.of(task(
+                10,
+                "ASIGNADA",
+                LocalDateTime.now().plusDays(1)
+        )));
+
+        service.addComment(
+                1,
+                200,
+                new CreateDeliveryCommentRequest("Ya realice los ajustes solicitados.")
+        );
+
+        verify(comentarioRepository).save(any(ComentarioEntrega.class));
     }
 
     private Tarea task(

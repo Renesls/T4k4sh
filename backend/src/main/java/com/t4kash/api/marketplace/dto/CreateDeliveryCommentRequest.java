@@ -3,9 +3,9 @@ package com.t4kash.api.marketplace.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-public record CreateDeliveryRequest(
+public record CreateDeliveryCommentRequest(
         @NotBlank
-        @Size(min = 10, max = 1000)
-        String descripcionEntrega
+        @Size(min = 2, max = 700)
+        String comentario
 ) {
 }

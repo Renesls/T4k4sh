@@ -8,11 +8,13 @@ import com.t4kash.api.finance.dto.AcceptApplicationRequest;
 import com.t4kash.api.marketplace.dto.ApplicationResponse;
 import com.t4kash.api.marketplace.dto.CategoriaResponse;
 import com.t4kash.api.marketplace.dto.CreateApplicationRequest;
+import com.t4kash.api.marketplace.dto.CreateDeliveryCommentRequest;
 import com.t4kash.api.marketplace.dto.CreateDeliveryRequest;
 import com.t4kash.api.marketplace.dto.CreateTaskRequest;
 import com.t4kash.api.marketplace.dto.DeliveryResponse;
 import com.t4kash.api.marketplace.dto.JobResponse;
 import com.t4kash.api.marketplace.dto.QuickTaskResponse;
+import com.t4kash.api.marketplace.dto.RequestDeliveryChangesRequest;
 import com.t4kash.api.marketplace.dto.TaskResponse;
 import com.t4kash.api.marketplace.service.ApplicationService;
 import com.t4kash.api.marketplace.service.DeliveryService;
@@ -239,6 +241,28 @@ public class MarketplaceController {
             @PathVariable Integer idEntrega
     ) {
         return deliveryService.approveDelivery(user.idUsuario(), idEntrega);
+    }
+
+    @PostMapping("/deliveries/{idEntrega}/request-changes")
+    @Operation(summary = "Solicitar correcciones sobre una entrega")
+    @SecurityRequirement(name = "bearerAuth")
+    public DeliveryResponse requestDeliveryChanges(
+            @CurrentUser(role = "CLIENTE") AuthenticatedUserResponse user,
+            @PathVariable Integer idEntrega,
+            @Valid @RequestBody RequestDeliveryChangesRequest request
+    ) {
+        return deliveryService.requestChanges(user.idUsuario(), idEntrega, request);
+    }
+
+    @PostMapping("/deliveries/{idEntrega}/comments")
+    @Operation(summary = "Comentar en el historial de una entrega")
+    @SecurityRequirement(name = "bearerAuth")
+    public DeliveryResponse commentDelivery(
+            @CurrentUser AuthenticatedUserResponse user,
+            @PathVariable Integer idEntrega,
+            @Valid @RequestBody CreateDeliveryCommentRequest request
+    ) {
+        return deliveryService.addComment(user.idUsuario(), idEntrega, request);
     }
 
     private List<TaskResponse> enrichTasks(List<TaskResponse> tasks) {

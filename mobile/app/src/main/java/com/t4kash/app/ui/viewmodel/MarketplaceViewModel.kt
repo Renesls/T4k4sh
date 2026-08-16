@@ -335,6 +335,14 @@ class MarketplaceViewModel(
         deliveryActions.approve(delivery)
     }
 
+    fun requestDeliveryChanges(delivery: DeliveryDto, observation: String) {
+        deliveryActions.requestChanges(delivery, observation)
+    }
+
+    fun commentDelivery(delivery: DeliveryDto, comment: String) {
+        deliveryActions.comment(delivery, comment)
+    }
+
     fun clearDeliveryFeedback() {
         deliveryActions.clearFeedback()
     }
