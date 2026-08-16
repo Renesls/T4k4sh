@@ -403,7 +403,7 @@ trabajo a `EN_PROCESO` únicamente después de validar la confirmación del prov
 En el comercio Pagadito Sandbox deben configurarse estas direcciones públicas:
 
 ```text
-Retorno: https://t4k4sh.onrender.com/api/payments/pagadito/return
+Retorno: https://t4k4sh.onrender.com/api/payments/pagadito/return?token={value}&ern={ern_value}
 Webhook: https://t4k4sh.onrender.com/api/payments/pagadito/webhook
 Evento:  TRANSACTION.STATUS.CHANGE
 ```
@@ -683,9 +683,9 @@ Reglas acordadas:
 
 Las tablas financieras separan la orden de pago, sus movimientos, los eventos webhook,
 los desembolsos, los reembolsos y las disputas. Las claves de idempotencia impiden
-registrar dos veces una notificación o solicitud repetida. La billetera se calcula a
-partir de estos movimientos auditables y no almacena un saldo aislado susceptible de
-desincronizarse.
+registrar dos veces una notificación o solicitud repetida. En el MVP, los totales de la
+billetera se calculan desde los estados confirmados de cada pago y los movimientos
+conservan la trazabilidad de sus cambios.
 
 Estados principales implementados:
 

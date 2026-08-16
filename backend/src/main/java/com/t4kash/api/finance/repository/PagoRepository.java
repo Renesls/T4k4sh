@@ -16,10 +16,27 @@ public interface PagoRepository extends JpaRepository<Pago, Integer> {
     Optional<Pago> findByIdTrabajo(Integer idTrabajo);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT pago FROM Pago pago WHERE pago.idPago = :idPago")
+    Optional<Pago> findByIdForUpdate(@Param("idPago") Integer idPago);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT pago FROM Pago pago WHERE pago.idTrabajo = :idTrabajo")
     Optional<Pago> findByIdTrabajoForUpdate(@Param("idTrabajo") Integer idTrabajo);
+
     Optional<Pago> findByReferenciaComercio(String referenciaComercio);
     Optional<Pago> findByReferenciaProveedor(String referenciaProveedor);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT pago FROM Pago pago WHERE pago.referenciaComercio = :referenciaComercio")
+    Optional<Pago> findByReferenciaComercioForUpdate(
+            @Param("referenciaComercio") String referenciaComercio
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT pago FROM Pago pago WHERE pago.referenciaProveedor = :referenciaProveedor")
+    Optional<Pago> findByReferenciaProveedorForUpdate(
+            @Param("referenciaProveedor") String referenciaProveedor
+    );
 
     @Query("""
             SELECT pago FROM Pago pago

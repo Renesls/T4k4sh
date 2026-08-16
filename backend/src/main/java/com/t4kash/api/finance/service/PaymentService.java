@@ -50,7 +50,10 @@ public class PaymentService {
     private static final String JOB_FINISHED = "FINALIZADO";
 
     private static final Set<String> RETRYABLE_STATES = Set.of(
-            PAYMENT_PENDING, "PAGO_FALLIDO", "PAGO_CANCELADO", "PAGO_EXPIRADO"
+            PAYMENT_PENDING, "PAGO_FALLIDO", "PAGO_CANCELADO", "PAGO_EXPIRADO", "PAGO_REVOCADO"
+    );
+    private static final Set<String> TERMINAL_PROVIDER_STATES = Set.of(
+            "PAGO_FALLIDO", "PAGO_CANCELADO", "PAGO_EXPIRADO", "PAGO_REVOCADO"
     );
     private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
 
@@ -223,7 +226,7 @@ public class PaymentService {
 
     @Transactional
     public CheckoutResponse createCheckout(Integer currentUserId, Integer jobId) {
-        Pago payment = findPaymentByJob(jobId);
+        Pago payment = findPaymentByJobForUpdate(jobId);
         if (!payment.getIdCliente().equals(currentUserId)) {
             throw new ForbiddenOperationException("Solo el cliente puede iniciar este pago.");
         }
@@ -234,7 +237,6 @@ public class PaymentService {
             throw new ResourceConflictException("Este pago ya fue procesado o esta siendo verificado.");
         }
         if (PAYMENT_PENDING.equals(payment.getEstadoPago())
-                && payment.getReferenciaProveedor() != null
                 && payment.getFechaExpiracion() != null
                 && payment.getFechaExpiracion().isAfter(LocalDateTime.now())) {
             throw new ResourceConflictException(
@@ -264,7 +266,7 @@ public class PaymentService {
 
     @Transactional
     public PaymentResponse refreshStatus(Integer currentUserId, Integer paymentId) {
-        Pago payment = findPayment(paymentId);
+        Pago payment = findPaymentForUpdate(paymentId);
         requireParticipant(payment, currentUserId);
         if (!METHOD_PAGADITO.equals(payment.getMetodoPago())) {
             return PaymentResponse.fromEntity(payment, currentUserId);
@@ -281,9 +283,15 @@ public class PaymentService {
     }
 
     @Transactional
-    public String processReturn(String transactionToken) {
-        Pago payment = paymentRepository.findByReferenciaProveedor(transactionToken)
-                .orElseThrow(() -> new ResourceNotFoundException("El pago devuelto por Pagadito no existe."));
+    public String processReturn(String transactionToken, String commerceReference) {
+        Pago payment = findReturnPayment(transactionToken, commerceReference);
+        if (payment.getReferenciaProveedor() != null
+                && !payment.getReferenciaProveedor().equals(transactionToken)) {
+            throw new ResourceConflictException(
+                    "El token devuelto no corresponde al pago indicado."
+            );
+        }
+        payment.setReferenciaProveedor(transactionToken);
         applyProviderStatus(
                 payment,
                 pagaditoClient.getStatus(transactionToken),
@@ -293,7 +301,10 @@ public class PaymentService {
         return payment.getEstadoPago();
     }
 
-    @Transactional(noRollbackFor = IllegalArgumentException.class)
+    @Transactional(noRollbackFor = {
+            IllegalArgumentException.class,
+            ResourceNotFoundException.class
+    })
     public void processWebhook(
             String rawBody,
             PagaditoWebhookVerifier.Headers headers
@@ -301,18 +312,36 @@ public class PaymentService {
         JsonNode root = readJson(rawBody);
         String eventId = requiredText(root, "id");
         String eventType = requiredText(root, "event_type");
-        if (webhookRepository.existsByProveedorPagoAndEntornoPagoAndIdEventoProveedor(
-                METHOD_PAGADITO,
-                environment,
-                eventId
-        )) {
+        EventoWebhookPago existingEvent = webhookRepository
+                .findByProveedorPagoAndEntornoPagoAndIdEventoProveedor(
+                        METHOD_PAGADITO,
+                        environment,
+                        eventId
+                )
+                .orElse(null);
+        if (isProcessedWebhook(existingEvent)) {
             return;
         }
         boolean validSignature = webhookVerifier.verify(rawBody, headers, eventId);
         JsonNode resource = root.path("resource");
         String commerceReference = requiredText(resource, "ern");
-        Pago payment = paymentRepository.findByReferenciaComercio(commerceReference).orElse(null);
-        EventoWebhookPago event = new EventoWebhookPago();
+        Pago payment = paymentRepository
+                .findByReferenciaComercioForUpdate(commerceReference)
+                .orElse(null);
+        EventoWebhookPago lockedEvent = webhookRepository
+                .findByProveedorPagoAndEntornoPagoAndIdEventoProveedor(
+                        METHOD_PAGADITO,
+                        environment,
+                        eventId
+                )
+                .orElse(existingEvent);
+        if (isProcessedWebhook(lockedEvent)) {
+            return;
+        }
+        EventoWebhookPago event = lockedEvent == null ? new EventoWebhookPago() : lockedEvent;
+        int attempts = event.getIntentosProcesamiento() == null
+                ? 1
+                : event.getIntentosProcesamiento() + 1;
         event.setIdPago(payment == null ? null : payment.getIdPago());
         event.setProveedorPago(METHOD_PAGADITO);
         event.setEntornoPago(environment);
@@ -321,8 +350,10 @@ public class PaymentService {
         event.setFirmaValida(validSignature);
         event.setPayload(objectMapper.convertValue(root, new TypeReference<>() { }));
         event.setEstadoProcesamiento(validSignature ? "PENDIENTE" : "RECHAZADO");
-        event.setIntentosProcesamiento(1);
+        event.setIntentosProcesamiento(attempts);
         event.setFechaRecepcion(LocalDateTime.now());
+        event.setFechaProcesamiento(null);
+        event.setUltimoError(null);
         if (!validSignature) {
             event.setUltimoError("Firma no valida.");
             webhookRepository.save(event);
@@ -334,7 +365,15 @@ public class PaymentService {
             webhookRepository.save(event);
             throw new ResourceNotFoundException("No existe un pago para el evento recibido.");
         }
-        validateWebhookAmount(payment, resource.path("amount"));
+        webhookRepository.save(event);
+        try {
+            validateWebhookAmount(payment, resource.path("amount"));
+        } catch (IllegalArgumentException exception) {
+            event.setEstadoProcesamiento("ERROR");
+            event.setUltimoError(exception.getMessage());
+            webhookRepository.save(event);
+            throw exception;
+        }
         payment.setReferenciaProveedor(requiredText(resource, "token"));
         applyProviderStatus(
                 payment,
@@ -351,9 +390,13 @@ public class PaymentService {
         webhookRepository.save(event);
     }
 
+    private boolean isProcessedWebhook(EventoWebhookPago event) {
+        return event != null && "PROCESADO".equals(event.getEstadoProcesamiento());
+    }
+
     @Transactional
     public boolean releaseForApprovedDelivery(TrabajoAsignado job) {
-        Pago payment = findPaymentByJob(job.getIdTrabajo());
+        Pago payment = findPaymentByJobForUpdate(job.getIdTrabajo());
         LocalDateTime now = LocalDateTime.now();
         if (METHOD_PAGADITO.equals(payment.getMetodoPago())) {
             if (!FUNDS_HELD.equals(payment.getEstadoPago())) {
@@ -446,6 +489,9 @@ public class PaymentService {
             String idempotencyKey
     ) {
         String status = providerStatus.status();
+        if (!canApplyProviderStatus(payment.getEstadoPago(), status)) {
+            return;
+        }
         LocalDateTime now = LocalDateTime.now();
         switch (status) {
             case "COMPLETED" -> confirmProtectedPayment(payment, providerStatus.reference(), idempotencyKey);
@@ -458,6 +504,19 @@ public class PaymentService {
             default -> throw new PaymentProviderException("Pagadito devolvio el estado " + status + ".");
         }
         payment.setFechaActualizacion(now);
+    }
+
+    private boolean canApplyProviderStatus(String currentState, String providerStatus) {
+        if (FUNDS_HELD.equals(currentState) || PAYMENT_RELEASED.equals(currentState)) {
+            return "COMPLETED".equals(providerStatus);
+        }
+        if (TERMINAL_PROVIDER_STATES.contains(currentState)) {
+            return false;
+        }
+        if ("PAGO_EN_VERIFICACION".equals(currentState)) {
+            return Set.of("VERIFYING", "COMPLETED", "REVOKED").contains(providerStatus);
+        }
+        return true;
     }
 
     private void confirmProtectedPayment(Pago payment, String providerReference, String idempotencyKey) {
@@ -532,9 +591,39 @@ public class PaymentService {
                 .orElseThrow(() -> new ResourceNotFoundException("El pago indicado no existe."));
     }
 
+    private Pago findPaymentForUpdate(Integer paymentId) {
+        return paymentRepository.findByIdForUpdate(paymentId)
+                .orElseThrow(() -> new ResourceNotFoundException("El pago indicado no existe."));
+    }
+
     private Pago findPaymentByJob(Integer jobId) {
         return paymentRepository.findByIdTrabajo(jobId)
                 .orElseThrow(() -> new ResourceNotFoundException("El trabajo aun no tiene un pago asociado."));
+    }
+
+    private Pago findPaymentByJobForUpdate(Integer jobId) {
+        return paymentRepository.findByIdTrabajoForUpdate(jobId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "El trabajo aun no tiene un pago asociado."
+                ));
+    }
+
+    private Pago findReturnPayment(String transactionToken, String commerceReference) {
+        Pago payment = null;
+        if (commerceReference != null && !commerceReference.isBlank()) {
+            payment = paymentRepository
+                    .findByReferenciaComercioForUpdate(commerceReference)
+                    .orElse(null);
+        }
+        if (payment == null) {
+            payment = paymentRepository
+                    .findByReferenciaProveedorForUpdate(transactionToken)
+                    .orElse(null);
+        }
+        if (payment == null) {
+            throw new ResourceNotFoundException("El pago devuelto por Pagadito no existe.");
+        }
+        return payment;
     }
 
     private void requireParticipant(Pago payment, Integer currentUserId) {

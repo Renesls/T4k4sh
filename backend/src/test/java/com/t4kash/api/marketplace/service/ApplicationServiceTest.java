@@ -202,6 +202,38 @@ class ApplicationServiceTest {
     }
 
     @Test
+    void pendingCashConfirmationCountsTowardActiveJobLimit() {
+        Tarea task = task(10, "PUBLICADA", LocalDateTime.now().plusDays(1));
+        when(tareaRepository.findById(10)).thenReturn(Optional.of(task));
+        when(estudianteRepository.existsById(2)).thenReturn(true);
+        when(trabajoRepository.countByIdEstudianteAndEstadoTrabajo(2, "EN_PROCESO"))
+                .thenReturn(1L);
+        when(trabajoRepository.countByIdEstudianteAndEstadoTrabajo(2, "PENDIENTE_PAGO"))
+                .thenReturn(0L);
+        when(trabajoRepository.countByIdEstudianteAndEstadoTrabajo(
+                2,
+                "PAGO_EFECTIVO_PENDIENTE"
+        )).thenReturn(1L);
+
+        ResourceConflictException error = assertThrows(
+                ResourceConflictException.class,
+                () -> service.applyToTask(
+                        2,
+                        10,
+                        new CreateApplicationRequest(
+                                "Quiero participar.",
+                                new BigDecimal("20.00")
+                        )
+                )
+        );
+
+        assertEquals(
+                "Ya tienes dos trabajos en proceso. Finaliza uno antes de postularte.",
+                error.getMessage()
+        );
+    }
+
+    @Test
     void secondActiveJobCancelsOtherPendingApplications() {
         Tarea task = task(10, "PUBLICADA", LocalDateTime.now().plusDays(1));
         Postulacion accepted = application(100, 10, 2);

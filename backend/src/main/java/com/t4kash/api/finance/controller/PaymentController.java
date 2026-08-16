@@ -103,13 +103,14 @@ public class PaymentController {
     @Operation(summary = "Confirmar retorno del checkout de Pagadito")
     public String pagaditoReturn(
             @RequestParam(required = false) String token,
-            @RequestParam(name = "token_trans", required = false) String transactionToken
+            @RequestParam(name = "token_trans", required = false) String transactionToken,
+            @RequestParam(name = "ern", required = false) String commerceReference
     ) {
         String resolvedToken = token == null || token.isBlank() ? transactionToken : token;
         if (resolvedToken == null || resolvedToken.isBlank()) {
             throw new IllegalArgumentException("Pagadito no devolvio el token de la transaccion.");
         }
-        String status = paymentService.processReturn(resolvedToken);
+        String status = paymentService.processReturn(resolvedToken, commerceReference);
         return """
                 <!doctype html><html lang="es"><head><meta charset="utf-8">
                 <meta name="viewport" content="width=device-width,initial-scale=1">

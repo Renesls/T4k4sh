@@ -31,14 +31,14 @@ public record PaymentResponse(
 ) {
     public static PaymentResponse fromEntity(Pago pago, Integer currentUserId) {
         boolean activeCheckout = "PENDIENTE_PAGO".equals(pago.getEstadoPago())
-                && pago.getReferenciaProveedor() != null
                 && pago.getFechaExpiracion() != null
                 && pago.getFechaExpiracion().isAfter(LocalDateTime.now());
         boolean payable = pago.getIdCliente().equals(currentUserId)
                 && "PAGADITO".equals(pago.getMetodoPago())
                 && !activeCheckout
                 && switch (pago.getEstadoPago()) {
-                    case "PENDIENTE_PAGO", "PAGO_FALLIDO", "PAGO_CANCELADO", "PAGO_EXPIRADO" -> true;
+                    case "PENDIENTE_PAGO", "PAGO_FALLIDO", "PAGO_CANCELADO",
+                            "PAGO_EXPIRADO", "PAGO_REVOCADO" -> true;
                     default -> false;
                 };
         return new PaymentResponse(

@@ -412,6 +412,10 @@ public class ApplicationService {
                 studentId,
                 ESTADO_TRABAJO_PENDIENTE_PAGO
         );
-        return inProgress + awaitingPayment;
+        long awaitingCashConfirmation = trabajoRepository.countByIdEstudianteAndEstadoTrabajo(
+                studentId,
+                PaymentService.JOB_CASH_CONFIRMATION_PENDING
+        );
+        return inProgress + awaitingPayment + awaitingCashConfirmation;
     }
 }
