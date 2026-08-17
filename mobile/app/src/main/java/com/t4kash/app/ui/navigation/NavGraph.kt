@@ -39,6 +39,7 @@ import com.t4kash.app.ui.screen.VerifyEmailScreen
 import com.t4kash.app.ui.viewmodel.MarketplaceViewModel
 import com.t4kash.app.ui.viewmodel.AuthViewModel
 import com.t4kash.app.ui.viewmodel.CommunicationViewModel
+import com.t4kash.app.ui.viewmodel.NetworkViewModel
 import com.t4kash.app.ui.viewmodel.PublicProfileViewModel
 import com.t4kash.app.ui.session.UserSession
 
@@ -49,6 +50,7 @@ fun NavGraph(
     val authViewModel: AuthViewModel = viewModel()
     val marketplaceViewModel: MarketplaceViewModel = viewModel()
     val communicationViewModel: CommunicationViewModel = viewModel()
+    val networkViewModel: NetworkViewModel = viewModel()
     val publicProfileViewModel: PublicProfileViewModel = viewModel()
     val session by UserSession.session.collectAsState()
 
@@ -62,6 +64,7 @@ fun NavGraph(
     LaunchedEffect(session?.token) {
         if (session == null) {
             communicationViewModel.clearSession()
+            networkViewModel.clearSession()
         } else {
             communicationViewModel.refreshOverview()
         }
@@ -72,6 +75,9 @@ fun NavGraph(
         }
         if (route == Routes.CHAT) {
             communicationViewModel.refreshOverview()
+        }
+        if (route == Routes.NETWORK) {
+            networkViewModel.refresh(showLoading = false)
         }
         navController.navigateBottom(route)
     }
@@ -274,7 +280,23 @@ fun NavGraph(
             )
         }
         composable(Routes.NETWORK) {
-            NetworkScreen(onNavigate = onBottomNavigate)
+            val currentUser = session?.user
+            if (currentUser == null) {
+                LaunchedEffect(Unit) {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(navController.graph.id) { inclusive = true }
+                    }
+                }
+                return@composable
+            }
+            NetworkScreen(
+                viewModel = networkViewModel,
+                user = currentUser,
+                onNavigate = onBottomNavigate,
+                onOpenProfile = { username ->
+                    navController.navigate(Routes.publicProfile(username))
+                }
+            )
         }
         composable(Routes.POST) {
             PostTaskScreen(

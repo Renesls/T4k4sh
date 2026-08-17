@@ -67,4 +67,8 @@ object RetrofitClient {
     val communicationApiService: CommunicationApiService by lazy {
         retrofit.create(CommunicationApiService::class.java)
     }
+
+    val networkApiService: NetworkApiService by lazy {
+        retrofit.create(NetworkApiService::class.java)
+    }
 }
