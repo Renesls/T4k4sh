@@ -27,3 +27,6 @@ Thumbs.db
 .claude/
 CLAUDE.md
 graphify-out/
+
+# Ignorar credenciales de Firebase
+*firebase-adminsdk*.json

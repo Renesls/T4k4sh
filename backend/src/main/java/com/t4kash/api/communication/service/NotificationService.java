@@ -5,6 +5,8 @@ import com.t4kash.api.communication.entity.Notificacion;
 import com.t4kash.api.communication.repository.NotificacionRepository;
 import com.t4kash.api.exception.ForbiddenOperationException;
 import com.t4kash.api.exception.ResourceNotFoundException;
+import com.t4kash.api.marketplace.entity.Usuario;
+import com.t4kash.api.marketplace.repository.UsuarioRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,13 +16,22 @@ import java.util.List;
 @Service
 public class NotificationService {
     private final NotificacionRepository notificationRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final FcmService fcmService;
 
-    public NotificationService(NotificacionRepository notificationRepository) {
+    public NotificationService(
+            NotificacionRepository notificationRepository,
+            UsuarioRepository usuarioRepository,
+            FcmService fcmService
+    ) {
         this.notificationRepository = notificationRepository;
+        this.usuarioRepository = usuarioRepository;
+        this.fcmService = fcmService;
     }
 
     @Transactional
     public void create(Integer userId, String title, String message) {
+        // 1. Guardar la notificación en la base de datos local
         Notificacion notification = new Notificacion();
         notification.setIdUsuario(userId);
         notification.setTitulo(limit(title, 150));
@@ -28,6 +39,20 @@ public class NotificationService {
         notification.setLeida(false);
         notification.setFechaCreacion(LocalDateTime.now());
         notificationRepository.save(notification);
+
+        // 2. Lógica Push a Firebase
+        // Nota: Si tu UsuarioRepository usa Integer en lugar de Long, cambia Long.valueOf(userId) por simplemente userId
+        Usuario usuarioDestino = usuarioRepository.findById(Math.toIntExact(Long.valueOf(userId))).orElse(null);
+
+        // Validación y envío
+        if (usuarioDestino != null && usuarioDestino.getFcmToken() != null) {
+            // Forzamos el tipo de dato a String para asegurar que .trim() funcione correctamente
+            String token = String.valueOf(usuarioDestino.getFcmToken());
+
+            if (!token.trim().isEmpty()) {
+                fcmService.sendPushNotification(token, title, message);
+            }
+        }
     }
 
     @Transactional(readOnly = true)
