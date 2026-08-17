@@ -20,10 +20,11 @@ public class User {
     @Column(nullable = false)
     private String fullName;
 
-    // Guardamos la carrera como un simple texto
+    @Column(name = "fcm_token")
+    private String fcmToken;
+
     private String careerName;
 
-    // Guardamos los roles y habilidades en colecciones simples embebidas
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "user_roles_simple", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "role_name")
@@ -61,4 +62,13 @@ public class User {
     public String getFullName() {
         return fullName;
     }
+
+    public String getCareerName() {return careerName;}
+
+    public void setCareerName(String careerName) {this.careerName = careerName;}
+
+    public String getFcmToken() {return fcmToken;}
+
+    public void setFcmToken(String fcmToken) {this.fcmToken = fcmToken;}
+
 }

@@ -21,7 +21,6 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 
-/** Gestiona el ingreso con contrasena y la verificacion posterior por correo. */
 @Service
 public class LoginService {
     private static final String ACTIVE_USER = "ACTIVO";
@@ -104,6 +103,13 @@ public class LoginService {
             );
             throw new InvalidCredentialsException("La cuenta no se encuentra activa.");
         }
+
+        // ---> MODIFICACIÓN FCM TOKEN: Guardamos el token en la BD <---
+        if (request.fcmToken() != null && !request.fcmToken().isEmpty()) {
+            usuario.setFcmToken(request.fcmToken());
+            usuarioRepository.save(usuario);
+        }
+        // -------------------------------------------------------------
 
         LocalDateTime now = now();
         VerificacionUsuario previous = verificacionRepository

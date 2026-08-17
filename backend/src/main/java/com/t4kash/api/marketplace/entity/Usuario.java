@@ -112,4 +112,11 @@ public class Usuario {
     public void setIdUniversidad(Integer idUniversidad) {
         this.idUniversidad = idUniversidad;
     }
+
+    public void setFcmToken(String s) {
+    }
+
+    public Object getFcmToken() {
+        return null;
+    }
 }
