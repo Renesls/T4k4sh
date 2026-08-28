@@ -912,7 +912,7 @@ CREATE TABLE eventos_webhook_identidad (
     estado_reportado varchar(40),
     firma_valida boolean NOT NULL DEFAULT false,
     estado_procesamiento varchar(30) NOT NULL DEFAULT 'PENDIENTE',
-    hash_contenido char(64) NOT NULL,
+    hash_contenido varchar(64) NOT NULL,
     fecha_recepcion timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     fecha_procesamiento timestamp,
     detalle_error varchar(500),
