@@ -9,6 +9,7 @@ import com.t4kash.api.finance.entity.TransaccionPago;
 import com.t4kash.api.finance.repository.DesembolsoPagoRepository;
 import com.t4kash.api.finance.repository.ReembolsoPagoRepository;
 import com.t4kash.api.finance.repository.TransaccionPagoRepository;
+import com.t4kash.api.identity.service.IdentityVerificationPolicyService;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Pageable;
 
@@ -23,21 +24,28 @@ public class FinancialLedgerService {
     private final TransaccionPagoRepository movementRepository;
     private final DesembolsoPagoRepository payoutRepository;
     private final ReembolsoPagoRepository refundRepository;
+    private final IdentityVerificationPolicyService identityVerificationPolicy;
 
     public FinancialLedgerService(
             TransaccionPagoRepository movementRepository,
             DesembolsoPagoRepository payoutRepository,
-            ReembolsoPagoRepository refundRepository
+            ReembolsoPagoRepository refundRepository,
+            IdentityVerificationPolicyService identityVerificationPolicy
     ) {
         this.movementRepository = movementRepository;
         this.payoutRepository = payoutRepository;
         this.refundRepository = refundRepository;
+        this.identityVerificationPolicy = identityVerificationPolicy;
     }
 
     public DesembolsoPago registerSandboxPayout(Pago payment) {
         requireSandbox(payment);
         String key = "PAYOUT:" + payment.getUuidPago();
         return payoutRepository.findByClaveIdempotencia(key).orElseGet(() -> {
+            identityVerificationPolicy.requireApproved(
+                    payment.getIdEstudiante(),
+                    "recibir un pago"
+            );
             LocalDateTime now = LocalDateTime.now();
             DesembolsoPago payout = new DesembolsoPago();
             payout.setIdPago(payment.getIdPago());

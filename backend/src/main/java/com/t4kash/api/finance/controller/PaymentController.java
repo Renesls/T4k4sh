@@ -9,6 +9,7 @@ import com.t4kash.api.finance.service.PagaditoWebhookVerifier;
 import com.t4kash.api.finance.service.PaymentDisputeService;
 import com.t4kash.api.finance.service.PaymentService;
 import com.t4kash.api.identity.dto.AuthenticatedUserResponse;
+import com.t4kash.api.identity.service.IdentityVerificationPolicyService;
 import com.t4kash.api.identity.web.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -32,13 +33,16 @@ import java.util.List;
 public class PaymentController {
     private final PaymentService paymentService;
     private final PaymentDisputeService disputeService;
+    private final IdentityVerificationPolicyService identityVerificationPolicy;
 
     public PaymentController(
             PaymentService paymentService,
-            PaymentDisputeService disputeService
+            PaymentDisputeService disputeService,
+            IdentityVerificationPolicyService identityVerificationPolicy
     ) {
         this.paymentService = paymentService;
         this.disputeService = disputeService;
+        this.identityVerificationPolicy = identityVerificationPolicy;
     }
 
     @GetMapping("/wallet")
@@ -49,6 +53,7 @@ public class PaymentController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size
     ) {
+        requireVerified(user.idUsuario(), "consultar Wallet");
         return paymentService.getWallet(user.idUsuario(), page, size);
     }
 
@@ -59,6 +64,7 @@ public class PaymentController {
             @CurrentUser AuthenticatedUserResponse user,
             @PathVariable Integer idTrabajo
     ) {
+        requireVerified(user.idUsuario(), "consultar un pago");
         return paymentService.findByJob(user.idUsuario(), idTrabajo);
     }
 
@@ -69,6 +75,7 @@ public class PaymentController {
             @CurrentUser(role = "CLIENTE") AuthenticatedUserResponse user,
             @PathVariable Integer idTrabajo
     ) {
+        requireVerified(user.idUsuario(), "iniciar un pago protegido");
         return paymentService.createCheckout(user.idUsuario(), idTrabajo);
     }
 
@@ -79,6 +86,7 @@ public class PaymentController {
             @CurrentUser(role = "ESTUDIANTE") AuthenticatedUserResponse user,
             @PathVariable Integer idTrabajo
     ) {
+        requireVerified(user.idUsuario(), "confirmar un pago en efectivo");
         return paymentService.confirmCashReceipt(user.idUsuario(), idTrabajo);
     }
 
@@ -89,6 +97,7 @@ public class PaymentController {
             @CurrentUser AuthenticatedUserResponse user,
             @PathVariable Integer idPago
     ) {
+        requireVerified(user.idUsuario(), "actualizar un pago");
         return paymentService.refreshStatus(user.idUsuario(), idPago);
     }
 
@@ -100,6 +109,7 @@ public class PaymentController {
             @PathVariable Integer idPago,
             @Valid @RequestBody CreatePaymentDisputeRequest request
     ) {
+        requireVerified(user.idUsuario(), "abrir una disputa financiera");
         return disputeService.open(user.idUsuario(), idPago, request);
     }
 
@@ -111,6 +121,7 @@ public class PaymentController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size
     ) {
+        requireVerified(user.idUsuario(), "consultar disputas financieras");
         return disputeService.listForUser(user.idUsuario(), page, size);
     }
 
@@ -152,5 +163,9 @@ public class PaymentController {
                 <h1>Pago recibido por T4KASH</h1><p>Estado: <strong>%s</strong></p>
                 <p>Ya puedes volver a la aplicacion y actualizar tu Wallet.</p></body></html>
                 """.formatted(status);
+    }
+
+    private void requireVerified(Integer userId, String action) {
+        identityVerificationPolicy.requireApproved(userId, action);
     }
 }

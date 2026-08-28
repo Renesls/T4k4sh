@@ -23,6 +23,7 @@ object Routes {
     const val NOTIFICATIONS = "notifications"
     const val PROFILE = "profile"
     const val SETTINGS = "profile/settings"
+    const val IDENTITY_VERIFICATION = "profile/identity-verification"
     const val WALLET = "wallet"
     const val ASSIGNED_JOBS = "profile/jobs"
     const val APPLICATION_SENT = "application-sent"

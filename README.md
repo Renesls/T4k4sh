@@ -56,6 +56,7 @@ con otros perfiles y convertir una interacción social en una oportunidad real.
 | Recuperación de contraseña por código | Implementado |
 | Verificación de perfil estudiantil con adjunto y revisión administrativa | Implementado |
 | Identidad pública por arroba y cambio de nombre de usuario | Implementado |
+| Verificación KYC con Didit | Implementado; requiere credenciales y workflow de Didit |
 | Conversaciones, mensajes y notificaciones internas | Implementado |
 | Configuración local con cuatro temas de fondo para el chat | Implementado |
 | Formularios adaptados al teclado y manejo visual de errores | Implementado |
@@ -92,6 +93,7 @@ y la base conserva únicamente el hash de cada token de sesión.
 | Entorno local | Docker Compose |
 | Hosting | Render, Supabase |
 | Pagos de prueba | Pagadito Sandbox, WSPG y webhooks firmados |
+| Verificación de identidad | Didit Hosted Sessions |
 | Diseño | Figma |
 | Control de versiones | GitHub, Conventional Commits |
 
@@ -126,7 +128,9 @@ API Spring Boot en Render
    | +-- JDBC / JPA + SSL --> PostgreSQL en Supabase
    | +-- HTTPS -------------> Supabase Storage
    | +-- HTTPS -------------> Brevo Email API
+   | +-- HTTPS -------------> Didit Hosted Sessions
    | +-- SOAP / HTTPS -------> Pagadito Sandbox
+   | <-- HTTPS firmado ------- Webhooks de Didit
    | <-- HTTPS firmado ------- Webhooks de Pagadito
 ```
 
@@ -136,6 +140,8 @@ API Spring Boot en Render
 - OpenFreeMap proporciona el estilo y las teselas del mapa sin requerir una clave privada.
 - Supabase Storage conserva los archivos privados y solo el backend utiliza su clave secreta.
 - Brevo envía por HTTPS los códigos de activación, segundo paso y recuperación.
+- Didit aloja la captura del documento, la prueba de vida y la coincidencia facial.
+- El backend verifica la firma de cada webhook de Didit y consulta su decisión autoritativa.
 - Pagadito Sandbox procesa pagos ficticios y notifica cambios de estado al backend.
 - El backend normaliza y valida los datos antes de persistirlos.
 
@@ -197,7 +203,7 @@ El modelo original fue diagramado en SQL Server y posteriormente migrado a Postg
 database/schema-postgresql.sql
 ```
 
-El esquema contiene 47 tablas e incluye:
+El esquema contiene 54 tablas e incluye:
 
 - Llaves primarias y foráneas.
 - Restricciones únicas y validaciones.
@@ -207,6 +213,7 @@ El esquema contiene 47 tablas e incluye:
 - Tareas, habilidades, postulaciones y trabajos.
 - Entregas, pagos, conversaciones y reportes.
 - Sesiones, verificaciones y auditoría.
+- Verificación KYC separada del perfil estudiantil y recepción idempotente de webhooks.
 - Catalogos iniciales con roles, universidades de Managua y Leon, carreras, categorias de oportunidades y habilidades.
 
 `database/sqlserver-original.sql` se conserva únicamente como referencia histórica y no debe utilizarse para Supabase.
@@ -255,6 +262,11 @@ El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno 
 | `GET` | `/api/student-verifications/pending` | Listar validaciones pendientes (admin) |
 | `POST` | `/api/student-verifications/{userId}/approve` | Aprobar perfil estudiantil (admin) |
 | `POST` | `/api/student-verifications/{userId}/reject` | Rechazar perfil estudiantil (admin) |
+| `GET` | `/api/identity-verifications/me` | Consultar mi estado KYC |
+| `POST` | `/api/identity-verifications/me/session` | Crear o recuperar el flujo alojado de Didit |
+| `POST` | `/api/identity-verifications/me/refresh` | Consultar nuevamente la decisión autoritativa |
+| `POST` | `/api/identity-verifications/webhook` | Recibir eventos firmados e idempotentes de Didit |
+| `GET` | `/api/identity-verifications/callback` | Mostrar el retorno del flujo alojado |
 | `GET` | `/api/categories` | Listar categorías activas |
 | `GET` | `/api/tasks` | Listar oportunidades |
 | `POST` | `/api/tasks` | Crear una oportunidad |
@@ -379,6 +391,44 @@ y envía su carnet o constancia con `POST /api/student-verifications/me/attachme
 desde `GET /api/student-verifications/pending` y las aprueba o rechaza con
 `POST /api/student-verifications/{userId}/approve` o `.../reject`, indicando una
 observación opcional.
+
+### Política de Verificación de Identidad
+
+T4KASH separa tres comprobaciones que cumplen propósitos diferentes:
+
+| Comprobación | Qué demuestra |
+|---|---|
+| Código por correo | La persona controla la dirección utilizada para su cuenta |
+| Correo institucional o documento académico | La persona pertenece a una universidad |
+| KYC con Didit | La persona presentada coincide con un documento de identidad válido |
+
+La verificación KYC es progresiva. Una cuenta sin KYC puede completar su perfil, explorar
+oportunidades, utilizar Network, publicar contenido y enviar postulaciones. La identidad
+aprobada y vigente es obligatoria antes de:
+
+- Aceptar una postulación y contratar un trabajo pagado.
+- Ser asignado a un trabajo o recibir dinero mediante Wallet.
+- Participar en la asignación de una tarea rápida presencial.
+- Iniciar o confirmar operaciones mediante Pagadito o efectivo.
+- Solicitar un desembolso o intervenir en una disputa financiera.
+
+Una verificación rechazada, abandonada o expirada no elimina la cuenta. El usuario conserva
+las funciones comunitarias y puede iniciar un nuevo intento, pero las operaciones sensibles
+permanecen bloqueadas. Solamente una verificación `APROBADA` y no vencida permite mostrar la
+insignia de identidad verificada.
+
+Didit no concede el rol `ESTUDIANTE`: ese rol depende del correo institucional o de la
+revisión de documentación académica. T4KASH no almacena fotografías del documento,
+selfies, videos ni datos biométricos; conserva la sesión del proveedor, el estado, las
+fechas y la información mínima necesaria para auditoría. El número del documento tampoco
+se guarda: el backend genera una huella HMAC no reversible para detectar que una misma
+identidad aprobada no sea utilizada por varias cuentas.
+
+Android abre la sesión alojada en el navegador y muestra los estados `Pendiente`,
+`En proceso`, `En revisión`, `Aprobada`, `Rechazada`, `Abandonada` o `Expirada`.
+Al regresar a la aplicación se consulta nuevamente el backend. La página de retorno no
+aprueba identidades por sí sola: el resultado válido siempre procede del webhook firmado
+o de una consulta autenticada desde el backend a Didit.
 
 ### Crear una Tarea Presencial
 
@@ -609,7 +659,7 @@ cd mobile
 
 | Capa | Cantidad actual | Cobertura principal |
 |---|---:|---|
-| Backend | 87 pruebas | 84 pruebas unitarias de identidad, seguridad, marketplace, pagos, adjuntos, reportes, comunicación y Network; 3 pruebas integrales con PostgreSQL mediante Testcontainers |
+| Backend | 102 pruebas | 99 pruebas unitarias de identidad, seguridad, marketplace, pagos, adjuntos, reportes, comunicación y Network; 3 pruebas integrales con PostgreSQL mediante Testcontainers |
 | Android | 22 pruebas unitarias | Dominios de correo, formatos, fechas, moneda, distancias, fondos de chat y políticas de carga/actualización |
 
 Las pruebas integrales se ejecutan cuando Docker está disponible y se omiten sin fallar
@@ -621,6 +671,15 @@ con R8. Los APK se generan en:
 mobile/app/build/outputs/apk/debug/app-debug.apk
 mobile/app/build/outputs/apk/release/app-release-unsigned.apk
 ```
+
+Pruebas de aceptación para Didit:
+
+1. Aprobar una identidad y comprobar que Wallet y la aceptación de trabajos se habilitan.
+2. Rechazar una identidad y confirmar que la cuenta conserva Marketplace y Network.
+3. Abandonar el flujo y comprobar que se permite iniciar un nuevo intento.
+4. Simular una sesión expirada y verificar que las operaciones sensibles siguen bloqueadas.
+5. Reenviar el mismo webhook y confirmar que se reconoce como duplicado sin aplicar cambios dos veces.
+6. Desactivar temporalmente Didit o usar una credencial inválida y comprobar que la API devuelve un error controlado sin perder el estado anterior.
 
 ### Optimización y límites
 
@@ -671,6 +730,13 @@ mobile/app/build/outputs/apk/release/app-release-unsigned.apk
 | `APP_MAIL_FROM_NAME` | Nombre visible del remitente | `T4KASH` |
 | `BREVO_API_KEY` | Clave privada para enviar mediante HTTPS | Configurada en Render |
 | `APP_PUBLIC_BASE_URL` | URL pública del backend para retornos | `https://t4k4sh.onrender.com` |
+| `APP_DIDIT_ENABLED` | Activa la integración KYC | `true` en la demo configurada |
+| `DIDIT_API_URL` | API oficial de Didit | `https://verification.didit.me` |
+| `DIDIT_API_KEY` | Clave privada con acceso a sesiones | Configurada en Render |
+| `DIDIT_WORKFLOW_ID` | UUID del workflow KYC publicado | Configurado en Render |
+| `DIDIT_WEBHOOK_SECRET` | Secreto de firma de la destinación webhook | Configurado en Render |
+| `DIDIT_DOCUMENT_HASH_SECRET` | Secreto privado de 32 caracteres o más para la huella HMAC | Generado en Render |
+| `DIDIT_WEBHOOK_TOLERANCE_SECONDS` | Ventana máxima contra reenvíos antiguos | `300` |
 | `APP_PAYMENTS_PLATFORM_FEE_PERCENT` | Tarifa transparente de T4KASH | `1.00` |
 | `APP_PAGADITO_ENABLED` | Activa la comunicación con Pagadito | `true` en la demo configurada |
 | `APP_PAGADITO_ENVIRONMENT` | Entorno financiero | `SANDBOX` |
@@ -699,6 +765,39 @@ Orden correcto para publicar cambios:
 4. Verificar `/api/health` y Swagger.
 5. Compilar o ejecutar Android apuntando a Render.
 6. Probar el flujo completo desde un dispositivo o emulador.
+
+### Configuración de Didit
+
+1. Crear o seleccionar una aplicación en Didit Business Console.
+2. Crear y publicar un workflow KYC con verificación de documento, prueba de vida y
+   coincidencia facial. Copiar su `workflow_id`.
+3. Crear una API key con permisos para crear y consultar sesiones.
+4. En **API & Webhooks**, agregar una destinación con estos datos:
+   - URL: `https://t4k4sh.onrender.com/api/identity-verifications/webhook`
+   - Versión: `v3`
+   - Eventos: `status.updated` y `data.updated`
+5. Copiar en ese momento el secreto propio de la destinación webhook.
+6. En Render, abrir **T4k4sh > Environment** y agregar:
+
+```text
+APP_DIDIT_ENABLED=true
+DIDIT_API_KEY=<api-key-privada>
+DIDIT_WORKFLOW_ID=<uuid-del-workflow>
+DIDIT_WEBHOOK_SECRET=<secret-shared-key-del-webhook>
+DIDIT_DOCUMENT_HASH_SECRET=<secreto-aleatorio-de-32-o-mas-caracteres>
+```
+
+7. Guardar las variables, esperar el nuevo despliegue y verificar `/api/health`.
+8. Usar **Try Webhook** en Didit para comprobar que el endpoint responde `200`. Un
+   evento de prueba sin sesión conocida puede responder `IGNORADO`; esto es correcto.
+9. Desde Android, abrir **Perfil > Verificación de identidad**, aceptar el aviso e
+   iniciar el flujo alojado.
+
+La API key, el secreto del webhook y el secreto HMAC son privados y nunca deben entrar en
+Android ni en Git. La integración sigue la documentación oficial para
+[sesiones alojadas](https://docs.didit.me/sessions-api/create-session),
+[estados](https://docs.didit.me/integration/verification-statuses) y
+[webhooks firmados](https://docs.didit.me/integration/webhooks).
 
 ### Archivos Adjuntos
 
@@ -773,10 +872,10 @@ usa una clave de idempotencia para impedir que una recompensa o un canje se apli
 veces. El saldo visible se obtiene sumando movimientos aplicados de entrada y restando
 los de salida.
 
-El esquema PostgreSQL completo contiene 47 tablas organizadas en identidad, marketplace,
+El esquema PostgreSQL completo contiene 54 tablas organizadas en identidad, marketplace,
 finanzas, puntos, comunicación, moderación y auditoría.
 
-Las 47 tablas tienen Row Level Security habilitado sin políticas para las claves públicas
+Las 54 tablas tienen Row Level Security habilitado sin políticas para las claves públicas
 de Supabase. Android accede exclusivamente mediante la API Spring Boot; el backend usa su
 conexión PostgreSQL de servidor y las claves privadas nunca se incluyen en la aplicación.
 
@@ -799,7 +898,7 @@ Los diagramas deben reflejar las coordenadas de `tareas` y diferenciar el flujo 
 
 | Módulo | Tablas principales | Responsable |
 |---|---|---|
-| Identidad y Perfiles | usuarios, roles, sesiones, carreras, habilidades, verificaciones | Dev 1 |
+| Identidad y Perfiles | usuarios, roles, sesiones, carreras, habilidades, verificaciones universitarias y KYC | Dev 1 |
 | Marketplace Core | tareas, categorías, postulaciones, trabajos, entregas | Dev 2 |
 | Social y Comunicación | mensajes, conversaciones, notificaciones, calificaciones, recomendaciones | Dev 1 |
 | Finanzas y Sistema | pagos, transacciones, reportes, auditoría, archivos | Dev 2 |

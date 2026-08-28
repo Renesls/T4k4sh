@@ -3,10 +3,12 @@ package com.t4kash.api.marketplace.service;
 import com.t4kash.api.communication.service.ConversationService;
 import com.t4kash.api.communication.service.NotificationService;
 import com.t4kash.api.exception.ForbiddenOperationException;
+import com.t4kash.api.exception.AccountNotVerifiedException;
 import com.t4kash.api.exception.ResourceConflictException;
 import com.t4kash.api.exception.ResourceNotFoundException;
 import com.t4kash.api.finance.dto.PaymentResponse;
 import com.t4kash.api.finance.service.PaymentService;
+import com.t4kash.api.identity.service.IdentityVerificationPolicyService;
 import com.t4kash.api.marketplace.dto.ApplicationResponse;
 import com.t4kash.api.marketplace.dto.CreateApplicationRequest;
 import com.t4kash.api.marketplace.dto.JobResponse;
@@ -49,6 +51,7 @@ public class ApplicationService {
     private final ConversationService conversationService;
     private final NotificationService notificationService;
     private final PaymentService paymentService;
+    private final IdentityVerificationPolicyService identityVerificationPolicy;
 
     @Autowired
     public ApplicationService(
@@ -58,7 +61,8 @@ public class ApplicationService {
             TaskService taskService,
             ConversationService conversationService,
             NotificationService notificationService,
-            PaymentService paymentService
+            PaymentService paymentService,
+            IdentityVerificationPolicyService identityVerificationPolicy
     ) {
         this.postulacionRepository = postulacionRepository;
         this.trabajoRepository = trabajoRepository;
@@ -67,6 +71,7 @@ public class ApplicationService {
         this.conversationService = conversationService;
         this.notificationService = notificationService;
         this.paymentService = paymentService;
+        this.identityVerificationPolicy = identityVerificationPolicy;
     }
 
     public ApplicationService(
@@ -79,7 +84,7 @@ public class ApplicationService {
     ) {
         this(
                 postulacionRepository, trabajoRepository, estudianteRepository,
-                taskService, conversationService, notificationService, null
+                taskService, conversationService, notificationService, null, null
         );
     }
 
@@ -189,6 +194,11 @@ public class ApplicationService {
         if (trabajoRepository.findByIdTarea(idTarea).isPresent()) {
             throw new ResourceConflictException("Otra persona ya tomo esta tarea rapida.");
         }
+        requireVerifiedAssignmentParticipants(
+                currentUserId,
+                tarea.getIdCliente(),
+                "tomar una tarea rapida"
+        );
 
         Postulacion postulacion = new Postulacion();
         postulacion.setIdTarea(idTarea);
@@ -275,6 +285,11 @@ public class ApplicationService {
                     "El estudiante ya alcanzo el limite de dos trabajos en proceso."
             );
         }
+        requireVerifiedAssignmentParticipants(
+                postulacion.getIdEstudiante(),
+                currentUserId,
+                "aceptar una postulacion"
+        );
 
         postulacion.setEstadoPostulacion(ESTADO_POSTULACION_ACEPTADA);
         tarea.setEstadoTarea(ESTADO_TAREA_ASIGNADA);
@@ -417,5 +432,21 @@ public class ApplicationService {
                 PaymentService.JOB_CASH_CONFIRMATION_PENDING
         );
         return inProgress + awaitingPayment + awaitingCashConfirmation;
+    }
+
+    private void requireVerifiedAssignmentParticipants(
+            Integer studentId,
+            Integer clientId,
+            String clientAction
+    ) {
+        if (identityVerificationPolicy == null) {
+            return;
+        }
+        identityVerificationPolicy.requireApproved(clientId, clientAction);
+        if (!identityVerificationPolicy.isApproved(studentId)) {
+            throw new AccountNotVerifiedException(
+                    "El estudiante debe verificar su identidad desde Perfil antes de ser asignado."
+            );
+        }
     }
 }

@@ -71,4 +71,8 @@ object RetrofitClient {
     val networkApiService: NetworkApiService by lazy {
         retrofit.create(NetworkApiService::class.java)
     }
+
+    val identityVerificationApiService: IdentityVerificationApiService by lazy {
+        retrofit.create(IdentityVerificationApiService::class.java)
+    }
 }
