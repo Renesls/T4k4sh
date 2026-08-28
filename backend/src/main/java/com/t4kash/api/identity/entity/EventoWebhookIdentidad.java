@@ -38,7 +38,12 @@ public class EventoWebhookIdentidad {
     @Column(name = "estado_procesamiento", nullable = false, length = 30)
     private String estadoProcesamiento;
 
-    @Column(name = "hash_contenido", nullable = false, length = 64)
+    @Column(
+            name = "hash_contenido",
+            nullable = false,
+            length = 64,
+            columnDefinition = "char(64)"
+    )
     private String hashContenido;
 
     @Column(name = "fecha_recepcion", nullable = false)
