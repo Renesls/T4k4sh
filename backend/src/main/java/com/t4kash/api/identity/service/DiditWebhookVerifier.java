@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.t4kash.api.exception.InvalidWebhookSignatureException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -26,6 +27,7 @@ public class DiditWebhookVerifier {
     private final long toleranceSeconds;
     private final Clock clock;
 
+    @Autowired
     public DiditWebhookVerifier(
             ObjectMapper objectMapper,
             @Value("${app.didit.webhook-secret:}") String secret,
