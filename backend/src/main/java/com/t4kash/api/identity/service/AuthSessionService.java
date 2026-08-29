@@ -1,6 +1,7 @@
 package com.t4kash.api.identity.service;
 
 import com.t4kash.api.exception.InvalidCredentialsException;
+import com.t4kash.api.exception.ResourceNotFoundException;
 import com.t4kash.api.identity.dto.AuthResponse;
 import com.t4kash.api.identity.dto.AuthenticatedUserResponse;
 import com.t4kash.api.identity.entity.SesionUsuario;
@@ -181,5 +182,15 @@ public class AuthSessionService {
             return null;
         }
         return value.length() <= maxLength ? value : value.substring(0, maxLength);
+    }
+
+    @Transactional
+    public void actualizarTokenFirebase(Long idUsuario, String token) {
+
+        Usuario usuario = usuarioRepository.findById(Math.toIntExact(idUsuario))
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + idUsuario));
+
+        usuario.setFcmToken(token);
+        usuarioRepository.save(usuario);
     }
 }

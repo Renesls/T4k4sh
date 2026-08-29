@@ -1,5 +1,8 @@
 package com.t4kash.api.communication.service;
 
+import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.messaging.Message;
+import com.google.firebase.messaging.Notification;
 import com.t4kash.api.communication.dto.NotificationResponse;
 import com.t4kash.api.communication.entity.Notificacion;
 import com.t4kash.api.communication.repository.NotificacionRepository;
@@ -31,7 +34,6 @@ public class NotificationService {
 
     @Transactional
     public void create(Integer userId, String title, String message) {
-        // 1. Guardar la notificación en la base de datos local
         Notificacion notification = new Notificacion();
         notification.setIdUsuario(userId);
         notification.setTitulo(limit(title, 150));
@@ -40,8 +42,6 @@ public class NotificationService {
         notification.setFechaCreacion(LocalDateTime.now());
         notificationRepository.save(notification);
 
-        // 2. Lógica Push a Firebase
-        // Nota: Si tu UsuarioRepository usa Integer en lugar de Long, cambia Long.valueOf(userId) por simplemente userId
         Usuario usuarioDestino = usuarioRepository.findById(Math.toIntExact(Long.valueOf(userId))).orElse(null);
 
         // Validación y envío
@@ -102,5 +102,28 @@ public class NotificationService {
         return clean.length() <= maximum
                 ? clean
                 : clean.substring(0, maximum);
+    }
+
+    public void enviarNotificacionPush(String fcmToken, String titulo, String cuerpo) {
+        try {
+            // Construimos la alerta visual
+            Notification notification = Notification.builder()
+                    .setTitle(titulo)
+                    .setBody(cuerpo)
+                    .build();
+
+            // Armamos el mensaje dirigido al token específico del celular
+            Message message = Message.builder()
+                    .setToken(fcmToken)
+                    .setNotification(notification)
+                    .build();
+
+            // Lo disparamos a los servidores de Google
+            String response = FirebaseMessaging.getInstance().send(message);
+            System.out.println("Notificación enviada con éxito: " + response);
+
+        } catch (Exception e) {
+            System.err.println("Error enviando notificación push: " + e.getMessage());
+        }
     }
 }

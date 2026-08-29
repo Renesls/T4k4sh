@@ -1,18 +1,7 @@
 package com.t4kash.api.identity.controller;
 
 import com.t4kash.api.exception.InvalidCredentialsException;
-import com.t4kash.api.identity.dto.AuthResponse;
-import com.t4kash.api.identity.dto.AuthenticatedUserResponse;
-import com.t4kash.api.identity.dto.ForgotPasswordRequest;
-import com.t4kash.api.identity.dto.LoginChallengeResponse;
-import com.t4kash.api.identity.dto.LoginRequest;
-import com.t4kash.api.identity.dto.MessageResponse;
-import com.t4kash.api.identity.dto.RegisterRequest;
-import com.t4kash.api.identity.dto.RegistrationResponse;
-import com.t4kash.api.identity.dto.ResendVerificationRequest;
-import com.t4kash.api.identity.dto.ResetPasswordRequest;
-import com.t4kash.api.identity.dto.VerifyEmailRequest;
-import com.t4kash.api.identity.dto.VerifyLoginRequest;
+import com.t4kash.api.identity.dto.*;
 import com.t4kash.api.identity.service.AuthSessionService;
 import com.t4kash.api.identity.service.LoginService;
 import com.t4kash.api.identity.service.PasswordResetService;
@@ -23,12 +12,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
 
 @RestController
 @RequestMapping("/api/auth")
@@ -156,5 +141,15 @@ public class AuthController {
             return forwarded.split(",")[0].trim();
         }
         return request.getRemoteAddr();
+    }
+
+    @PutMapping("/{id}/fcm-token")
+    public ResponseEntity<Void> updateFcmToken(
+            @PathVariable Long id,
+            @RequestBody FcmTokenRequest request) {
+
+        authSessionService.actualizarTokenFirebase(id, request.getToken());
+
+        return ResponseEntity.ok().build();
     }
 }
