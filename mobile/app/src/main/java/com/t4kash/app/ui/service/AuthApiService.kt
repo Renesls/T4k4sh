@@ -3,6 +3,7 @@ package com.t4kash.app.ui.service
 import com.t4kash.app.ui.model.AuthResponse
 import com.t4kash.app.ui.model.AuthenticatedUserDto
 import com.t4kash.app.ui.model.CareerDto
+import com.t4kash.app.ui.model.FcmTokenRequest
 import com.t4kash.app.ui.model.ForgotPasswordRequest
 import com.t4kash.app.ui.model.LoginChallengeResponse
 import com.t4kash.app.ui.model.LoginRequest
@@ -16,6 +17,7 @@ import com.t4kash.app.ui.model.UniversityDto
 import com.t4kash.app.ui.model.UpdateUsernameRequest
 import com.t4kash.app.ui.model.VerifyEmailRequest
 import com.t4kash.app.ui.model.VerifyLoginRequest
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -77,4 +79,10 @@ interface AuthApiService {
     suspend fun getCareers(
         @retrofit2.http.Path("universityId") universityId: Int
     ): List<CareerDto>
+
+    @PUT("auth/{id}/fcm-token")
+    suspend fun enviarTokenFCM(
+        @retrofit2.http.Path("id") id: Long,
+        @Body request: FcmTokenRequest
+    ): Response<Unit>
 }
