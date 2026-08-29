@@ -20,10 +20,14 @@ public class User {
     @Column(nullable = false)
     private String fullName;
 
-    @Column(name = "fcm_token")
+    @Column(name = "fcm_token", length = 255)
     private String fcmToken;
 
+
+
     private String careerName;
+
+
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "user_roles_simple", joinColumns = @JoinColumn(name = "user_id"))
@@ -33,6 +37,8 @@ public class User {
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "user_skills_simple", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "skill_name")
+
+
     private List<String> skills;
 
     public void setFullName(String fullName) {

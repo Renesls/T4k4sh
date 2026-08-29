@@ -12,6 +12,7 @@ import com.t4kash.api.identity.repository.HistorialNombreUsuarioRepository;
 import com.t4kash.api.identity.repository.UniversidadRepository;
 import com.t4kash.api.marketplace.entity.Usuario;
 import com.t4kash.api.marketplace.entity.UsuarioEstudiante;
+import com.t4kash.api.marketplace.repository.EvaluacionRepository;
 import com.t4kash.api.marketplace.repository.TareaRepository;
 import com.t4kash.api.marketplace.repository.TrabajoAsignadoRepository;
 import com.t4kash.api.marketplace.repository.UsuarioEstudianteRepository;
@@ -44,6 +45,7 @@ public class PublicProfileService {
     private final HistorialNombreUsuarioRepository historialRepository;
     private final TareaRepository tareaRepository;
     private final TrabajoAsignadoRepository trabajoRepository;
+    private final EvaluacionRepository evaluacionRepository;
 
     public PublicProfileService(
             UsuarioRepository usuarioRepository,
@@ -52,7 +54,8 @@ public class PublicProfileService {
             CarreraRepository carreraRepository,
             HistorialNombreUsuarioRepository historialRepository,
             TareaRepository tareaRepository,
-            TrabajoAsignadoRepository trabajoRepository
+            TrabajoAsignadoRepository trabajoRepository,
+            EvaluacionRepository evaluacionRepository
     ) {
         this.usuarioRepository = usuarioRepository;
         this.estudianteRepository = estudianteRepository;
@@ -61,6 +64,7 @@ public class PublicProfileService {
         this.historialRepository = historialRepository;
         this.tareaRepository = tareaRepository;
         this.trabajoRepository = trabajoRepository;
+        this.evaluacionRepository = evaluacionRepository;
     }
 
     @Transactional(readOnly = true)
@@ -183,15 +187,20 @@ public class PublicProfileService {
             Usuario user,
             LocalDateTime nextChange
     ) {
+        Double reputacion = evaluacionRepository.obtenerPromedioReputacion(user.getIdUsuario());
+        Long totalResenas = evaluacionRepository.contarEvaluaciones(user.getIdUsuario());
+
         return new PublicProfileResponse(
-                getIdentity(user.getIdUsuario()),
+                getIdentity(Math.toIntExact(user.getIdUsuario())),
                 user.getFechaRegistro(),
                 tareaRepository.countByIdCliente(user.getIdUsuario()),
                 trabajoRepository.countByIdEstudianteAndEstadoTrabajo(
                         user.getIdUsuario(),
                         "FINALIZADO"
                 ),
-                nextChange
+                nextChange,
+                reputacion,
+                totalResenas
         );
     }
 
@@ -208,7 +217,7 @@ public class PublicProfileService {
                 ? null
                 : careers.get(student.getIdCarrera());
         return new PublicIdentityResponse(
-                user.getIdUsuario(),
+                Math.toIntExact(user.getIdUsuario()),
                 user.getNombreUsuario(),
                 (user.getNombre() + " " + user.getApellido()).trim(),
                 university == null ? null : university.getNombreUniversidad(),
