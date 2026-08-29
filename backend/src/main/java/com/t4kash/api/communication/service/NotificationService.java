@@ -1,8 +1,5 @@
 package com.t4kash.api.communication.service;
 
-import com.google.firebase.messaging.FirebaseMessaging;
-import com.google.firebase.messaging.Message;
-import com.google.firebase.messaging.Notification;
 import com.t4kash.api.communication.dto.NotificationResponse;
 import com.t4kash.api.communication.entity.Notificacion;
 import com.t4kash.api.communication.repository.NotificacionRepository;
@@ -42,16 +39,10 @@ public class NotificationService {
         notification.setFechaCreacion(LocalDateTime.now());
         notificationRepository.save(notification);
 
-        Usuario usuarioDestino = usuarioRepository.findById(Math.toIntExact(Long.valueOf(userId))).orElse(null);
-
-        // Validación y envío
-        if (usuarioDestino != null && usuarioDestino.getFcmToken() != null) {
-            // Forzamos el tipo de dato a String para asegurar que .trim() funcione correctamente
-            String token = String.valueOf(usuarioDestino.getFcmToken());
-
-            if (!token.trim().isEmpty()) {
-                fcmService.sendPushNotification(token, title, message);
-            }
+        Usuario usuarioDestino = usuarioRepository.findById(userId).orElse(null);
+        String token = usuarioDestino == null ? null : usuarioDestino.getFcmToken();
+        if (token != null && !token.isBlank()) {
+            fcmService.sendPushNotification(token, title, message);
         }
     }
 
@@ -102,28 +93,5 @@ public class NotificationService {
         return clean.length() <= maximum
                 ? clean
                 : clean.substring(0, maximum);
-    }
-
-    public void enviarNotificacionPush(String fcmToken, String titulo, String cuerpo) {
-        try {
-            // Construimos la alerta visual
-            Notification notification = Notification.builder()
-                    .setTitle(titulo)
-                    .setBody(cuerpo)
-                    .build();
-
-            // Armamos el mensaje dirigido al token específico del celular
-            Message message = Message.builder()
-                    .setToken(fcmToken)
-                    .setNotification(notification)
-                    .build();
-
-            // Lo disparamos a los servidores de Google
-            String response = FirebaseMessaging.getInstance().send(message);
-            System.out.println("Notificación enviada con éxito: " + response);
-
-        } catch (Exception e) {
-            System.err.println("Error enviando notificación push: " + e.getMessage());
-        }
     }
 }
