@@ -1,13 +1,16 @@
 package com.t4kash.app.ui.viewmodel
 
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.messaging.FirebaseMessaging
 import com.t4kash.app.ui.model.AuthResponse
 import com.t4kash.app.ui.model.AuthenticatedUserDto
 import com.t4kash.app.ui.model.CareerDto
+import com.t4kash.app.ui.model.FcmTokenRequest
 import com.t4kash.app.ui.model.LoginRequest
 import com.t4kash.app.ui.model.RegisterRequest
 import com.t4kash.app.ui.model.ResetPasswordRequest
@@ -362,8 +365,14 @@ class AuthViewModel(
             )
             when (val result = request()) {
                 is ApiResult.Success -> {
+
                     UserSession.save(result.data.toSession())
                     uiState = uiState.copy(isLoading = false)
+
+
+                    sincronizarTokenFirebase(result.data.usuario.idUsuario)
+
+
                     onSuccess()
                 }
 
@@ -374,8 +383,34 @@ class AuthViewModel(
             }
         }
     }
-}
 
+    private fun sincronizarTokenFirebase(userId: Long) {
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                Log.w("FCM_SYNC", "Firebase no generó el token", task.exception)
+                return@addOnCompleteListener
+            }
+
+            val tokenFCM = task.result
+            viewModelScope.launch {
+                try {
+                    val requestBody = FcmTokenRequest(token = tokenFCM)
+
+                    // Llamada al repositorio para enviar el token
+                    val exito = repository.enviarTokenFCM(userId, requestBody)
+
+                    if (exito) {
+                        Log.d("FCM_SYNC", "Token sincronizado en PostgreSQL")
+                    } else {
+                        Log.e("FCM_SYNC", "Error del backend guardando token")
+                    }
+                } catch (e: Exception) {
+                    Log.e("FCM_SYNC", "Fallo enviando token al backend", e)
+                }
+            }
+        }
+    }
+}
 private fun AuthResponse.toSession(): AuthSession {
     return AuthSession(
         token = token,

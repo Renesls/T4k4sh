@@ -22,6 +22,7 @@ import com.t4kash.app.ui.service.RetrofitClient
 import java.net.SocketTimeoutException
 import org.json.JSONObject
 import retrofit2.HttpException
+import com.t4kash.app.ui.model.FcmTokenRequest
 
 class AuthRepository(
     private val api: AuthApiService = RetrofitClient.authApiService
@@ -98,6 +99,14 @@ class AuthRepository(
         api.logout()
     }
 
+    suspend fun enviarTokenFCM(userId: Long, request: FcmTokenRequest): Boolean {
+        return try {
+            val response = api.enviarTokenFCM(userId, request)
+            response.isSuccessful
+        } catch (e: Exception) {
+            false
+        }
+    }
     private suspend fun <T> execute(block: suspend () -> T): ApiResult<T> {
         return try {
             ApiResult.Success(block())
