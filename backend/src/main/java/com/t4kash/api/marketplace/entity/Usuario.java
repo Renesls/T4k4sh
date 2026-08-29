@@ -41,7 +41,7 @@ public class Usuario {
     @Column(name = "id_universidad")
     private Integer idUniversidad;
 
-    public Long getIdUsuario() {
+    public Integer getIdUsuario() {
         return idUsuario;
     }
 
