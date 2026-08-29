@@ -1,0 +1,20 @@
+# Normaliza los finales de linea sin importar core.autocrlf del contribuyente.
+* text=auto eol=lf
+
+# Los wrappers POSIX deben conservar LF: se ejecutan tal cual dentro de
+# contenedores Linux (docker compose --build) y en CI. Con autocrlf=true en
+# Windows, git los revisa con CRLF y el shebang "#!/bin/sh\r" rompe el build
+# ("mvnw: not found").
+mvnw text eol=lf
+gradlew text eol=lf
+*.sh text eol=lf
+
+# Los .bat/.cmd son nativos de Windows y deben conservar CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binarios: nunca tocar finales de linea.
+*.png binary
+*.jpg binary
+*.jar binary
+*.zip binary
