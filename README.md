@@ -590,6 +590,7 @@ ejecutar los cuatro comandos sobre una copia limpia del repositorio.
 | `SUPABASE_URL` | URL del proyecto usada por Storage | `https://PROJECT_REF.supabase.co` |
 | `SUPABASE_SECRET_KEY` | Clave secreta usada solo por el backend | Configurada en Render |
 | `SUPABASE_STORAGE_BUCKET` | Bucket privado de adjuntos | `t4kash-attachments` |
+| `FIREBASE_CREDENTIALS_JSON` | JSON completo de la cuenta de servicio de Firebase Admin (notificaciones push) | Configurada en Render; vacio desactiva Firebase sin romper el arranque |
 | `APP_AUTH_EVALUATOR_EMAILS` | Correos no institucionales autorizados para evaluación | `evaluador@gmail.com` |
 | `APP_AUTH_ADMIN_EMAILS` | Correos que reciben el rol de administrador al iniciar sesión | `admin@ejemplo.com` |
 | `APP_MAIL_ENABLED` | Activa el envío de códigos | `true` |
