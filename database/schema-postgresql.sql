@@ -109,6 +109,10 @@ CREATE TABLE usuarios (
     fecha_registro timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     estado_usuario varchar(30) NOT NULL DEFAULT 'ACTIVO',
     id_universidad integer,
+    -- Token FCM del dispositivo activo para notificaciones push. Si esta
+    -- columna se agrega a una base ya desplegada, usar:
+    --   ALTER TABLE usuarios ADD COLUMN fcm_token varchar(255);
+    fcm_token varchar(255),
     CONSTRAINT pk_usuarios PRIMARY KEY (id_usuario),
     CONSTRAINT uq_usuarios_uuid_publico UNIQUE (uuid_publico),
     CONSTRAINT uq_usuarios_correo UNIQUE (correo),
