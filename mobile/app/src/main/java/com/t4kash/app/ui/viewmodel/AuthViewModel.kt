@@ -370,7 +370,7 @@ class AuthViewModel(
                     uiState = uiState.copy(isLoading = false)
 
 
-                    sincronizarTokenFirebase(result.data.usuario.idUsuario)
+                    sincronizarTokenFirebase(result.data.usuario.idUsuario.toLong())
 
 
                     onSuccess()
@@ -385,7 +385,14 @@ class AuthViewModel(
     }
 
     private fun sincronizarTokenFirebase(userId: Long) {
-        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+        val messaging = try {
+            FirebaseMessaging.getInstance()
+        } catch (e: IllegalStateException) {
+            // Firebase no esta inicializado (falta google-services.json en el modulo app).
+            Log.w("FCM_SYNC", "Firebase no esta inicializado, se omite la sincronizacion del token", e)
+            return
+        }
+        messaging.token.addOnCompleteListener { task ->
             if (!task.isSuccessful) {
                 Log.w("FCM_SYNC", "Firebase no generó el token", task.exception)
                 return@addOnCompleteListener
