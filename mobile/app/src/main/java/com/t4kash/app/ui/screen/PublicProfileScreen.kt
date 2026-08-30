@@ -12,12 +12,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.WorkHistory
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -35,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import com.t4kash.app.ui.components.ConnectionErrorState
 import com.t4kash.app.ui.components.T4TopBar
 import com.t4kash.app.ui.formatApiDateTime
+import com.t4kash.app.ui.model.RatingDto
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
 import com.t4kash.app.ui.theme.T4Mint
@@ -184,6 +189,28 @@ fun PublicProfileScreen(
                     }
 
                     item {
+                        ReputationCard(
+                            promedio = profile.promedioCalificacion,
+                            total = profile.totalCalificaciones,
+                            insignia = profile.insignia
+                        )
+                    }
+
+                    if (profile.ultimasResenas.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "Ultimas reseñas",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = T4Text
+                            )
+                        }
+                        items(profile.ultimasResenas) { review ->
+                            ReviewCard(review = review)
+                        }
+                    }
+
+                    item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = T4Surface),
@@ -216,6 +243,150 @@ fun PublicProfileScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ReputationCard(
+    promedio: Double?,
+    total: Long,
+    insignia: String?,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = T4Surface),
+        border = BorderStroke(1.dp, T4Border),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Reputacion",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = T4Text,
+                    modifier = Modifier.weight(1f)
+                )
+                insignia?.let {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.WorkspacePremium,
+                            contentDescription = null,
+                            tint = T4MintDark,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = T4MintDark
+                        )
+                    }
+                }
+            }
+
+            if (promedio == null || total == 0L) {
+                Text(
+                    text = "Todavia no tiene calificaciones.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = T4TextMuted
+                )
+            } else {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row {
+                        repeat(5) { index ->
+                            val filled = index < kotlin.math.round(promedio).toInt()
+                            Icon(
+                                imageVector = if (filled) {
+                                    Icons.Filled.Star
+                                } else {
+                                    Icons.Filled.StarBorder
+                                },
+                                contentDescription = null,
+                                tint = if (filled) T4MintDark else T4TextMuted,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        text = "%.1f".format(promedio),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = T4Text
+                    )
+                    Text(
+                        text = "($total ${if (total == 1L) "calificacion" else "calificaciones"})",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = T4TextMuted
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReviewCard(review: RatingDto, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = T4Surface),
+        border = BorderStroke(1.dp, T4Border),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = review.calificador?.let { "@${it.nombreUsuario}" }
+                        ?: "Usuario T4KASH",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = T4Text
+                )
+                Row {
+                    repeat(5) { index ->
+                        Icon(
+                            imageVector = if (index < review.puntuacion) {
+                                Icons.Filled.Star
+                            } else {
+                                Icons.Filled.StarBorder
+                            },
+                            contentDescription = null,
+                            tint = if (index < review.puntuacion) T4MintDark else T4TextMuted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+            review.comentario?.let {
+                Text(it, style = MaterialTheme.typography.bodyMedium, color = T4Text)
+            }
+            Text(
+                text = formatApiDateTime(review.fechaCalificacion),
+                style = MaterialTheme.typography.bodySmall,
+                color = T4TextMuted
+            )
         }
     }
 }

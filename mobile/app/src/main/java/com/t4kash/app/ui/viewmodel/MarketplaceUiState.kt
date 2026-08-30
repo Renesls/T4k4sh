@@ -6,6 +6,7 @@ import com.t4kash.app.ui.model.AttachmentDto
 import com.t4kash.app.ui.model.CategoryDto
 import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.JobDto
+import com.t4kash.app.ui.model.RatingDto
 import com.t4kash.app.ui.model.TaskDto
 import com.t4kash.app.ui.model.StudentVerificationDto
 import com.t4kash.app.ui.model.ReportDto
@@ -44,6 +45,12 @@ data class MarketplaceUiState(
     val isSendingDelivery: Boolean = false,
     val approvingDeliveryId: Int? = null,
     val deliveryActionMessage: String? = null,
+    val loadedRatingsJobId: Int? = null,
+    val ratings: List<RatingDto> = emptyList(),
+    val isLoadingRatings: Boolean = false,
+    val ratingsError: String? = null,
+    val isSubmittingRating: Boolean = false,
+    val ratingActionMessage: String? = null,
     val loadedTaskAttachmentsTaskId: Int? = null,
     val loadingTaskAttachmentsTaskId: Int? = null,
     val taskAttachments: List<AttachmentDto> = emptyList(),

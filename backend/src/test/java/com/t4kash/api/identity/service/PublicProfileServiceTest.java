@@ -6,6 +6,7 @@ import com.t4kash.api.identity.repository.CarreraRepository;
 import com.t4kash.api.identity.repository.HistorialNombreUsuarioRepository;
 import com.t4kash.api.identity.repository.UniversidadRepository;
 import com.t4kash.api.marketplace.entity.Usuario;
+import com.t4kash.api.marketplace.repository.CalificacionRepository;
 import com.t4kash.api.marketplace.repository.TareaRepository;
 import com.t4kash.api.marketplace.repository.TrabajoAsignadoRepository;
 import com.t4kash.api.marketplace.repository.UsuarioEstudianteRepository;
@@ -38,6 +39,7 @@ class PublicProfileServiceTest {
     @Mock private HistorialNombreUsuarioRepository historialRepository;
     @Mock private TareaRepository tareaRepository;
     @Mock private TrabajoAsignadoRepository trabajoRepository;
+    @Mock private CalificacionRepository calificacionRepository;
 
     private PublicProfileService service;
 
@@ -50,7 +52,8 @@ class PublicProfileServiceTest {
                 carreraRepository,
                 historialRepository,
                 tareaRepository,
-                trabajoRepository
+                trabajoRepository,
+                calificacionRepository
         );
     }
 
@@ -64,6 +67,8 @@ class PublicProfileServiceTest {
         when(estudianteRepository.findAllById(any())).thenReturn(List.of());
         when(universidadRepository.findAllById(any())).thenReturn(List.of());
         when(carreraRepository.findAllById(any())).thenReturn(List.of());
+        when(calificacionRepository.findTop5ByIdCalificadoOrderByFechaCalificacionDesc(7))
+                .thenReturn(List.of());
 
         var response = service.updateUsername(7, "@rene.dev");
 
@@ -103,6 +108,8 @@ class PublicProfileServiceTest {
         when(estudianteRepository.findAllById(any())).thenReturn(List.of());
         when(universidadRepository.findAllById(any())).thenReturn(List.of());
         when(carreraRepository.findAllById(any())).thenReturn(List.of());
+        when(calificacionRepository.findTop5ByIdCalificadoOrderByFechaCalificacionDesc(7))
+                .thenReturn(List.of());
 
         var response = service.updateUsername(7, "@rene.sandoval");
 
