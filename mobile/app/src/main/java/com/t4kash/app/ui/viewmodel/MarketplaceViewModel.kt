@@ -41,6 +41,12 @@ class MarketplaceViewModel(
         state = { uiState },
         updateState = ::updateState
     )
+    private val ratingActions = RatingActions(
+        repository = repository,
+        scope = viewModelScope,
+        state = { uiState },
+        updateState = ::updateState
+    )
 
     init {
         refresh()
@@ -337,6 +343,18 @@ class MarketplaceViewModel(
 
     fun clearDeliveryFeedback() {
         deliveryActions.clearFeedback()
+    }
+
+    fun loadRatings(jobId: Int, force: Boolean = false) {
+        ratingActions.load(jobId, force)
+    }
+
+    fun submitRating(jobId: Int, puntuacion: Int, comentario: String?) {
+        ratingActions.submit(jobId, puntuacion, comentario)
+    }
+
+    fun clearRatingFeedback() {
+        ratingActions.clearFeedback()
     }
 
     fun loadWallet() {

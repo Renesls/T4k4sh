@@ -101,7 +101,11 @@ data class PublicProfileDto(
     val miembroDesde: String,
     val publicaciones: Long,
     val trabajosCompletados: Long,
-    val proximoCambioNombreUsuario: String?
+    val proximoCambioNombreUsuario: String?,
+    val promedioCalificacion: Double?,
+    val totalCalificaciones: Long,
+    val insignia: String?,
+    val ultimasResenas: List<RatingDto>
 )
 
 data class UpdateUsernameRequest(

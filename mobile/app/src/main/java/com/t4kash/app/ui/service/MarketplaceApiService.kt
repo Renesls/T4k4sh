@@ -9,7 +9,9 @@ import com.t4kash.app.ui.model.CreateApplicationRequest
 import com.t4kash.app.ui.model.CreateDeliveryRequest
 import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.model.CreateTaskReportRequest
+import com.t4kash.app.ui.model.CreateRatingRequest
 import com.t4kash.app.ui.model.DeliveryDto
+import com.t4kash.app.ui.model.RatingDto
 import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.CheckoutDto
 import com.t4kash.app.ui.model.PaymentDto
@@ -103,6 +105,15 @@ interface MarketplaceApiService {
     suspend fun approveDelivery(
         @Path("deliveryId") deliveryId: Int
     ): DeliveryDto
+
+    @GET("jobs/{jobId}/ratings")
+    suspend fun getRatings(@Path("jobId") jobId: Int): List<RatingDto>
+
+    @POST("jobs/{jobId}/ratings")
+    suspend fun createRating(
+        @Path("jobId") jobId: Int,
+        @Body request: CreateRatingRequest
+    ): RatingDto
 
     @GET("wallet")
     suspend fun getWallet(): WalletDto
