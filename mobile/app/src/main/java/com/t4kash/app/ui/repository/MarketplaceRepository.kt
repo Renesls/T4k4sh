@@ -8,7 +8,9 @@ import com.t4kash.app.ui.model.CreateApplicationRequest
 import com.t4kash.app.ui.model.CreateDeliveryRequest
 import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.model.CreateTaskReportRequest
+import com.t4kash.app.ui.model.CreateRatingRequest
 import com.t4kash.app.ui.model.DeliveryDto
+import com.t4kash.app.ui.model.RatingDto
 import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.CheckoutDto
 import com.t4kash.app.ui.model.PaymentDto
@@ -156,6 +158,25 @@ class MarketplaceRepository(
             ApiResult.Success(api.approveDelivery(deliveryId))
         } catch (e: Exception) {
             ApiResult.Error(e.apiMessage("No se pudo aprobar la entrega."))
+        }
+    }
+
+    suspend fun loadRatings(jobId: Int): ApiResult<List<RatingDto>> {
+        return try {
+            ApiResult.Success(api.getRatings(jobId))
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudieron cargar las calificaciones."))
+        }
+    }
+
+    suspend fun createRating(
+        jobId: Int,
+        request: CreateRatingRequest
+    ): ApiResult<RatingDto> {
+        return try {
+            ApiResult.Success(api.createRating(jobId, request))
+        } catch (e: Exception) {
+            ApiResult.Error(e.apiMessage("No se pudo enviar la calificacion."))
         }
     }
 

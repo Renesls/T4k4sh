@@ -145,6 +145,22 @@ data class DeliveryDto(
     val estadoEntrega: String
 )
 
+data class CreateRatingRequest(
+    val puntuacion: Int,
+    val comentario: String?
+)
+
+data class RatingDto(
+    val idCalificacion: Int,
+    val idTrabajo: Int,
+    val idCalificador: Int,
+    val idCalificado: Int,
+    val puntuacion: Int,
+    val comentario: String?,
+    val fechaCalificacion: String,
+    val calificador: PublicIdentityDto?
+)
+
 data class PendingAttachment(
     val name: String,
     val mimeType: String,
