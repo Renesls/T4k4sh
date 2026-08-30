@@ -58,7 +58,7 @@ T4KASH centraliza estas interacciones en un flujo trazable y enfocado en oportun
 | Modelo financiero para wallet, Pagadito y efectivo | Implementado |
 | Integración con Pagadito Sandbox y wallet transaccional | Implementado; requiere credenciales Sandbox |
 | Puntos T4KASH y catálogo de beneficios | Diseñado en PostgreSQL |
-| Calificaciones y reputación | Pendiente |
+| Calificaciones y reputación | Implementado |
 | Notificaciones push con Firebase Cloud Messaging | Pendiente |
 
 El registro detecta automáticamente la universidad a partir del dominio del correo,
@@ -269,6 +269,8 @@ El esquema completo contiene instrucciones `DROP TABLE` para recrear un entorno 
 | `GET` | `/api/jobs/{idTrabajo}/deliveries` | Listar entregas |
 | `POST` | `/api/jobs/{idTrabajo}/deliveries` | Registrar entrega |
 | `POST` | `/api/deliveries/{idEntrega}/approve` | Aprobar entrega |
+| `GET` | `/api/jobs/{idTrabajo}/ratings` | Listar calificaciones de un trabajo (participantes) |
+| `POST` | `/api/jobs/{idTrabajo}/ratings` | Calificar un trabajo finalizado (1-5 estrellas y comentario opcional) |
 | `GET` | `/api/wallet` | Consultar balance, pagos y movimientos |
 | `GET` | `/api/jobs/{idTrabajo}/payment` | Consultar el pago de un trabajo |
 | `POST` | `/api/jobs/{idTrabajo}/payment/checkout` | Crear checkout de Pagadito Sandbox |

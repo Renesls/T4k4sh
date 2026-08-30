@@ -10,8 +10,11 @@ import com.t4kash.api.identity.entity.Universidad;
 import com.t4kash.api.identity.repository.CarreraRepository;
 import com.t4kash.api.identity.repository.HistorialNombreUsuarioRepository;
 import com.t4kash.api.identity.repository.UniversidadRepository;
+import com.t4kash.api.marketplace.dto.RatingResponse;
+import com.t4kash.api.marketplace.entity.Calificacion;
 import com.t4kash.api.marketplace.entity.Usuario;
 import com.t4kash.api.marketplace.entity.UsuarioEstudiante;
+import com.t4kash.api.marketplace.repository.CalificacionRepository;
 import com.t4kash.api.marketplace.repository.TareaRepository;
 import com.t4kash.api.marketplace.repository.TrabajoAsignadoRepository;
 import com.t4kash.api.marketplace.repository.UsuarioEstudianteRepository;
@@ -36,6 +39,9 @@ public class PublicProfileService {
     private static final Pattern USERNAME_PATTERN = Pattern.compile(
             "^[a-z0-9][a-z0-9._]{2,29}$"
     );
+    private static final double BADGE_MIN_PROMEDIO = 4.5;
+    private static final long BADGE_MIN_CALIFICACIONES = 5;
+    private static final String BADGE_USUARIO_CONFIABLE = "Usuario confiable";
 
     private final UsuarioRepository usuarioRepository;
     private final UsuarioEstudianteRepository estudianteRepository;
@@ -44,6 +50,7 @@ public class PublicProfileService {
     private final HistorialNombreUsuarioRepository historialRepository;
     private final TareaRepository tareaRepository;
     private final TrabajoAsignadoRepository trabajoRepository;
+    private final CalificacionRepository calificacionRepository;
 
     public PublicProfileService(
             UsuarioRepository usuarioRepository,
@@ -52,7 +59,8 @@ public class PublicProfileService {
             CarreraRepository carreraRepository,
             HistorialNombreUsuarioRepository historialRepository,
             TareaRepository tareaRepository,
-            TrabajoAsignadoRepository trabajoRepository
+            TrabajoAsignadoRepository trabajoRepository,
+            CalificacionRepository calificacionRepository
     ) {
         this.usuarioRepository = usuarioRepository;
         this.estudianteRepository = estudianteRepository;
@@ -61,6 +69,7 @@ public class PublicProfileService {
         this.historialRepository = historialRepository;
         this.tareaRepository = tareaRepository;
         this.trabajoRepository = trabajoRepository;
+        this.calificacionRepository = calificacionRepository;
     }
 
     @Transactional(readOnly = true)
@@ -183,6 +192,23 @@ public class PublicProfileService {
             Usuario user,
             LocalDateTime nextChange
     ) {
+        long totalCalificaciones = calificacionRepository.contarCalificaciones(user.getIdUsuario());
+        Double promedioCalificacion = totalCalificaciones == 0
+                ? null
+                : calificacionRepository.obtenerPromedioReputacion(user.getIdUsuario());
+        String insignia = promedioCalificacion != null
+                && promedioCalificacion >= BADGE_MIN_PROMEDIO
+                && totalCalificaciones >= BADGE_MIN_CALIFICACIONES
+                ? BADGE_USUARIO_CONFIABLE
+                : null;
+        List<RatingResponse> ultimasResenas = enrichRatings(
+                calificacionRepository
+                        .findTop5ByIdCalificadoOrderByFechaCalificacionDesc(user.getIdUsuario())
+                        .stream()
+                        .map(RatingResponse::fromEntity)
+                        .toList()
+        );
+
         return new PublicProfileResponse(
                 getIdentity(Math.toIntExact(user.getIdUsuario())),
                 user.getFechaRegistro(),
@@ -191,8 +217,24 @@ public class PublicProfileService {
                         user.getIdUsuario(),
                         "FINALIZADO"
                 ),
-                nextChange
+                nextChange,
+                promedioCalificacion,
+                totalCalificaciones,
+                insignia,
+                ultimasResenas
         );
+    }
+
+    private List<RatingResponse> enrichRatings(List<RatingResponse> ratings) {
+        if (ratings.isEmpty()) {
+            return ratings;
+        }
+        Map<Integer, PublicIdentityResponse> identities = getIdentities(
+                ratings.stream().map(RatingResponse::idCalificador).toList()
+        );
+        return ratings.stream()
+                .map(rating -> rating.withCalificador(identities.get(rating.idCalificador())))
+                .toList();
     }
 
     private PublicIdentityResponse toIdentity(
