@@ -413,6 +413,24 @@ La solicitud se envía mediante `POST /api/tasks/{idTarea}/applications`. Un est
 puede volver a postularse después de un rechazo hasta completar tres intentos, pero no
 puede mantener dos postulaciones pendientes sobre la misma tarea.
 
+### Calificar un Trabajo
+
+Cuando un trabajo queda `FINALIZADO`, cliente y estudiante pueden calificarse mutuamente
+mediante `POST /api/jobs/{idTrabajo}/ratings`:
+
+```json
+{
+  "puntuacion": 5,
+  "comentario": "Excelente comunicación y entrega a tiempo."
+}
+```
+
+El comentario es opcional. El calificado se determina según el rol del usuario autenticado
+en ese trabajo, así que no es posible autoevaluarse. Solo se acepta una calificación por
+participante y por trabajo. El perfil público expone el promedio, el total de calificaciones
+recibidas y la insignia "Usuario confiable" a partir de 5 calificaciones con un promedio de
+4.5 o más.
+
 ### Reportes y Moderación
 
 Desde el detalle de una oportunidad, un usuario puede seleccionar un motivo y enviar un
@@ -471,6 +489,16 @@ La mensajería pertenece al trabajo asignado: otros usuarios no pueden consultar
 enviar mensajes dentro de esa conversación. El MVP utiliza actualización periódica;
 Firebase Cloud Messaging queda reservado para notificaciones push posteriores.
 
+Flujo actual de calificación:
+
+1. Cuando un trabajo queda `FINALIZADO`, ambos participantes pueden calificarse.
+2. Android muestra un selector de 1 a 5 estrellas y un comentario opcional.
+3. El envío se bloquea hasta seleccionar una puntuación.
+4. La calificación enviada y la recibida se muestran de inmediato en el detalle del trabajo.
+5. El perfil público refleja el promedio, el total de calificaciones y la insignia si corresponde.
+
+No se puede calificar dos veces el mismo trabajo ni calificarse a uno mismo.
+
 ## Uso del MVP
 
 1. Abrir la aplicación, registrar una cuenta o iniciar sesión con una cuenta verificada.
@@ -487,6 +515,8 @@ Firebase Cloud Messaging queda reservado para notificaciones push posteriores.
     puede superar C$1,000 y el pago se realiza en efectivo sin comisión.
 11. Después de la entrega, el cliente declara el pago y el estudiante confirma que recibió
     el efectivo. Solo entonces el trabajo queda finalizado.
+12. Con el trabajo finalizado, calificar a la otra parte desde su detalle; la reputación
+    se actualiza de inmediato en el perfil público.
 
 Las operaciones privadas utilizan el usuario autenticado de la sesión. Android no decide
 el propietario de una tarea, postulación, entrega o archivo.
@@ -559,7 +589,7 @@ cd mobile
 
 | Capa | Cantidad actual | Cobertura principal |
 |---|---:|---|
-| Backend | 52 pruebas | Identidad y perfiles públicos, catálogos institucionales, nombres de usuario, sesiones, intentos de acceso, correo, marketplace, adjuntos, reportes, conversaciones y arranque de Spring Boot |
+| Backend | 68 pruebas | Identidad y perfiles públicos, catálogos institucionales, nombres de usuario, sesiones, intentos de acceso, correo, marketplace, adjuntos, reportes, conversaciones, calificaciones y arranque de Spring Boot |
 | Android | 20 pruebas unitarias | Dominios de correo, formatos, fechas, moneda, distancias, ubicación y políticas de carga/actualización |
 
 Además de las pruebas unitarias, `lintDebug` revisa problemas estáticos y
@@ -773,24 +803,24 @@ cierre obligatorio del hackathon y mejoras que pueden desarrollarse después.
    - Ejecutar el ciclo completo con dos cuentas: publicar, postular, aceptar, conversar,
      entregar y aprobar.
    - Probar verificación estudiantil, reportes y moderación con una cuenta administradora.
-   - Ejecutar las 55 pruebas del backend, las pruebas de Android, `lintDebug` y `assembleDebug`.
+   - Ejecutar las 68 pruebas del backend, las pruebas de Android, `lintDebug` y `assembleDebug`.
 2. **Integración final**
    - Resolver diferencias entre ramas y completar los Pull Requests pendientes.
    - Integrar la versión validada en `main` y comprobar el despliegue automático de Render.
    - Generar y conservar el APK final utilizado durante la demostración.
 3. **Documentación y evidencias**
-   - Actualizar los diagramas para reflejar identidad, moderación y comunicación.
+   - Actualizar los diagramas para reflejar identidad, moderación, comunicación y calificaciones.
    - Revisar README, guía del evaluador y documentación de despliegue.
    - Sustituir prototipos antiguos por capturas actuales de T4KASH.
    - Preparar el video explicativo, accesos del evaluador y enlaces finales del tablero.
 
 ### Mejoras Posteriores al MVP
 
-1. **Finanzas y reputación**
+1. **Finanzas**
    - Completar reembolsos, desembolsos y resolución de disputas sobre el flujo implementado.
    - Validar con Pagadito el modelo de marketplace antes de utilizar producción.
    - Implementar las reglas de obtención y canje de puntos T4KASH.
-   - Agregar calificaciones y recomendaciones al finalizar trabajos.
+   - Agregar recomendaciones al finalizar trabajos.
 2. **Perfil profesional y networking**
    - Completar habilidades, portafolio y conexiones entre usuarios.
    - Mostrar experiencia y reputación verificable en los perfiles.
