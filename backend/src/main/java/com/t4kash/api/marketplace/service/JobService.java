@@ -16,9 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 /**
- * Centraliza las consultas de TrabajoAsignado que utiliza DeliveryService.
- * La creacion permanece en ApplicationService.acceptApplication porque forma
- * parte de aceptar una postulacion y no constituye una operacion aislada.
+ * Centraliza las consultas de TrabajoAsignado que utilizan DeliveryService y
+ * CalificacionService. La creacion permanece en ApplicationService.acceptApplication
+ * porque forma parte de aceptar una postulacion y no constituye una operacion aislada.
  */
 @Service
 public class JobService {
