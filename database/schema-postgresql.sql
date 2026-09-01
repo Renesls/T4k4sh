@@ -115,6 +115,9 @@ CREATE TABLE usuarios (
     fecha_registro timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     estado_usuario varchar(30) NOT NULL DEFAULT 'ACTIVO',
     id_universidad integer,
+    -- Token del dispositivo utilizado por la integracion FCM de la rama Carlos.
+    -- Es nullable para mantener compatibles las cuentas y despliegues existentes.
+    fcm_token varchar(255),
     CONSTRAINT pk_usuarios PRIMARY KEY (id_usuario),
     CONSTRAINT uq_usuarios_uuid_publico UNIQUE (uuid_publico),
     CONSTRAINT uq_usuarios_correo UNIQUE (correo),
