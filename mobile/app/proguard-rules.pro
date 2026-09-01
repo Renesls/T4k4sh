@@ -1,4 +1,6 @@
-# Add project specific ProGuard rules here.
+# Retrofit y Gson leen estos metadatos y modelos mediante reflexion.
+-keepattributes Signature,RuntimeVisibleAnnotations,RuntimeVisibleParameterAnnotations,AnnotationDefault
+-keep class com.t4kash.app.ui.model.** { *; }
 # You can control the set of applied configuration files using the
 # proguardFiles setting in build.gradle.
 #

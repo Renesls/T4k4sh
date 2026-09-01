@@ -68,6 +68,7 @@ import com.t4kash.app.ui.theme.T4Surface
 import com.t4kash.app.ui.theme.T4Text
 import com.t4kash.app.ui.theme.T4TextMuted
 import com.t4kash.app.ui.viewmodel.MarketplaceViewModel
+import java.util.Locale
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.intOrNull
@@ -485,7 +486,7 @@ fun OpportunityMapScreen(
                         )
                         Text(
                             text = if (quickMode) {
-                                String.format("%.2f km", radiusKm)
+                                String.format(Locale.getDefault(), "%.2f km", radiusKm)
                             } else {
                                 "${radiusKm.roundToInt()} km"
                             },

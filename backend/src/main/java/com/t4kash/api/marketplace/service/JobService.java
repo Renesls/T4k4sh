@@ -62,6 +62,11 @@ public class JobService {
                 .orElseThrow(() -> new ResourceNotFoundException("El trabajo indicado no existe."));
     }
 
+    public TrabajoAsignado findJobEntityForUpdate(Integer idTrabajo) {
+        return trabajoRepository.findByIdForUpdate(idTrabajo)
+                .orElseThrow(() -> new ResourceNotFoundException("El trabajo indicado no existe."));
+    }
+
     public void requireAssignedStudent(TrabajoAsignado trabajo, Integer currentUserId) {
         if (!trabajo.getIdEstudiante().equals(currentUserId)) {
             throw new ForbiddenOperationException(

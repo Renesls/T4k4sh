@@ -50,6 +50,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import com.t4kash.app.BuildConfig
 import com.t4kash.app.ui.formatFileSize
 import com.t4kash.app.ui.model.AttachmentDto
@@ -63,6 +64,7 @@ import com.t4kash.app.ui.theme.T4TextMuted
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 @Composable
 fun AttachmentPickerSection(
@@ -101,6 +103,7 @@ fun AttachmentPickerSection(
             }
             isReading = false
             if (readError != null) {
+                selected.forEach { File(it.localPath).delete() }
                 onError(readError)
             } else {
                 onAttachmentsChange(attachments + selected)
@@ -134,6 +137,7 @@ fun AttachmentPickerSection(
                 PendingAttachmentRow(
                     attachment = attachment,
                     onRemove = {
+                        File(attachment.localPath).delete()
                         onAttachmentsChange(
                             attachments.filterIndexed { itemIndex, _ ->
                                 itemIndex != index
@@ -177,12 +181,12 @@ private fun PendingAttachmentRow(
     val thumbnailPx = with(LocalDensity.current) { 56.dp.roundToPx() }
     val imagePreview by produceState<ImageBitmap?>(
         initialValue = null,
-        attachment.content,
+        attachment.localPath,
         attachment.mimeType
     ) {
         value = if (attachment.mimeType.startsWith("image/")) {
             withContext(Dispatchers.Default) {
-                decodeSampledBitmap(attachment.content, thumbnailPx)?.asImageBitmap()
+                decodeSampledBitmap(attachment.localPath, thumbnailPx)?.asImageBitmap()
             }
         } else {
             null
@@ -220,7 +224,7 @@ private fun PendingAttachmentRow(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = formatFileSize(attachment.content.size.toLong()),
+                text = formatFileSize(attachment.sizeBytes),
                 style = MaterialTheme.typography.bodySmall,
                 color = T4TextMuted
             )
@@ -287,21 +291,47 @@ private fun Context.readPendingAttachment(uri: Uri): AttachmentReadResult {
     if (metadata.size > MAX_ATTACHMENT_BYTES) {
         return AttachmentReadResult.Error("${metadata.name} supera el limite de 10 MB.")
     }
-    val content = contentResolver.openInputStream(uri)?.use { it.readBytes() }
-        ?: return AttachmentReadResult.Error("No se pudo abrir ${metadata.name}.")
-    if (content.isEmpty()) {
-        return AttachmentReadResult.Error("${metadata.name} esta vacio.")
+    val temporaryFile = File.createTempFile("t4kash_", null, cacheDir)
+    return try {
+        val copiedBytes = contentResolver.openInputStream(uri)?.use { input ->
+            temporaryFile.outputStream().use { output ->
+                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                var total = 0L
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read < 0) break
+                    total += read
+                    if (total > MAX_ATTACHMENT_BYTES) {
+                        throw AttachmentTooLargeException()
+                    }
+                    output.write(buffer, 0, read)
+                }
+                total
+            }
+        } ?: run {
+            temporaryFile.delete()
+            return AttachmentReadResult.Error("No se pudo abrir ${metadata.name}.")
+        }
+        if (copiedBytes == 0L) {
+            temporaryFile.delete()
+            AttachmentReadResult.Error("${metadata.name} esta vacio.")
+        } else {
+            AttachmentReadResult.Success(
+                PendingAttachment(
+                    name = metadata.name,
+                    mimeType = contentResolver.getType(uri) ?: "application/octet-stream",
+                    localPath = temporaryFile.absolutePath,
+                    sizeBytes = copiedBytes
+                )
+            )
+        }
+    } catch (_: AttachmentTooLargeException) {
+        temporaryFile.delete()
+        AttachmentReadResult.Error("${metadata.name} supera el limite de 10 MB.")
+    } catch (_: Exception) {
+        temporaryFile.delete()
+        AttachmentReadResult.Error("No se pudo leer ${metadata.name}.")
     }
-    if (content.size > MAX_ATTACHMENT_BYTES) {
-        return AttachmentReadResult.Error("${metadata.name} supera el limite de 10 MB.")
-    }
-    return AttachmentReadResult.Success(
-        PendingAttachment(
-            name = metadata.name,
-            mimeType = contentResolver.getType(uri) ?: "application/octet-stream",
-            content = content
-        )
-    )
 }
 
 private fun readMetadata(cursor: Cursor): AttachmentMetadata? {
@@ -321,7 +351,7 @@ private fun readMetadata(cursor: Cursor): AttachmentMetadata? {
 
 private fun Context.downloadAttachment(attachment: AttachmentDto) {
     val baseUrl = BuildConfig.API_BASE_URL.trimEnd('/') + "/"
-    val request = DownloadManager.Request(Uri.parse(baseUrl + attachment.rutaDescarga))
+    val request = DownloadManager.Request((baseUrl + attachment.rutaDescarga).toUri())
         .setTitle(attachment.nombreOriginal)
         .setDescription("Descargando archivo de T4KASH")
         .setMimeType(attachment.tipoMime)
@@ -339,9 +369,9 @@ private fun Context.downloadAttachment(attachment: AttachmentDto) {
     manager.enqueue(request)
 }
 
-private fun decodeSampledBitmap(bytes: ByteArray, targetSizePx: Int): Bitmap? {
+private fun decodeSampledBitmap(path: String, targetSizePx: Int): Bitmap? {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+    BitmapFactory.decodeFile(path, bounds)
     var sampleSize = 1
     while (
         bounds.outWidth / sampleSize > targetSizePx * 2 ||
@@ -350,10 +380,12 @@ private fun decodeSampledBitmap(bytes: ByteArray, targetSizePx: Int): Bitmap? {
         sampleSize *= 2
     }
     val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
-    return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+    return BitmapFactory.decodeFile(path, options)
 }
 
 private data class AttachmentMetadata(val name: String, val size: Long)
+
+private class AttachmentTooLargeException : Exception()
 
 private sealed interface AttachmentReadResult {
     data class Success(val attachment: PendingAttachment) : AttachmentReadResult

@@ -10,6 +10,7 @@ backend/.mvn/wrapper/maven-wrapper.jar
 # Android / Gradle
 .gradle/
 mobile/.gradle/
+mobile/node_modules/
 mobile/build/
 mobile/app/build/
 local.properties

@@ -7,6 +7,9 @@ import com.t4kash.app.ui.model.NotificationDto
 import com.t4kash.app.ui.service.ApiResult
 import com.t4kash.app.ui.service.CommunicationApiService
 import com.t4kash.app.ui.service.RetrofitClient
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import org.json.JSONObject
 import retrofit2.HttpException
 
@@ -16,12 +19,16 @@ class CommunicationRepository(
 ) {
     suspend fun loadOverview(): ApiResult<CommunicationOverview> {
         return try {
-            ApiResult.Success(
-                CommunicationOverview(
-                    conversations = api.getConversations(),
-                    notifications = api.getNotifications()
+            coroutineScope {
+                val conversations = async { api.getConversations() }
+                val notifications = async { api.getNotifications() }
+                ApiResult.Success(
+                    CommunicationOverview(
+                        conversations = conversations.await(),
+                        notifications = notifications.await()
+                    )
                 )
-            )
+            }
         } catch (e: Exception) {
             ApiResult.Error(
                 e.communicationApiMessage(
@@ -109,6 +116,7 @@ class CommunicationRepository(
 }
 
 private fun Exception.communicationApiMessage(fallback: String): String {
+    if (this is CancellationException) throw this
     if (this is HttpException) {
         val detail = runCatching {
             val body = response()?.errorBody()?.string().orEmpty()

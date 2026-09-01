@@ -73,7 +73,6 @@ import com.t4kash.app.ui.components.SelectionOption
 import com.t4kash.app.ui.components.T4BottomBar
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
-import com.t4kash.app.ui.components.isSoftwareKeyboardVisible
 import com.t4kash.app.ui.components.keepVisibleAboveKeyboard
 import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.model.PendingAttachment
@@ -266,9 +265,18 @@ fun PostTaskScreen(
 
     fun publish() {
         val numericBudget = budget.toDoubleOrNull()
-        val applicationDeadline = applicationDeadlineMillis
-        val taskDeadline = taskDeadlineMillis
         val now = System.currentTimeMillis()
+        val isQuickTask = opportunityType == TIPO_TAREA_RAPIDA
+        val applicationDeadline = if (isQuickTask) {
+            now + (24 * UNA_HORA_MILLIS)
+        } else {
+            applicationDeadlineMillis
+        }
+        val taskDeadline = if (isQuickTask) {
+            now + (27 * UNA_HORA_MILLIS)
+        } else {
+            taskDeadlineMillis
+        }
         validationError = when {
             title.isBlank() -> "Escribe un título para la oportunidad."
             description.trim().length < 20 ->
@@ -281,20 +289,15 @@ fun PostTaskScreen(
                 numericBudget > PAGO_MAXIMO_TAREA_RAPIDA ->
                 "La tarea rápida no puede superar C$1,000."
             selectedCategoryId == null -> "Selecciona una categoría."
-            applicationDeadline == null ->
+            !isQuickTask && applicationDeadline == null ->
                 "Selecciona el cierre de postulaciones."
-            applicationDeadline <= now ->
+            !isQuickTask && applicationDeadline != null && applicationDeadline <= now ->
                 "El cierre de postulaciones debe ser futuro."
-            taskDeadline == null ->
+            !isQuickTask && taskDeadline == null ->
                 "Selecciona la fecha limite del trabajo."
-            taskDeadline <= applicationDeadline ->
+            !isQuickTask && taskDeadline != null && applicationDeadline != null &&
+                taskDeadline <= applicationDeadline ->
                 "La fecha limite debe ser posterior al cierre de postulaciones."
-            opportunityType == TIPO_TAREA_RAPIDA &&
-                applicationDeadline > now + (24 * UNA_HORA_MILLIS) ->
-                "La tarea rápida puede estar disponible hasta 24 horas."
-            opportunityType == TIPO_TAREA_RAPIDA &&
-                taskDeadline > now + (48 * UNA_HORA_MILLIS) ->
-                "La tarea rápida debe completarse dentro de 48 horas."
             modality != MODALIDAD_REMOTA && (latitude == null || longitude == null) ->
                 "Captura la ubicación para esta modalidad."
             else -> null
@@ -309,8 +312,8 @@ fun PostTaskScreen(
                 titulo = title.trim(),
                 descripcion = description.trim(),
                 presupuesto = numericBudget,
-                fechaLimitePostulacion = applicationDeadline.toApiDateTime(),
-                fechaLimite = taskDeadline.toApiDateTime(),
+                fechaLimitePostulacion = applicationDeadline?.toApiDateTime(),
+                fechaLimite = taskDeadline?.toApiDateTime(),
                 idCategoria = selectedCategoryId ?: return,
                 tipoOportunidad = opportunityType,
                 modalidad = modality,
@@ -327,7 +330,6 @@ fun PostTaskScreen(
         }
     }
 
-    val keyboardVisible = isSoftwareKeyboardVisible()
     val selectedCategory = uiState.categories.firstOrNull {
         it.idCategoria == selectedCategoryId
     }
@@ -361,7 +363,7 @@ fun PostTaskScreen(
             )
         },
         bottomBar = {
-            if (editTaskId == null && !keyboardVisible) {
+            if (editTaskId == null) {
                 T4BottomBar(
                     currentRoute = currentRoute,
                     onNavigate = onNavigate
@@ -472,8 +474,8 @@ fun PostTaskScreen(
                                     opportunityType = TIPO_TAREA_RAPIDA
                                     modality = MODALIDAD_PRESENCIAL
                                     val now = System.currentTimeMillis()
-                                    applicationDeadlineMillis = now + UNA_HORA_MILLIS
-                                    taskDeadlineMillis = now + (3 * UNA_HORA_MILLIS)
+                                    applicationDeadlineMillis = now + (24 * UNA_HORA_MILLIS)
+                                    taskDeadlineMillis = now + (27 * UNA_HORA_MILLIS)
                                     validationError = null
                                 },
                                 label = { Text("Tarea rápida") }
@@ -536,63 +538,99 @@ fun PostTaskScreen(
                             )
                         )
 
-                        Text(
-                            text = "Fechas",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = T4Text
-                        )
-                        DateTimeSelector(
-                            label = "Cierre de postulaciones",
-                            selectedMillis = applicationDeadlineMillis,
-                            onClick = {
-                                val minimumDeadline =
-                                    System.currentTimeMillis() + ONE_MINUTE_MILLIS
-                                showDateTimePicker(
-                                    context = context,
-                                    initialMillis = applicationDeadlineMillis,
-                                    minimumMillis = minimumDeadline
-                                ) { selectedMillis ->
-                                    if (selectedMillis < minimumDeadline) {
-                                        validationError =
-                                            "El cierre de postulaciones debe ser futuro."
-                                    } else {
-                                        applicationDeadlineMillis = selectedMillis
-                                        val currentTaskDeadline = taskDeadlineMillis
-                                        if (
-                                            currentTaskDeadline != null &&
-                                            currentTaskDeadline <= selectedMillis
-                                        ) {
-                                            taskDeadlineMillis = null
+                        if (opportunityType == TIPO_TAREA_RAPIDA) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = T4Mint.copy(alpha = 0.16f)
+                                ),
+                                border = BorderStroke(1.dp, T4MintDark.copy(alpha = 0.28f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(14.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Schedule,
+                                        contentDescription = null,
+                                        tint = T4MintDark
+                                    )
+                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text(
+                                            text = "Disponible durante 24 horas",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = T4Text
+                                        )
+                                        Text(
+                                            text = "Al tomarla, inicia de inmediato y hay 3 horas para completarla.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = T4TextMuted
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            Text(
+                                text = "Fechas",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = T4Text
+                            )
+                            DateTimeSelector(
+                                label = "Cierre de postulaciones",
+                                selectedMillis = applicationDeadlineMillis,
+                                onClick = {
+                                    val minimumDeadline =
+                                        System.currentTimeMillis() + ONE_MINUTE_MILLIS
+                                    showDateTimePicker(
+                                        context = context,
+                                        initialMillis = applicationDeadlineMillis,
+                                        minimumMillis = minimumDeadline
+                                    ) { selectedMillis ->
+                                        if (selectedMillis < minimumDeadline) {
+                                            validationError =
+                                                "El cierre de postulaciones debe ser futuro."
+                                        } else {
+                                            applicationDeadlineMillis = selectedMillis
+                                            val currentTaskDeadline = taskDeadlineMillis
+                                            if (
+                                                currentTaskDeadline != null &&
+                                                currentTaskDeadline <= selectedMillis
+                                            ) {
+                                                taskDeadlineMillis = null
+                                            }
+                                            validationError = null
                                         }
-                                        validationError = null
                                     }
                                 }
-                            }
-                        )
-                        DateTimeSelector(
-                            label = "Fecha limite del trabajo",
-                            selectedMillis = taskDeadlineMillis,
-                            onClick = {
-                                val minimumTaskDeadline = (
-                                    applicationDeadlineMillis
-                                        ?: System.currentTimeMillis()
-                                    ) + ONE_MINUTE_MILLIS
-                                showDateTimePicker(
-                                    context = context,
-                                    initialMillis = taskDeadlineMillis,
-                                    minimumMillis = minimumTaskDeadline
-                                ) { selectedMillis ->
-                                    if (selectedMillis < minimumTaskDeadline) {
-                                        validationError =
-                                            "La entrega debe ocurrir después del cierre."
-                                    } else {
-                                        taskDeadlineMillis = selectedMillis
-                                        validationError = null
+                            )
+                            DateTimeSelector(
+                                label = "Fecha limite del trabajo",
+                                selectedMillis = taskDeadlineMillis,
+                                onClick = {
+                                    val minimumTaskDeadline = (
+                                        applicationDeadlineMillis
+                                            ?: System.currentTimeMillis()
+                                        ) + ONE_MINUTE_MILLIS
+                                    showDateTimePicker(
+                                        context = context,
+                                        initialMillis = taskDeadlineMillis,
+                                        minimumMillis = minimumTaskDeadline
+                                    ) { selectedMillis ->
+                                        if (selectedMillis < minimumTaskDeadline) {
+                                            validationError =
+                                                "La entrega debe ocurrir después del cierre."
+                                        } else {
+                                            taskDeadlineMillis = selectedMillis
+                                            validationError = null
+                                        }
                                     }
                                 }
-                            }
-                        )
+                            )
+                        }
 
                         Text(
                             text = "Categoría",

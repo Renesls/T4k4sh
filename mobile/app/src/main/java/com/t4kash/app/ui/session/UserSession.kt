@@ -2,6 +2,7 @@ package com.t4kash.app.ui.session
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -71,19 +72,19 @@ object UserSession {
 
     fun save(session: AuthSession) {
         requireTokenStore().save(session.token)
-        requirePreferences().edit()
-            .remove(KEY_TOKEN)
-            .putString(KEY_EXPIRES_AT, session.expiresAt)
-            .putInt(KEY_USER_ID, session.user.id)
-            .putString(KEY_USERNAME, session.user.username)
-            .putString(KEY_FIRST_NAME, session.user.firstName)
-            .putString(KEY_LAST_NAME, session.user.lastName)
-            .putString(KEY_EMAIL, session.user.email)
-            .putString(KEY_UNIVERSITY_NAME, session.user.universityName)
-            .putString(KEY_CAREER_NAME, session.user.careerName)
-            .putString(KEY_ACCOUNT_STATUS, session.user.accountStatus)
-            .putStringSet(KEY_ROLES, session.user.roles)
-            .apply()
+        requirePreferences().edit {
+            remove(KEY_TOKEN)
+            putString(KEY_EXPIRES_AT, session.expiresAt)
+            putInt(KEY_USER_ID, session.user.id)
+            putString(KEY_USERNAME, session.user.username)
+            putString(KEY_FIRST_NAME, session.user.firstName)
+            putString(KEY_LAST_NAME, session.user.lastName)
+            putString(KEY_EMAIL, session.user.email)
+            putString(KEY_UNIVERSITY_NAME, session.user.universityName)
+            putString(KEY_CAREER_NAME, session.user.careerName)
+            putString(KEY_ACCOUNT_STATUS, session.user.accountStatus)
+            putStringSet(KEY_ROLES, session.user.roles)
+        }
         mutableSession.value = session
     }
 
@@ -92,7 +93,7 @@ object UserSession {
     }
 
     fun clear() {
-        requirePreferences().edit().clear().apply()
+        requirePreferences().edit { clear() }
         mutableSession.value = null
     }
 
@@ -141,13 +142,13 @@ object UserSession {
         val prefs = requirePreferences()
         val store = requireTokenStore()
         if (store.hasEncryptedToken()) {
-            prefs.edit().remove(KEY_TOKEN).apply()
+            prefs.edit { remove(KEY_TOKEN) }
             return
         }
         val legacyToken = prefs.getString(KEY_TOKEN, null)
             ?.takeIf { it.isNotBlank() }
             ?: return
         store.save(legacyToken)
-        prefs.edit().remove(KEY_TOKEN).apply()
+        prefs.edit { remove(KEY_TOKEN) }
     }
 }

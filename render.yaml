@@ -45,6 +45,16 @@ services:
         sync: false
       - key: APP_PUBLIC_BASE_URL
         value: "https://t4k4sh.onrender.com"
+      - key: APP_DIDIT_ENABLED
+        sync: false
+      - key: DIDIT_API_KEY
+        sync: false
+      - key: DIDIT_WORKFLOW_ID
+        sync: false
+      - key: DIDIT_WEBHOOK_SECRET
+        sync: false
+      - key: DIDIT_DOCUMENT_HASH_SECRET
+        sync: false
       - key: APP_PAYMENTS_PLATFORM_FEE_PERCENT
         value: "1.00"
       - key: APP_PAGADITO_ENABLED

@@ -9,6 +9,9 @@ public record WalletResponse(
         BigDecimal fondosRetenidos,
         BigDecimal totalGanado,
         List<PaymentResponse> pagos,
-        List<WalletMovementResponse> movimientos
+        List<WalletMovementResponse> movimientos,
+        List<PaymentDisputeResponse> disputas,
+        List<RefundResponse> reembolsos,
+        List<PayoutResponse> desembolsos
 ) {
 }

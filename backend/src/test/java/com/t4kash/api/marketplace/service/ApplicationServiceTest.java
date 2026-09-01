@@ -3,6 +3,7 @@ package com.t4kash.api.marketplace.service;
 import com.t4kash.api.communication.service.ConversationService;
 import com.t4kash.api.communication.service.NotificationService;
 import com.t4kash.api.exception.ForbiddenOperationException;
+import com.t4kash.api.exception.AccountNotVerifiedException;
 import com.t4kash.api.exception.ResourceConflictException;
 import com.t4kash.api.marketplace.dto.CreateApplicationRequest;
 import com.t4kash.api.marketplace.dto.JobResponse;
@@ -15,6 +16,7 @@ import com.t4kash.api.marketplace.repository.PostulacionRepository;
 import com.t4kash.api.marketplace.repository.TareaRepository;
 import com.t4kash.api.marketplace.repository.TrabajoAsignadoRepository;
 import com.t4kash.api.marketplace.repository.UsuarioEstudianteRepository;
+import com.t4kash.api.identity.service.IdentityVerificationPolicyService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +24,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +34,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class ApplicationServiceTest {
@@ -48,6 +53,8 @@ class ApplicationServiceTest {
     private ConversationService conversationService;
     @Mock
     private NotificationService notificationService;
+    @Mock
+    private IdentityVerificationPolicyService identityVerificationPolicy;
 
     private ApplicationService service;
 
@@ -65,8 +72,11 @@ class ApplicationServiceTest {
                 estudianteRepository,
                 taskService,
                 conversationService,
-                notificationService
+                notificationService,
+                null,
+                identityVerificationPolicy
         );
+        lenient().when(identityVerificationPolicy.isApproved(any())).thenReturn(true);
     }
 
     @Test
@@ -201,6 +211,38 @@ class ApplicationServiceTest {
     }
 
     @Test
+    void pendingCashConfirmationCountsTowardActiveJobLimit() {
+        Tarea task = task(10, "PUBLICADA", LocalDateTime.now().plusDays(1));
+        when(tareaRepository.findById(10)).thenReturn(Optional.of(task));
+        when(estudianteRepository.existsById(2)).thenReturn(true);
+        when(trabajoRepository.countByIdEstudianteAndEstadoTrabajo(2, "EN_PROCESO"))
+                .thenReturn(1L);
+        when(trabajoRepository.countByIdEstudianteAndEstadoTrabajo(2, "PENDIENTE_PAGO"))
+                .thenReturn(0L);
+        when(trabajoRepository.countByIdEstudianteAndEstadoTrabajo(
+                2,
+                "PAGO_EFECTIVO_PENDIENTE"
+        )).thenReturn(1L);
+
+        ResourceConflictException error = assertThrows(
+                ResourceConflictException.class,
+                () -> service.applyToTask(
+                        2,
+                        10,
+                        new CreateApplicationRequest(
+                                "Quiero participar.",
+                                new BigDecimal("20.00")
+                        )
+                )
+        );
+
+        assertEquals(
+                "Ya tienes dos trabajos en proceso. Finaliza uno antes de postularte.",
+                error.getMessage()
+        );
+    }
+
+    @Test
     void secondActiveJobCancelsOtherPendingApplications() {
         Tarea task = task(10, "PUBLICADA", LocalDateTime.now().plusDays(1));
         Postulacion accepted = application(100, 10, 2);
@@ -254,6 +296,28 @@ class ApplicationServiceTest {
     }
 
     @Test
+    void acceptingApplicationRequiresVerifiedClient() {
+        Postulacion application = application(100, 10, 2);
+        when(postulacionRepository.findById(100)).thenReturn(Optional.of(application));
+        when(tareaRepository.findById(10)).thenReturn(Optional.of(task(
+                10,
+                "PUBLICADA",
+                LocalDateTime.now().plusDays(1)
+        )));
+        when(trabajoRepository.findByIdTarea(10)).thenReturn(Optional.empty());
+        when(estudianteRepository.findByIdForUpdate(2))
+                .thenReturn(Optional.of(new UsuarioEstudiante()));
+        doThrow(new AccountNotVerifiedException("Verifica tu identidad desde Perfil."))
+                .when(identityVerificationPolicy)
+                .requireApproved(1, "aceptar una postulacion");
+
+        assertThrows(
+                AccountNotVerifiedException.class,
+                () -> service.acceptApplication(1, 100)
+        );
+    }
+
+    @Test
     void claimingQuickTaskCreatesAcceptedApplicationAndAssignedJob() {
         Tarea task = task(10, "PUBLICADA", LocalDateTime.now().plusHours(1));
         task.setTipoOportunidad("RAPIDA");
@@ -283,6 +347,10 @@ class ApplicationServiceTest {
         assertEquals(50, response.idTrabajo());
         assertEquals("ASIGNADA", task.getEstadoTarea());
         assertEquals("EN_PROCESO", response.estadoTrabajo());
+        assertEquals(3, Duration.between(
+                response.fechaInicio(),
+                response.fechaEntregaEsperada()
+        ).toHours());
         verify(conversationService).ensureForAcceptedApplication(any(), any());
     }
 

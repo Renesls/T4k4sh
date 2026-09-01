@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -179,18 +180,35 @@ fun T4TopBar(
             }
         },
         title = {
-            Column {
-                Text(
-                    text = title,
-                    color = T4Primary,
-                    fontWeight = FontWeight.Bold
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.t4kash_logo),
+                    contentDescription = "Isotipo de T4KASH",
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(RoundedCornerShape(6.dp)),
+                    contentScale = ContentScale.Crop
                 )
-                if (subtitle != null) {
+                Column {
                     Text(
-                        text = subtitle,
-                        color = T4TextMuted,
-                        style = MaterialTheme.typography.bodySmall
+                        text = title,
+                        color = T4Primary,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
+                    if (subtitle != null) {
+                        Text(
+                            text = subtitle,
+                            color = T4TextMuted,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
         },
@@ -213,13 +231,14 @@ fun T4BottomBar(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(72.dp),
+            .navigationBarsPadding(),
         color = T4Surface,
         shadowElevation = 10.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .height(72.dp)
                 .padding(horizontal = 8.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically

@@ -16,7 +16,11 @@ object RetrofitClient {
         }
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.BASIC
+        level = if (BuildConfig.DEBUG) {
+            HttpLoggingInterceptor.Level.BASIC
+        } else {
+            HttpLoggingInterceptor.Level.NONE
+        }
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -62,5 +66,13 @@ object RetrofitClient {
 
     val communicationApiService: CommunicationApiService by lazy {
         retrofit.create(CommunicationApiService::class.java)
+    }
+
+    val networkApiService: NetworkApiService by lazy {
+        retrofit.create(NetworkApiService::class.java)
+    }
+
+    val identityVerificationApiService: IdentityVerificationApiService by lazy {
+        retrofit.create(IdentityVerificationApiService::class.java)
     }
 }

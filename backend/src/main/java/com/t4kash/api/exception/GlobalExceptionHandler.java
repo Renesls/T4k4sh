@@ -83,6 +83,16 @@ public class GlobalExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, ex.getMessage());
     }
 
+    @ExceptionHandler(IdentityProviderException.class)
+    public ProblemDetail handleIdentityProvider(IdentityProviderException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidWebhookSignatureException.class)
+    public ProblemDetail handleInvalidWebhookSignature(InvalidWebhookSignatureException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    }
+
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ProblemDetail handleMaxUploadSize(MaxUploadSizeExceededException ex) {
         return ProblemDetail.forStatusAndDetail(

@@ -36,30 +36,6 @@ import com.t4kash.app.ui.theme.T4Text
 import com.t4kash.app.ui.theme.T4TextMuted
 
 @Composable
-fun NetworkScreen(
-    onNavigate: (String) -> Unit
-) {
-    FeatureScreen(
-        route = Routes.NETWORK,
-        title = "Network",
-        subtitle = "Conecta con estudiantes",
-        heroTitle = "Haz crecer tu red académica.",
-        heroBody = "Aquí aparecerán perfiles verificados, recomendaciones por carrera y contactos útiles para proyectos o colaboraciones.",
-        onNavigate = onNavigate
-    ) {
-        InfoCard(
-            title = "Próximo bloque",
-            body = "Perfiles cercanos, filtros por carrera y accesos rápidos a conexiones guardadas.",
-            chips = listOf("Carrera", "Habilidades", "Verificado")
-        )
-        EmptyState(
-            title = "Tu red está lista para crecer",
-            message = "Aún no hay conexiones cargadas para esta demo."
-        )
-    }
-}
-
-@Composable
 fun ChatPlaceholderScreen(
     onNavigate: (String) -> Unit
 ) {

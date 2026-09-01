@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Mail
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.WorkHistory
 import androidx.compose.material3.Card
@@ -79,6 +80,8 @@ fun ProfileScreen(
     onOpenPublications: (String) -> Unit,
     onOpenJobs: () -> Unit,
     onOpenWallet: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenIdentityVerification: () -> Unit,
     onOpenAdmin: () -> Unit,
     onLogout: () -> Unit
 ) {
@@ -430,6 +433,58 @@ fun ProfileScreen(
                 }
             }
 
+            item {
+                Text(
+                    text = "Seguridad",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = T4Text
+                )
+            }
+
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onOpenIdentityVerification),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = T4Surface),
+                    border = BorderStroke(1.dp, T4Border.copy(alpha = 0.65f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(18.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.VerifiedUser,
+                            contentDescription = null,
+                            tint = T4Primary,
+                            modifier = Modifier.size(26.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Verificación de identidad",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = T4Text
+                            )
+                            Text(
+                                text = "Protege trabajos, Wallet y pagos",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = T4TextMuted
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = "Abrir verificación de identidad",
+                            tint = T4TextMuted
+                        )
+                    }
+                }
+            }
+
             if (isAdmin) {
                 item {
                     Text(
@@ -581,6 +636,58 @@ fun ProfileScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = "Abrir Wallet",
+                            tint = T4TextMuted
+                        )
+                    }
+                }
+            }
+
+            item {
+                Text(
+                    text = "Preferencias",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = T4Text
+                )
+            }
+
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onOpenSettings),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = T4Surface),
+                    border = BorderStroke(1.dp, T4Border.copy(alpha = 0.65f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(18.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = null,
+                            tint = T4Primary,
+                            modifier = Modifier.size(26.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Configuración",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = T4Text
+                            )
+                            Text(
+                                text = "Apariencia y tema de conversaciones",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = T4TextMuted
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = "Abrir configuración",
                             tint = T4TextMuted
                         )
                     }

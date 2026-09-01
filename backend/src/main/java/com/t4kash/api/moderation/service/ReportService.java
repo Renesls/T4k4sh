@@ -1,5 +1,6 @@
 package com.t4kash.api.moderation.service;
 
+import com.t4kash.api.config.PaginationSupport;
 import com.t4kash.api.exception.ForbiddenOperationException;
 import com.t4kash.api.exception.ResourceConflictException;
 import com.t4kash.api.exception.ResourceNotFoundException;
@@ -19,10 +20,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class ReportService {
@@ -104,19 +108,32 @@ public class ReportService {
 
     @Transactional(readOnly = true)
     public List<ReportResponse> listMine(Integer currentUserId) {
-        return reportRepository
-                .findByIdUsuarioReportaOrderByFechaReporteDesc(currentUserId)
-                .stream()
-                .map(this::toResponse)
-                .toList();
+        return listMine(currentUserId, 0, PaginationSupport.DEFAULT_SIZE);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReportResponse> listMine(
+            Integer currentUserId,
+            int page,
+            int size
+    ) {
+        return toResponses(reportRepository
+                .findByIdUsuarioReportaOrderByFechaReporteDesc(
+                        currentUserId,
+                        PaginationSupport.page(page, size)
+                ));
     }
 
     @Transactional(readOnly = true)
     public List<ReportResponse> listAll() {
-        return reportRepository.findAllByOrderByFechaReporteDesc()
-                .stream()
-                .map(this::toResponse)
-                .toList();
+        return listAll(0, PaginationSupport.DEFAULT_SIZE);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReportResponse> listAll(int page, int size) {
+        return toResponses(reportRepository.findAllByOrderByFechaReporteDesc(
+                PaginationSupport.page(page, size)
+        ));
     }
 
     @Transactional(readOnly = true)
@@ -236,6 +253,60 @@ public class ReportService {
                 reportedEmail,
                 taskTitle
         );
+    }
+
+    private List<ReportResponse> toResponses(List<Reporte> reports) {
+        if (reports.isEmpty()) {
+            return List.of();
+        }
+        Set<Integer> userIds = new HashSet<>();
+        Set<Integer> taskIds = new HashSet<>();
+        reports.forEach(report -> {
+            if (report.getIdUsuarioReporta() != null) {
+                userIds.add(report.getIdUsuarioReporta());
+            }
+            if (report.getIdUsuarioReportado() != null) {
+                userIds.add(report.getIdUsuarioReportado());
+            }
+            if (report.getIdTarea() != null) {
+                taskIds.add(report.getIdTarea());
+            }
+        });
+        Map<Integer, Usuario> users = mapById(
+                userRepository.findAllById(userIds),
+                Usuario::getIdUsuario
+        );
+        Map<Integer, Tarea> tasks = mapById(
+                taskRepository.findAllById(taskIds),
+                Tarea::getIdTarea
+        );
+        return reports.stream()
+                .map(report -> ReportResponse.fromEntity(
+                        report,
+                        email(users.get(report.getIdUsuarioReporta())),
+                        email(users.get(report.getIdUsuarioReportado())),
+                        report.getIdTarea() == null
+                                ? null
+                                : title(tasks.get(report.getIdTarea()))
+                ))
+                .toList();
+    }
+
+    private <T> Map<Integer, T> mapById(
+            Iterable<T> items,
+            Function<T, Integer> idExtractor
+    ) {
+        Map<Integer, T> result = new java.util.HashMap<>();
+        items.forEach(item -> result.put(idExtractor.apply(item), item));
+        return result;
+    }
+
+    private String email(Usuario user) {
+        return user == null ? null : user.getCorreo();
+    }
+
+    private String title(Tarea task) {
+        return task == null ? null : task.getTitulo();
     }
 
     private String userEmail(Integer userId) {

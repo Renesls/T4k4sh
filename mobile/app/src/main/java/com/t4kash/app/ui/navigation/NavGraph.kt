@@ -19,6 +19,7 @@ import com.t4kash.app.ui.screen.JobDetailScreen
 import com.t4kash.app.ui.screen.ChatScreen
 import com.t4kash.app.ui.screen.ConversationScreen
 import com.t4kash.app.ui.screen.LoginScreen
+import com.t4kash.app.ui.screen.IdentityVerificationScreen
 import com.t4kash.app.ui.screen.LoginVerificationScreen
 import com.t4kash.app.ui.screen.MarketplaceScreen
 import com.t4kash.app.ui.screen.MyPublicationsScreen
@@ -32,12 +33,15 @@ import com.t4kash.app.ui.screen.PublicProfileScreen
 import com.t4kash.app.ui.screen.RegisterScreen
 import com.t4kash.app.ui.screen.ForgotPasswordScreen
 import com.t4kash.app.ui.screen.ResetPasswordScreen
+import com.t4kash.app.ui.screen.SettingsScreen
 import com.t4kash.app.ui.screen.SplashScreen
 import com.t4kash.app.ui.screen.WalletScreen
 import com.t4kash.app.ui.screen.VerifyEmailScreen
 import com.t4kash.app.ui.viewmodel.MarketplaceViewModel
+import com.t4kash.app.ui.viewmodel.IdentityVerificationViewModel
 import com.t4kash.app.ui.viewmodel.AuthViewModel
 import com.t4kash.app.ui.viewmodel.CommunicationViewModel
+import com.t4kash.app.ui.viewmodel.NetworkViewModel
 import com.t4kash.app.ui.viewmodel.PublicProfileViewModel
 import com.t4kash.app.ui.session.UserSession
 
@@ -48,7 +52,9 @@ fun NavGraph(
     val authViewModel: AuthViewModel = viewModel()
     val marketplaceViewModel: MarketplaceViewModel = viewModel()
     val communicationViewModel: CommunicationViewModel = viewModel()
+    val networkViewModel: NetworkViewModel = viewModel()
     val publicProfileViewModel: PublicProfileViewModel = viewModel()
+    val identityVerificationViewModel: IdentityVerificationViewModel = viewModel()
     val session by UserSession.session.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -61,6 +67,8 @@ fun NavGraph(
     LaunchedEffect(session?.token) {
         if (session == null) {
             communicationViewModel.clearSession()
+            networkViewModel.clearSession()
+            identityVerificationViewModel.clearSession()
         } else {
             communicationViewModel.refreshOverview()
         }
@@ -71,6 +79,9 @@ fun NavGraph(
         }
         if (route == Routes.CHAT) {
             communicationViewModel.refreshOverview()
+        }
+        if (route == Routes.NETWORK) {
+            networkViewModel.refresh(showLoading = false)
         }
         navController.navigateBottom(route)
     }
@@ -202,6 +213,7 @@ fun NavGraph(
                 onTaskSelected = { task -> navController.navigate(Routes.taskDetails(task.idTarea)) },
                 onOpenMap = { navController.navigate(Routes.OPPORTUNITY_MAP) },
                 onOpenQuickTasks = { navController.navigate(Routes.QUICK_TASKS) },
+                onOpenProfile = { navController.navigateBottom(Routes.PROFILE) },
                 onOpenNotifications = {
                     navController.navigate(Routes.NOTIFICATIONS)
                 },
@@ -272,7 +284,23 @@ fun NavGraph(
             )
         }
         composable(Routes.NETWORK) {
-            NetworkScreen(onNavigate = onBottomNavigate)
+            val currentUser = session?.user
+            if (currentUser == null) {
+                LaunchedEffect(Unit) {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(navController.graph.id) { inclusive = true }
+                    }
+                }
+                return@composable
+            }
+            NetworkScreen(
+                viewModel = networkViewModel,
+                user = currentUser,
+                onNavigate = onBottomNavigate,
+                onOpenProfile = { username ->
+                    navController.navigate(Routes.publicProfile(username))
+                }
+            )
         }
         composable(Routes.POST) {
             PostTaskScreen(
@@ -359,6 +387,10 @@ fun NavGraph(
                 },
                 onOpenJobs = { navController.navigate(Routes.ASSIGNED_JOBS) },
                 onOpenWallet = { navController.navigate(Routes.WALLET) },
+                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                onOpenIdentityVerification = {
+                    navController.navigate(Routes.IDENTITY_VERIFICATION)
+                },
                 onOpenAdmin = { navController.navigate(Routes.ADMIN) },
                 onLogout = {
                     authViewModel.logout {
@@ -367,6 +399,15 @@ fun NavGraph(
                         }
                     }
                 }
+            )
+        }
+        composable(Routes.SETTINGS) {
+            SettingsScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.IDENTITY_VERIFICATION) {
+            IdentityVerificationScreen(
+                viewModel = identityVerificationViewModel,
+                onBack = { navController.popBackStack() }
             )
         }
         composable(Routes.QUICK_TASKS) {
