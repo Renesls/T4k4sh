@@ -86,7 +86,7 @@ extension LocationService: CLLocationManagerDelegate {
             switch status {
             case .authorizedWhenInUse, .authorizedAlways:
                 // Solo continúa si había una petición esperando el permiso.
-                if self.continuation != nil { manager.requestLocation() }
+                if self.continuation != nil { self.manager.requestLocation() }
             case .denied:
                 self.finish(.denied)
             case .restricted:

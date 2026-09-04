@@ -46,12 +46,6 @@ final class APIClient: @unchecked Sendable {
     @discardableResult
     func send<T: Decodable>(_ request: APIRequest, as type: T.Type = T.self) async throws -> T {
         let data = try await perform(request)
-
-        // `EmptyResponse` cubre los endpoints con cuerpo vacío o 204.
-        if T.self == EmptyResponse.self {
-            return EmptyResponse() as! T
-        }
-
         do {
             return try JSONCoding.decoder.decode(T.self, from: data)
         } catch let error as DecodingError {
@@ -63,7 +57,10 @@ final class APIClient: @unchecked Sendable {
     }
 
     /// Ejecuta la petición descartando el cuerpo de la respuesta.
-    func send(_ request: APIRequest) async throws {
+    ///
+    /// Tiene nombre propio, y no una sobrecarga de `send`, para que la elección
+    /// entre devolver un modelo o nada sea explícita en cada llamada.
+    func sendIgnoringResponse(_ request: APIRequest) async throws {
         _ = try await perform(request)
     }
 

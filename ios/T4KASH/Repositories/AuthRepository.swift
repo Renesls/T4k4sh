@@ -123,7 +123,7 @@ struct AuthRepository {
 
     /// `POST /auth/logout` — revoca el token en el servidor.
     func logout() async throws {
-        try await client.send(.empty("auth/logout", method: .post))
+        try await client.sendIgnoringResponse(.empty("auth/logout", method: .post))
     }
 
     // MARK: - Catálogos institucionales

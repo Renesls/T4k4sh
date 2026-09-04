@@ -31,10 +31,3 @@ enum JSONCoding {
         return encoder
     }()
 }
-
-/// Respuesta vacía para endpoints que devuelven `204` o cuerpo vacío
-/// (`/auth/logout`, `/conversations/{id}/read`, `/notifications/read-all`).
-struct EmptyResponse: Decodable {
-    init() {}
-    init(from decoder: Decoder) throws {}
-}

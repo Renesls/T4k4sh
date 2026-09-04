@@ -45,7 +45,7 @@ struct RootView: View {
             do {
                 let user = try await dependencies.auth.currentUser()
                 session.update(user: user)
-            } catch APIError.unauthorized {
+            } catch APIError.unauthorized(_) {
                 // `SessionStore` ya recibió el aviso de invalidación.
             } catch {
                 // Sin red: se conserva la sesión local y las pantallas

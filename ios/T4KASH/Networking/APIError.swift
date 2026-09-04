@@ -19,8 +19,10 @@ enum APIError: LocalizedError, Equatable {
     case offline
     /// La petición superó el tiempo de espera.
     case timeout
-    /// La sesión expiró o el token dejó de ser válido (HTTP 401).
-    case unauthorized
+    /// HTTP 401. En una petición autenticada significa que la sesión dejó de
+    /// ser válida; en el login, que las credenciales no son correctas. Se
+    /// conserva el detalle del backend para poder decir cuál de las dos es.
+    case unauthorized(String)
     /// El usuario no tiene permiso para la operación (HTTP 403).
     case forbidden(String)
     /// El recurso no existe (HTTP 404).
@@ -50,8 +52,8 @@ enum APIError: LocalizedError, Equatable {
             "Sin conexión a internet. Revisa tu red e inténtalo de nuevo."
         case .timeout:
             "El servidor tardó demasiado en responder. Inténtalo de nuevo."
-        case .unauthorized:
-            "Tu sesión expiró. Inicia sesión de nuevo."
+        case let .unauthorized(message):
+            message.isEmpty ? "Tu sesión expiró. Inicia sesión de nuevo." : message
         case let .forbidden(message):
             message.isEmpty ? "No tienes permiso para realizar esta acción." : message
         case let .notFound(message):
@@ -86,7 +88,7 @@ enum APIError: LocalizedError, Equatable {
         let detail = Self.detailMessage(from: body)
         switch status {
         case 400, 422: return .validation(detail)
-        case 401: return .unauthorized
+        case 401: return .unauthorized(detail)
         case 403: return .forbidden(detail)
         case 404: return .notFound(detail)
         case 409: return .conflict(detail)

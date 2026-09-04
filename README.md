@@ -70,6 +70,7 @@ flowchart LR
 | Network universitario | Operativo |
 | Moderación, reportes y administración | Operativo |
 | KYC de identidad | Integrado con Didit Hosted Sessions |
+| Aplicación iOS (SwiftUI) | Implementada contra la misma API; pendiente de compilar y probar en Xcode |
 | Notificaciones push FCM | En integración en rama separada |
 
 ## Funciones principales
@@ -161,8 +162,9 @@ flowchart LR
 | Capa | Tecnologías |
 |---|---|
 | Android | Kotlin, Jetpack Compose, Navigation Compose |
-| Red móvil | Retrofit, OkHttp, Gson |
-| Mapas | MapLibre Compose, OpenFreeMap |
+| iOS | Swift, SwiftUI, Swift Concurrency, Observation |
+| Red móvil | Retrofit, OkHttp y Gson en Android; URLSession y Codable en iOS |
+| Mapas | MapLibre Compose y OpenFreeMap en Android; MapKit en iOS |
 | Backend | Java 21, Spring Boot, Spring Data JPA |
 | API | REST, Bean Validation, Swagger / OpenAPI |
 | Datos | PostgreSQL, Supabase, Supabase Storage |
@@ -173,6 +175,7 @@ flowchart LR
 Las versiones exactas se administran en
 [`backend/pom.xml`](./backend/pom.xml) y
 [`mobile/gradle/libs.versions.toml`](./mobile/gradle/libs.versions.toml).
+La aplicación iOS no usa dependencias de terceros: solo frameworks de Apple.
 
 ## Estructura del repositorio
 
@@ -187,6 +190,11 @@ T4k4sh/
 ├── mobile/
 │   ├── app/src/main/          Aplicación Android
 │   └── gradle/                Catálogo de dependencias
+├── ios/
+│   ├── T4KASH.xcodeproj       Proyecto Xcode
+│   ├── T4KASH/                Aplicación iOS (SwiftUI)
+│   ├── T4KASHTests/           Pruebas unitarias
+│   └── README.md              Configuración, compilación y limitaciones
 ├── database/
 │   ├── schema-postgresql.sql  Esquema oficial
 │   └── sqlserver-original.sql Referencia histórica
@@ -209,6 +217,7 @@ controladores, servicios, repositorios, entidades y objetos de transferencia.
 - JDK 21.
 - Docker Desktop con Docker Compose.
 - Android Studio y un emulador o teléfono Android.
+- Para la aplicación iOS: macOS con Xcode 16 o superior.
 - Conexión a Internet para el entorno de demostración.
 
 ### Backend y PostgreSQL local
@@ -254,6 +263,21 @@ mobile/app/build/outputs/apk/debug/app-debug.apk
 ```
 
 `10.0.2.2` representa la computadora anfitriona desde el emulador de Android.
+
+### iOS
+
+```bash
+cd ios
+open T4KASH.xcodeproj
+```
+
+La URL de la API se configura con el build setting `T4KASH_API_BASE_URL`, y el
+identificador con `T4KASH_BUNDLE_ID`. El simulador comparte la red del Mac, así que
+para un backend local se usa `http://localhost:8080/api/`, no `10.0.2.2`.
+
+Los detalles de configuración, firma, verificación en Xcode y limitaciones conocidas
+están en [`ios/README.md`](./ios/README.md). El diagnóstico que guió la migración está
+en [`docs/IOS_MIGRATION_AUDIT.md`](./docs/IOS_MIGRATION_AUDIT.md).
 
 <details>
 <summary><strong>Variables de entorno</strong></summary>
@@ -386,6 +410,18 @@ cd mobile
 
 Se validan formatos, fechas, moneda, distancias, dominios institucionales, manejo del
 teclado y compilación del APK.
+
+### iOS
+
+```bash
+cd ios
+xcodebuild -project T4KASH.xcodeproj -scheme T4KASH \
+  -destination 'platform=iOS Simulator,name=iPhone 16' test
+```
+
+Se validan la construcción de peticiones, la autenticación Bearer, el mapeo de errores
+`ProblemDetail`, la decodificación de los modelos, el formato de fechas sin zona horaria,
+las validaciones de formulario, el cuerpo multipart y los ViewModel de acceso y marketplace.
 
 ## Despliegue
 
