@@ -8,7 +8,6 @@ struct TaskDetailView: View {
 
     @Environment(AppDependencies.self) private var dependencies
     @Environment(SessionStore.self) private var session
-    @Environment(\.dismiss) private var dismiss
 
     @State private var viewModel: TaskDetailViewModel?
     @State private var showApplySheet = false

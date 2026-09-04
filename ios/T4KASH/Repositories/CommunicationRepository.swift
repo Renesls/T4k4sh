@@ -46,7 +46,9 @@ struct CommunicationRepository {
 
     /// `POST /conversations/{id}/read` — sin cuerpo de respuesta.
     func markConversationRead(conversationId: Int) async throws {
-        try await client.send(.empty("conversations/\(conversationId)/read", method: .post))
+        try await client.sendIgnoringResponse(
+            .empty("conversations/\(conversationId)/read", method: .post)
+        )
     }
 
     /// `GET /notifications?page=&size=`
@@ -69,6 +71,8 @@ struct CommunicationRepository {
 
     /// `POST /notifications/read-all` — sin cuerpo de respuesta.
     func markAllNotificationsRead() async throws {
-        try await client.send(.empty("notifications/read-all", method: .post))
+        try await client.sendIgnoringResponse(
+            .empty("notifications/read-all", method: .post)
+        )
     }
 }

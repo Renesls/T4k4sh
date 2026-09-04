@@ -416,12 +416,12 @@ struct DeliveryRow: View {
 
             if !delivery.comentarios.isEmpty {
                 Divider().overlay(Theme.Color.border)
-                ForEach(delivery.comentarios) { comentario in
+                ForEach(delivery.comentarios) { entrada in
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(comentario.comentario)
+                        Text(entrada.comentario)
                             .font(Theme.Font.caption)
                             .foregroundStyle(Theme.Color.text)
-                        Text(DisplayFormatter.relative(comentario.fechaComentario))
+                        Text(DisplayFormatter.relative(entrada.fechaComentario))
                             .font(Theme.Font.caption)
                             .foregroundStyle(Theme.Color.textSoft)
                     }

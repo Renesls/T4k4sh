@@ -420,7 +420,7 @@ porque tocarían el backend en producción):
 | Riesgo | Impacto | Mitigación aplicada |
 |---|---|---|
 | Fechas sin zona horaria | Desfase de horas al mostrar | Decoder que interpreta `LocalDateTime` en **zona local del dispositivo**, igual que Android (`SimpleDateFormat` sin TZ) |
-| `BigDecimal` como `Double` | Pérdida de precisión en dinero | Se decodifica a `Decimal` mediante `Decimal(string:)` sobre el literal JSON, evitando el binario de `Double` |
+| `BigDecimal` como número JSON | Pérdida de precisión en dinero | Todos los importes se modelan como `Decimal`, nunca como `Double`, y el formateo pasa por `NSDecimalNumber`. **Pendiente de verificar en Xcode:** en el `JSONDecoder` de Foundation la ruta `Decimal` puede pasar por `Double` según la versión del runtime; con importes de dos decimales en córdobas no se observaron desviaciones, pero conviene comprobarlo con datos reales antes de producción |
 | Sin refresh token | Cierres de sesión abruptos | Interceptor 401 → limpieza de sesión + retorno a login con mensaje claro |
 | Free tier de Render | Arranque en frío ~50 s | `timeoutIntervalForRequest` amplio (45 s) y estados de carga explícitos |
 | Chat sin tiempo real | Mensajes no llegan solos | Igual que Android: **polling**; en iOS con `Task` cancelable cada 5 s solo con la vista visible |
