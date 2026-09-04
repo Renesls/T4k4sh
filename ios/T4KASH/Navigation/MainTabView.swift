@@ -58,8 +58,8 @@ struct MainTabView: View {
 
     /// Consulta los contadores reales de la API para los indicadores de pestaña.
     private func refreshBadges() async {
-        async let notifications = try? dependencies.communication.notifications(size: 50)
-        async let conversations = try? dependencies.communication.conversations(size: 50)
+        async let notifications = try? await dependencies.communication.notifications(size: 50)
+        async let conversations = try? await dependencies.communication.conversations(size: 50)
 
         unreadNotifications = (await notifications)?.filter { !$0.leida }.count ?? 0
         unreadMessages = (await conversations)?.reduce(0) { $0 + $1.mensajesNoLeidos } ?? 0
