@@ -62,7 +62,8 @@ public class PaymentService {
     private final PagaditoWebhookVerifier webhookVerifier;
     private final NotificationService notificationService;
     private final ObjectMapper objectMapper;
-    private final BigDecimal platformFeePercent;
+    private final BigDecimal clientFeePercent;
+    private final BigDecimal studentFeePercent;
     private final BigDecimal processorFeePercent;
     private final BigDecimal processorFixedFee;
     private final BigDecimal processorTaxPercent;
@@ -79,7 +80,8 @@ public class PaymentService {
             PagaditoWebhookVerifier webhookVerifier,
             NotificationService notificationService,
             ObjectMapper objectMapper,
-            @Value("${app.payments.platform-fee-percent:1.00}") BigDecimal platformFeePercent,
+            @Value("${app.payments.client-fee-percent:10.00}") BigDecimal clientFeePercent,
+            @Value("${app.payments.student-fee-percent:5.00}") BigDecimal studentFeePercent,
             @Value("${app.pagadito.processor-fee-percent:0}") BigDecimal processorFeePercent,
             @Value("${app.pagadito.processor-fixed-fee:0}") BigDecimal processorFixedFee,
             @Value("${app.pagadito.processor-tax-percent:0}") BigDecimal processorTaxPercent,
@@ -95,7 +97,8 @@ public class PaymentService {
         this.webhookVerifier = webhookVerifier;
         this.notificationService = notificationService;
         this.objectMapper = objectMapper;
-        this.platformFeePercent = platformFeePercent;
+        this.clientFeePercent = clientFeePercent;
+        this.studentFeePercent = studentFeePercent;
         this.processorFeePercent = processorFeePercent;
         this.processorFixedFee = processorFixedFee;
         this.processorTaxPercent = processorTaxPercent;
@@ -116,25 +119,32 @@ public class PaymentService {
                     "El pago en efectivo solo esta disponible para tareas presenciales."
             );
         }
-        BigDecimal studentAmount = money(
+        BigDecimal agreedAmount = money(
                 application.getPrecioPropuesto() == null
                         ? task.getPresupuesto()
                         : application.getPrecioPropuesto()
         );
-        if (studentAmount.signum() <= 0) {
+        if (agreedAmount.signum() <= 0) {
             throw new IllegalArgumentException("El monto acordado debe ser mayor que cero.");
         }
 
+        // El take rate se reparte entre las dos partes: el cliente paga su porcentaje
+        // por encima del precio acordado y al estudiante se le retiene el suyo del pago.
         boolean cash = METHOD_CASH.equals(method);
-        BigDecimal feePercent = cash ? BigDecimal.ZERO : platformFeePercent;
-        BigDecimal platformFee = percentage(studentAmount, feePercent);
+        BigDecimal clientPercent = cash ? BigDecimal.ZERO : clientFeePercent;
+        BigDecimal studentPercent = cash ? BigDecimal.ZERO : studentFeePercent;
+        BigDecimal feePercent = clientPercent.add(studentPercent);
+        BigDecimal clientFee = percentage(agreedAmount, clientPercent);
+        BigDecimal studentFee = percentage(agreedAmount, studentPercent);
+        BigDecimal studentAmount = money(agreedAmount.subtract(studentFee));
+        BigDecimal platformFee = money(clientFee.add(studentFee));
         BigDecimal processorFee = cash
                 ? BigDecimal.ZERO
-                : money(percentage(studentAmount, processorFeePercent).add(processorFixedFee));
+                : money(percentage(agreedAmount, processorFeePercent).add(processorFixedFee));
         BigDecimal processorTax = cash
                 ? BigDecimal.ZERO
                 : percentage(processorFee, processorTaxPercent);
-        BigDecimal total = money(studentAmount.add(platformFee).add(processorFee).add(processorTax));
+        BigDecimal total = money(agreedAmount.add(clientFee).add(processorFee).add(processorTax));
         LocalDateTime now = LocalDateTime.now();
 
         Pago payment = new Pago();

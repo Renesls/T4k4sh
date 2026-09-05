@@ -50,7 +50,8 @@ class PaymentServiceTest {
                 mock(PagaditoWebhookVerifier.class),
                 mock(NotificationService.class),
                 new ObjectMapper(),
-                new BigDecimal("1.00"),
+                new BigDecimal("10.00"),
+                new BigDecimal("5.00"),
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
@@ -65,7 +66,7 @@ class PaymentServiceTest {
     }
 
     @Test
-    void createsProtectedPaymentWithTransparentOnePercentFee() {
+    void createsProtectedPaymentSplittingTheTakeRateBetweenBothSides() {
         TrabajoAsignado job = job(30);
         Tarea task = task("REMOTA");
         Postulacion application = application(new BigDecimal("100.00"));
@@ -77,9 +78,10 @@ class PaymentServiceTest {
                 "PAGADITO"
         );
 
-        assertEquals(new BigDecimal("100.00"), response.montoEstudiante());
-        assertEquals(new BigDecimal("1.00"), response.comisionPlataforma());
-        assertEquals(new BigDecimal("101.00"), response.montoTotalCliente());
+        // Precio acordado C$ 100.00: el cliente paga 10 % encima y al estudiante se le retiene 5 %.
+        assertEquals(new BigDecimal("95.00"), response.montoEstudiante());
+        assertEquals(new BigDecimal("15.00"), response.comisionPlataforma());
+        assertEquals(new BigDecimal("110.00"), response.montoTotalCliente());
         assertEquals("PENDIENTE_PAGO", response.estadoPago());
         verify(movementRepository).save(any());
     }

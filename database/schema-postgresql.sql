@@ -277,7 +277,7 @@ CREATE TABLE pagos (
     tipo_cambio numeric(18,8),
     monto_procesamiento numeric(12,2),
     monto_estudiante numeric(12,2) NOT NULL,
-    porcentaje_comision_plataforma numeric(5,2) NOT NULL DEFAULT 1.00,
+    porcentaje_comision_plataforma numeric(5,2) NOT NULL DEFAULT 15.00,
     comision_plataforma numeric(12,2) NOT NULL DEFAULT 0,
     comision_procesador numeric(12,2) NOT NULL DEFAULT 0,
     impuesto_procesador numeric(12,2) NOT NULL DEFAULT 0,
