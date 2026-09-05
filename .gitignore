@@ -31,3 +31,10 @@ graphify-out/
 
 # Ignorar credenciales de Firebase
 *firebase-adminsdk*.json
+
+# Xcode / iOS
+ios/**/xcuserdata/
+ios/**/*.xcuserstate
+ios/build/
+ios/DerivedData/
+*.xcworkspace/xcuserdata/
