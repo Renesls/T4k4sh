@@ -34,7 +34,8 @@ Todo el contenido sale del código de la rama `Carlos`, no de supuestos.
 | Calificación mutua de 1 a 5 | `CalificacionService`, tabla `calificaciones`, `RatingActions.kt` |
 | Código 10 min, 60 s entre reenvíos, 5 intentos/15 min | README principal, Inicio de Sesión en Dos Pasos |
 | Radio 250 m – 5 km, tope C$ 1,000, doble confirmación | README principal, Uso del MVP |
-| 24 categorías, 5 universidades, 7 dominios | catálogos de `schema-postgresql.sql` |
+| 24 categorías | catálogo `categorias_tarea` de `schema-postgresql.sql` |
+| Radio máximo de búsqueda 50 km | README principal, Uso del MVP |
 | Android 7.0+ (`minSdk 24`) | `mobile/app/build.gradle.kts` |
 | Capturas de inicio, wallet y chat | `docs/capturas/` de la rama `ios-clean`, incrustadas como WebP en base64 |
 
