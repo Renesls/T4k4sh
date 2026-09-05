@@ -20,6 +20,7 @@ import com.t4kash.app.ui.service.ApiResult
 import com.t4kash.app.ui.service.AuthApiService
 import com.t4kash.app.ui.service.RetrofitClient
 import java.net.SocketTimeoutException
+import kotlinx.coroutines.CancellationException
 import org.json.JSONObject
 import retrofit2.HttpException
 import com.t4kash.app.ui.model.FcmTokenRequest
@@ -117,6 +118,7 @@ class AuthRepository(
 }
 
 private fun Exception.authMessage(): String {
+    if (this is CancellationException) throw this
     if (this is SocketTimeoutException) {
         return "La solicitud tardo demasiado. Intenta nuevamente."
     }

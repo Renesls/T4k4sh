@@ -6,6 +6,9 @@ import com.t4kash.api.identity.dto.AuthenticatedUserResponse;
 import com.t4kash.api.identity.dto.PublicIdentityResponse;
 import com.t4kash.api.identity.service.PublicProfileService;
 import com.t4kash.api.identity.web.CurrentUser;
+import com.t4kash.api.finance.dto.PaymentDisputeResponse;
+import com.t4kash.api.finance.dto.ResolvePaymentDisputeRequest;
+import com.t4kash.api.finance.service.PaymentDisputeService;
 import com.t4kash.api.marketplace.dto.TaskResponse;
 import com.t4kash.api.moderation.dto.ReportResponse;
 import com.t4kash.api.moderation.dto.ReviewReportRequest;
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -35,15 +39,18 @@ public class AdminController {
     private final AdminService adminService;
     private final ReportService reportService;
     private final PublicProfileService profileService;
+    private final PaymentDisputeService disputeService;
 
     public AdminController(
             AdminService adminService,
             ReportService reportService,
-            PublicProfileService profileService
+            PublicProfileService profileService,
+            PaymentDisputeService disputeService
     ) {
         this.adminService = adminService;
         this.reportService = reportService;
         this.profileService = profileService;
+        this.disputeService = disputeService;
     }
 
     @GetMapping("/summary")
@@ -54,8 +61,12 @@ public class AdminController {
 
     @GetMapping("/tasks")
     @Operation(summary = "Listar publicaciones para moderacion")
-    public List<TaskResponse> listTasks(@CurrentUser(role = "ADMIN") AuthenticatedUserResponse admin) {
-        List<TaskResponse> tasks = adminService.listTasks();
+    public List<TaskResponse> listTasks(
+            @CurrentUser(role = "ADMIN") AuthenticatedUserResponse admin,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size
+    ) {
+        List<TaskResponse> tasks = adminService.listTasks(page, size);
         Map<Integer, PublicIdentityResponse> identities = profileService.getIdentities(
                 tasks.stream().map(TaskResponse::idCliente).toList()
         );
@@ -82,8 +93,12 @@ public class AdminController {
 
     @GetMapping("/reports")
     @Operation(summary = "Listar reportes de moderacion")
-    public List<ReportResponse> listReports(@CurrentUser(role = "ADMIN") AuthenticatedUserResponse admin) {
-        return reportService.listAll();
+    public List<ReportResponse> listReports(
+            @CurrentUser(role = "ADMIN") AuthenticatedUserResponse admin,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size
+    ) {
+        return reportService.listAll(page, size);
     }
 
     @PostMapping("/reports/{reportId}/review")
@@ -101,6 +116,26 @@ public class AdminController {
                 clientIp(servletRequest),
                 servletRequest.getHeader(HttpHeaders.USER_AGENT)
         );
+    }
+
+    @GetMapping("/payment-disputes")
+    @Operation(summary = "Listar disputas financieras activas")
+    public List<PaymentDisputeResponse> listPaymentDisputes(
+            @CurrentUser(role = "ADMIN") AuthenticatedUserResponse admin,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size
+    ) {
+        return disputeService.listActiveForAdmin(page, size);
+    }
+
+    @PostMapping("/payment-disputes/{disputeId}/resolve")
+    @Operation(summary = "Resolver una disputa financiera Sandbox")
+    public PaymentDisputeResponse resolvePaymentDispute(
+            @CurrentUser(role = "ADMIN") AuthenticatedUserResponse admin,
+            @PathVariable Integer disputeId,
+            @Valid @RequestBody ResolvePaymentDisputeRequest request
+    ) {
+        return disputeService.resolve(admin.idUsuario(), disputeId, request);
     }
 
     private String clientIp(HttpServletRequest request) {

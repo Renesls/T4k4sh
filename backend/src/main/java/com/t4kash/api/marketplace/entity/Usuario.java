@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "usuarios")
@@ -16,6 +17,9 @@ public class Usuario {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_usuario")
     private Integer idUsuario;
+
+    @Column(name = "uuid_publico", nullable = false, updatable = false)
+    private UUID uuidPublico;
 
     @Column(name = "nombre", nullable = false, length = 80)
     private String nombre;
@@ -50,6 +54,14 @@ public class Usuario {
 
     public void setIdUsuario(Integer idUsuario) {
         this.idUsuario = idUsuario;
+    }
+
+    public UUID getUuidPublico() {
+        return uuidPublico;
+    }
+
+    public void setUuidPublico(UUID uuidPublico) {
+        this.uuidPublico = uuidPublico;
     }
 
     public String getNombre() {

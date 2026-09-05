@@ -6,7 +6,9 @@ import com.t4kash.app.ui.model.AdminSummaryDto
 import com.t4kash.app.ui.model.AttachmentDto
 import com.t4kash.app.ui.model.CategoryDto
 import com.t4kash.app.ui.model.CreateApplicationRequest
+import com.t4kash.app.ui.model.CreateDeliveryCommentRequest
 import com.t4kash.app.ui.model.CreateDeliveryRequest
+import com.t4kash.app.ui.model.CreatePaymentDisputeRequest
 import com.t4kash.app.ui.model.CreateTaskRequest
 import com.t4kash.app.ui.model.CreateTaskReportRequest
 import com.t4kash.app.ui.model.CreateRatingRequest
@@ -15,7 +17,10 @@ import com.t4kash.app.ui.model.RatingDto
 import com.t4kash.app.ui.model.JobDto
 import com.t4kash.app.ui.model.CheckoutDto
 import com.t4kash.app.ui.model.PaymentDto
+import com.t4kash.app.ui.model.PaymentDisputeDto
 import com.t4kash.app.ui.model.QuickTaskDto
+import com.t4kash.app.ui.model.RequestDeliveryChangesRequest
+import com.t4kash.app.ui.model.ResolvePaymentDisputeRequest
 import com.t4kash.app.ui.model.WalletDto
 import com.t4kash.app.ui.model.ReviewStudentVerificationRequest
 import com.t4kash.app.ui.model.ReviewReportRequest
@@ -38,7 +43,10 @@ interface MarketplaceApiService {
     suspend fun getCategories(): List<CategoryDto>
 
     @GET("tasks")
-    suspend fun getTasks(): List<TaskDto>
+    suspend fun getTasks(
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 50
+    ): List<TaskDto>
 
     @POST("tasks")
     suspend fun createTask(@Body request: CreateTaskRequest): TaskDto
@@ -115,8 +123,23 @@ interface MarketplaceApiService {
         @Body request: CreateRatingRequest
     ): RatingDto
 
+    @POST("deliveries/{deliveryId}/request-changes")
+    suspend fun requestDeliveryChanges(
+        @Path("deliveryId") deliveryId: Int,
+        @Body request: RequestDeliveryChangesRequest
+    ): DeliveryDto
+
+    @POST("deliveries/{deliveryId}/comments")
+    suspend fun commentDelivery(
+        @Path("deliveryId") deliveryId: Int,
+        @Body request: CreateDeliveryCommentRequest
+    ): DeliveryDto
+
     @GET("wallet")
-    suspend fun getWallet(): WalletDto
+    suspend fun getWallet(
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 50
+    ): WalletDto
 
     @POST("jobs/{jobId}/payment/checkout")
     suspend fun createPaymentCheckout(
@@ -132,6 +155,12 @@ interface MarketplaceApiService {
     suspend fun refreshPayment(
         @Path("paymentId") paymentId: Int
     ): PaymentDto
+
+    @POST("payments/{paymentId}/disputes")
+    suspend fun openPaymentDispute(
+        @Path("paymentId") paymentId: Int,
+        @Body request: CreatePaymentDisputeRequest
+    ): PaymentDisputeDto
 
     @GET("tasks/{taskId}/attachments")
     suspend fun getTaskAttachments(
@@ -170,16 +199,28 @@ interface MarketplaceApiService {
     ): ReportDto
 
     @GET("reports/me")
-    suspend fun getMyReports(): List<ReportDto>
+    suspend fun getMyReports(
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 50
+    ): List<ReportDto>
 
     @GET("admin/summary")
     suspend fun getAdminSummary(): AdminSummaryDto
 
     @GET("admin/tasks")
-    suspend fun getAdminTasks(): List<TaskDto>
+    suspend fun getAdminTasks(
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 50
+    ): List<TaskDto>
 
     @GET("admin/reports")
-    suspend fun getAdminReports(): List<ReportDto>
+    suspend fun getAdminReports(
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 50
+    ): List<ReportDto>
+
+    @GET("admin/payment-disputes")
+    suspend fun getAdminPaymentDisputes(): List<PaymentDisputeDto>
 
     @DELETE("admin/tasks/{taskId}")
     suspend fun cancelTaskAsAdmin(
@@ -191,6 +232,12 @@ interface MarketplaceApiService {
         @Path("reportId") reportId: Int,
         @Body request: ReviewReportRequest
     ): ReportDto
+
+    @POST("admin/payment-disputes/{disputeId}/resolve")
+    suspend fun resolvePaymentDispute(
+        @Path("disputeId") disputeId: Int,
+        @Body request: ResolvePaymentDisputeRequest
+    ): PaymentDisputeDto
 
     @GET("student-verifications/pending")
     suspend fun getPendingStudentVerifications(): List<StudentVerificationDto>

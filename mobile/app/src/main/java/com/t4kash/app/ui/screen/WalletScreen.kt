@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,21 +19,29 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -45,6 +54,9 @@ import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4TopBar
 import com.t4kash.app.ui.formatNioCurrency
 import com.t4kash.app.ui.model.PaymentDto
+import com.t4kash.app.ui.model.PaymentDisputeDto
+import com.t4kash.app.ui.model.PayoutDto
+import com.t4kash.app.ui.model.RefundDto
 import com.t4kash.app.ui.model.WalletMovementDto
 import com.t4kash.app.ui.theme.T4Background
 import com.t4kash.app.ui.theme.T4Border
@@ -64,6 +76,23 @@ fun WalletScreen(
     val state = viewModel.uiState
     val wallet = state.wallet
     val uriHandler = LocalUriHandler.current
+    var disputeTarget by remember { mutableStateOf<PaymentDto?>(null) }
+
+    disputeTarget?.let { payment ->
+        PaymentDisputeDialog(
+            payment = payment,
+            onDismiss = { disputeTarget = null },
+            onConfirm = { reason, description, requestedSolution ->
+                viewModel.openPaymentDispute(
+                    payment.idPago,
+                    reason,
+                    description,
+                    requestedSolution
+                )
+                disputeTarget = null
+            }
+        )
+    }
 
     LaunchedEffect(Unit) {
         viewModel.loadWallet()
@@ -170,15 +199,44 @@ fun WalletScreen(
                                         job.idTrabajo == payment.idTrabajo
                                     }?.idTarea
                                 }?.titulo,
-                                processing = state.processingPaymentId == payment.idPago,
+                                processing = state.processingPaymentId == payment.idPago ||
+                                    state.openingDisputePaymentId == payment.idPago,
                                 onPay = {
                                     viewModel.openPaymentCheckout(
                                         payment.idTrabajo,
                                         payment.idPago
                                     )
                                 },
-                                onRefresh = { viewModel.refreshPayment(payment.idPago) }
+                                onRefresh = { viewModel.refreshPayment(payment.idPago) },
+                                onDispute = { disputeTarget = payment }
                             )
+                        }
+                    }
+
+                    if (wallet.disputas.isNotEmpty()) {
+                        item {
+                            SectionTitle("Disputas", "Fondos congelados y resoluciones")
+                        }
+                        items(wallet.disputas, key = { it.idDisputa }) { dispute ->
+                            DisputeCard(dispute)
+                        }
+                    }
+
+                    if (wallet.desembolsos.isNotEmpty()) {
+                        item {
+                            SectionTitle("Desembolsos", "Ganancias liberadas en Sandbox")
+                        }
+                        items(wallet.desembolsos, key = { it.idDesembolso }) { payout ->
+                            PayoutCard(payout)
+                        }
+                    }
+
+                    if (wallet.reembolsos.isNotEmpty()) {
+                        item {
+                            SectionTitle("Reembolsos", "Devoluciones confirmadas en Sandbox")
+                        }
+                        items(wallet.reembolsos, key = { it.idReembolso }) { refund ->
+                            RefundCard(refund)
                         }
                     }
 
@@ -281,7 +339,8 @@ private fun PaymentCard(
     taskTitle: String?,
     processing: Boolean,
     onPay: () -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    onDispute: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -373,8 +432,154 @@ private fun PaymentCard(
                             Text("Actualizar")
                         }
                     }
+                    if (payment.estadoPago == "FONDOS_RETENIDOS") {
+                        OutlinedButton(onClick = onDispute, modifier = Modifier.weight(1f)) {
+                            Icon(Icons.Filled.Gavel, contentDescription = null)
+                            Spacer(modifier = Modifier.size(6.dp))
+                            Text("Disputar")
+                        }
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun PaymentDisputeDialog(
+    payment: PaymentDto,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String, String) -> Unit
+) {
+    var reason by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var requestedSolution by remember { mutableStateOf("PAGO_ESTUDIANTE") }
+    val valid = reason.isNotBlank() && description.trim().length >= 10
+
+    AlertDialog(
+        modifier = Modifier.imePadding(),
+        onDismissRequest = onDismiss,
+        title = { Text("Abrir disputa del pago #${payment.idPago}") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "El monto completo quedara congelado hasta que administracion revise el caso.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                OutlinedTextField(
+                    value = reason,
+                    onValueChange = { reason = it.take(120) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Motivo") },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it.take(1000) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Explica lo sucedido") },
+                    minLines = 3
+                )
+                Text("Solucion solicitada", fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { requestedSolution = "PAGO_ESTUDIANTE" },
+                        modifier = Modifier.weight(1f),
+                        border = BorderStroke(
+                            1.dp,
+                            if (requestedSolution == "PAGO_ESTUDIANTE") T4Primary else T4Border
+                        )
+                    ) {
+                        Text("Liberar pago")
+                    }
+                    OutlinedButton(
+                        onClick = { requestedSolution = "REEMBOLSO_CLIENTE" },
+                        modifier = Modifier.weight(1f),
+                        border = BorderStroke(
+                            1.dp,
+                            if (requestedSolution == "REEMBOLSO_CLIENTE") T4Primary else T4Border
+                        )
+                    ) {
+                        Text("Reembolsar")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = valid,
+                onClick = {
+                    onConfirm(reason.trim(), description.trim(), requestedSolution)
+                }
+            ) {
+                Text("Congelar fondos")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
+        }
+    )
+}
+
+@Composable
+private fun DisputeCard(dispute: PaymentDisputeDto) {
+    FinancialStatusCard(
+        icon = Icons.Filled.Gavel,
+        title = dispute.motivo,
+        subtitle = "Pago #${dispute.idPago} · ${dispute.estadoDisputa.toPaymentLabel()}",
+        amount = dispute.montoDisputado,
+        detail = dispute.resolucion ?: dispute.descripcion
+    )
+}
+
+@Composable
+private fun PayoutCard(payout: PayoutDto) {
+    FinancialStatusCard(
+        icon = Icons.Filled.Payments,
+        title = "Desembolso ${payout.estadoDesembolso.toPaymentLabel()}",
+        subtitle = "Pago #${payout.idPago} · ${payout.proveedorDesembolso}",
+        amount = payout.montoDesembolso,
+        detail = "Ganancia registrada para el estudiante."
+    )
+}
+
+@Composable
+private fun RefundCard(refund: RefundDto) {
+    FinancialStatusCard(
+        icon = Icons.Filled.Refresh,
+        title = "Reembolso ${refund.estadoReembolso.toPaymentLabel()}",
+        subtitle = "Pago #${refund.idPago}",
+        amount = refund.montoReembolso,
+        detail = refund.motivo
+    )
+}
+
+@Composable
+private fun FinancialStatusCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    amount: Double,
+    detail: String
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = T4Surface),
+        border = BorderStroke(1.dp, T4Border.copy(alpha = 0.7f))
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Icon(icon, contentDescription = null, tint = T4Primary)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, fontWeight = FontWeight.Bold, color = T4Text)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = T4TextMuted)
+                Text(detail, style = MaterialTheme.typography.bodySmall, color = T4TextMuted)
+            }
+            Text(formatNioCurrency(amount), fontWeight = FontWeight.Bold, color = T4Text)
         }
     }
 }
@@ -452,7 +657,9 @@ private fun String.toPaymentLabel(): String = lowercase()
 
 private fun String.isFinalPayment(): Boolean = this in setOf(
     "FONDOS_RETENIDOS",
+    "EN_DISPUTA",
     "PAGO_LIBERADO",
+    "REEMBOLSADO",
     "PAGO_EXTERNO_CONFIRMADO",
     "PAGO_REVOCADO"
 )

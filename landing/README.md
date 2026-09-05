@@ -28,9 +28,9 @@ Todo el contenido sale del código de la rama `Carlos`, no de supuestos.
 | Comisión 0 % en efectivo | `cash ? BigDecimal.ZERO : ...` en ambos porcentajes |
 | Moneda NIO | `schema-postgresql.sql` (`moneda_cobro DEFAULT 'NIO'`) |
 | Estados `PENDIENTE_PAGO`, `FONDOS_RETENIDOS`, `PAGO_LIBERADO` | `finance/service/PaymentService.java` |
-| 67 endpoints REST | mapeos `@*Mapping` en `backend/src/main/java` (10 controladores) |
-| 47 tablas | `CREATE TABLE` en `database/schema-postgresql.sql` |
-| 89 pruebas: 68 backend + 21 Android | `@Test` en `backend/src/test` y `mobile/app/src/test` |
+| 92 endpoints REST | mapeos `@*Mapping` en `backend/src/main/java` (12 controladores) |
+| 54 tablas | `CREATE TABLE` en `database/schema-postgresql.sql` |
+| 131 pruebas: 108 backend + 23 Android | `@Test` en `backend/src/test` y `mobile/app/src/test` |
 | Calificación mutua de 1 a 5 | `CalificacionService`, tabla `calificaciones`, `RatingActions.kt` |
 | Código 10 min, 60 s entre reenvíos, 5 intentos/15 min | README principal, Inicio de Sesión en Dos Pasos |
 | Radio 250 m – 5 km, tope C$ 1,000, doble confirmación | README principal, Uso del MVP |

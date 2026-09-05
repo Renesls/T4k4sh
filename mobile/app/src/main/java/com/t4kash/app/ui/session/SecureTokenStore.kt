@@ -4,6 +4,7 @@ import android.content.SharedPreferences
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import androidx.core.content.edit
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -17,10 +18,10 @@ class SecureTokenStore(
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey())
         val encrypted = cipher.doFinal(token.toByteArray(Charsets.UTF_8))
-        preferences.edit()
-            .putString(KEY_ENCRYPTED_TOKEN, encrypted.toBase64())
-            .putString(KEY_TOKEN_IV, cipher.iv.toBase64())
-            .apply()
+        preferences.edit {
+            putString(KEY_ENCRYPTED_TOKEN, encrypted.toBase64())
+            putString(KEY_TOKEN_IV, cipher.iv.toBase64())
+        }
     }
 
     fun read(): String? {
@@ -51,10 +52,10 @@ class SecureTokenStore(
     }
 
     fun clear() {
-        preferences.edit()
-            .remove(KEY_ENCRYPTED_TOKEN)
-            .remove(KEY_TOKEN_IV)
-            .apply()
+        preferences.edit {
+            remove(KEY_ENCRYPTED_TOKEN)
+            remove(KEY_TOKEN_IV)
+        }
     }
 
     private fun getOrCreateKey(): SecretKey {

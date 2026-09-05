@@ -1,9 +1,11 @@
 package com.t4kash.app.ui.viewmodel
 
 import com.t4kash.app.ui.model.AttachmentDto
+import com.t4kash.app.ui.model.CreateDeliveryCommentRequest
 import com.t4kash.app.ui.model.CreateDeliveryRequest
 import com.t4kash.app.ui.model.DeliveryDto
 import com.t4kash.app.ui.model.PendingAttachment
+import com.t4kash.app.ui.model.RequestDeliveryChangesRequest
 import com.t4kash.app.ui.repository.MarketplaceRepository
 import com.t4kash.app.ui.service.ApiResult
 import kotlinx.coroutines.CoroutineScope
@@ -234,6 +236,73 @@ internal class DeliveryActions(
         }
     }
 
+    fun requestChanges(delivery: DeliveryDto, observation: String) {
+        scope.launch {
+            updateState {
+                it.copy(
+                    reviewingDeliveryId = delivery.idEntrega,
+                    deliveriesError = null,
+                    deliveryActionMessage = null
+                )
+            }
+            when (
+                val result = repository.requestDeliveryChanges(
+                    delivery.idEntrega,
+                    RequestDeliveryChangesRequest(observation.trim())
+                )
+            ) {
+                is ApiResult.Success -> updateState { current ->
+                    current.copy(
+                        reviewingDeliveryId = null,
+                        deliveries = current.deliveries.replaceDelivery(result.data),
+                        deliveryActionMessage =
+                            "Cambios solicitados. El estudiante ya puede enviar una nueva versión."
+                    )
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        reviewingDeliveryId = null,
+                        deliveriesError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun comment(delivery: DeliveryDto, comment: String) {
+        scope.launch {
+            updateState {
+                it.copy(
+                    commentingDeliveryId = delivery.idEntrega,
+                    deliveriesError = null,
+                    deliveryActionMessage = null
+                )
+            }
+            when (
+                val result = repository.commentDelivery(
+                    delivery.idEntrega,
+                    CreateDeliveryCommentRequest(comment.trim())
+                )
+            ) {
+                is ApiResult.Success -> updateState { current ->
+                    current.copy(
+                        commentingDeliveryId = null,
+                        deliveries = current.deliveries.replaceDelivery(result.data),
+                        deliveryActionMessage = "Comentario registrado."
+                    )
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        commentingDeliveryId = null,
+                        deliveriesError = result.message
+                    )
+                }
+            }
+        }
+    }
+
     fun clearFeedback() {
         updateState {
             it.copy(
@@ -241,5 +310,11 @@ internal class DeliveryActions(
                 deliveryActionMessage = null
             )
         }
+    }
+}
+
+private fun List<DeliveryDto>.replaceDelivery(updated: DeliveryDto): List<DeliveryDto> {
+    return map { delivery ->
+        if (delivery.idEntrega == updated.idEntrega) updated else delivery
     }
 }

@@ -341,6 +341,14 @@ class MarketplaceViewModel(
         deliveryActions.approve(delivery)
     }
 
+    fun requestDeliveryChanges(delivery: DeliveryDto, observation: String) {
+        deliveryActions.requestChanges(delivery, observation)
+    }
+
+    fun commentDelivery(delivery: DeliveryDto, comment: String) {
+        deliveryActions.comment(delivery, comment)
+    }
+
     fun clearDeliveryFeedback() {
         deliveryActions.clearFeedback()
     }
@@ -436,6 +444,49 @@ class MarketplaceViewModel(
                 is ApiResult.Error -> updateState {
                     it.copy(
                         processingPaymentId = null,
+                        walletError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun openPaymentDispute(
+        paymentId: Int,
+        reason: String,
+        description: String,
+        requestedSolution: String
+    ) {
+        if (uiState.openingDisputePaymentId != null) return
+        viewModelScope.launch {
+            updateState {
+                it.copy(
+                    openingDisputePaymentId = paymentId,
+                    walletError = null,
+                    paymentMessage = null
+                )
+            }
+            when (
+                val result = repository.openPaymentDispute(
+                    paymentId,
+                    reason,
+                    description,
+                    requestedSolution
+                )
+            ) {
+                is ApiResult.Success -> {
+                    updateState {
+                        it.copy(
+                            openingDisputePaymentId = null,
+                            paymentMessage = "Disputa abierta; los fondos quedaron congelados."
+                        )
+                    }
+                    loadWallet()
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        openingDisputePaymentId = null,
                         walletError = result.message
                     )
                 }
@@ -605,6 +656,7 @@ class MarketplaceViewModel(
                         adminSummary = result.data.summary,
                         adminTasks = result.data.tasks,
                         adminReports = result.data.reports,
+                        adminPaymentDisputes = result.data.paymentDisputes,
                         pendingStudentVerifications = result.data.verifications
                     )
                 }
@@ -724,6 +776,50 @@ class MarketplaceViewModel(
                             "Reporte marcado como resuelto."
                         } else {
                             "Reporte descartado."
+                        }
+                    )
+                }
+
+                is ApiResult.Error -> updateState {
+                    it.copy(
+                        adminActionKey = null,
+                        adminError = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun resolvePaymentDispute(
+        disputeId: Int,
+        decision: String,
+        resolution: String
+    ) {
+        viewModelScope.launch {
+            updateState {
+                it.copy(
+                    adminActionKey = "dispute:$disputeId",
+                    adminError = null,
+                    adminMessage = null
+                )
+            }
+            when (
+                val result = repository.resolvePaymentDispute(
+                    disputeId,
+                    decision,
+                    resolution
+                )
+            ) {
+                is ApiResult.Success -> updateState { current ->
+                    current.copy(
+                        adminActionKey = null,
+                        adminPaymentDisputes = current.adminPaymentDisputes.filterNot {
+                            it.idDisputa == disputeId
+                        },
+                        adminMessage = if (decision == "LIBERAR_ESTUDIANTE") {
+                            "Disputa resuelta y desembolso Sandbox confirmado."
+                        } else {
+                            "Disputa resuelta y reembolso Sandbox confirmado."
                         }
                     )
                 }

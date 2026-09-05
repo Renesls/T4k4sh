@@ -12,6 +12,7 @@ import com.t4kash.app.ui.model.StudentVerificationDto
 import com.t4kash.app.ui.model.ReportDto
 import com.t4kash.app.ui.model.QuickTaskDto
 import com.t4kash.app.ui.model.WalletDto
+import com.t4kash.app.ui.model.PaymentDisputeDto
 
 data class MarketplaceUiState(
     val isLoading: Boolean = false,
@@ -44,6 +45,8 @@ data class MarketplaceUiState(
     val deliveriesError: String? = null,
     val isSendingDelivery: Boolean = false,
     val approvingDeliveryId: Int? = null,
+    val reviewingDeliveryId: Int? = null,
+    val commentingDeliveryId: Int? = null,
     val deliveryActionMessage: String? = null,
     val loadedRatingsJobId: Int? = null,
     val ratings: List<RatingDto> = emptyList(),
@@ -78,6 +81,7 @@ data class MarketplaceUiState(
     val adminSummary: AdminSummaryDto? = null,
     val adminTasks: List<TaskDto> = emptyList(),
     val adminReports: List<ReportDto> = emptyList(),
+    val adminPaymentDisputes: List<PaymentDisputeDto> = emptyList(),
     val pendingStudentVerifications: List<StudentVerificationDto> = emptyList(),
     val isLoadingAdmin: Boolean = false,
     val adminActionKey: String? = null,
@@ -89,6 +93,7 @@ data class MarketplaceUiState(
     val processingPaymentId: Int? = null,
     val checkoutUrl: String? = null,
     val paymentMessage: String? = null,
+    val openingDisputePaymentId: Int? = null,
     val quickTasks: List<QuickTaskDto> = emptyList(),
     val isLoadingQuickTasks: Boolean = false,
     val quickTasksError: String? = null,

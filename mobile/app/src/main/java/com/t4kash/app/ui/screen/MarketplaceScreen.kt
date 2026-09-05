@@ -66,7 +66,7 @@ import com.t4kash.app.ui.components.SearchableSelectionDialog
 import com.t4kash.app.ui.components.SelectionOption
 import com.t4kash.app.ui.components.StatusChip
 import com.t4kash.app.ui.components.T4BottomBar
-import com.t4kash.app.ui.components.isSoftwareKeyboardVisible
+import com.t4kash.app.ui.components.T4BrandMark
 import com.t4kash.app.ui.components.keepVisibleAboveKeyboard
 import com.t4kash.app.ui.components.t4CategoryColors
 import com.t4kash.app.ui.formatNioCurrency
@@ -96,11 +96,11 @@ fun MarketplaceScreen(
     onTaskSelected: (TaskDto) -> Unit = {},
     onOpenMap: () -> Unit = {},
     onOpenQuickTasks: () -> Unit = {},
+    onOpenProfile: () -> Unit = {},
     onOpenNotifications: () -> Unit = {},
     unreadNotifications: Int = 0
 ) {
     val state = viewModel.uiState
-    val keyboardVisible = isSoftwareKeyboardVisible()
     var query by remember { mutableStateOf("") }
     var selectedCategoryId by remember { mutableIntStateOf(0) }
     var showCategoryDialog by remember { mutableStateOf(false) }
@@ -145,21 +145,20 @@ fun MarketplaceScreen(
             HomeTopBar(
                 user = user,
                 unreadNotifications = unreadNotifications,
-                onOpenNotifications = onOpenNotifications
+                onOpenNotifications = onOpenNotifications,
+                onOpenProfile = onOpenProfile
             )
         },
         bottomBar = {
-            if (!keyboardVisible) {
-                T4BottomBar(
-                    currentRoute = currentRoute,
-                    onNavigate = onNavigate,
-                    onReselect = { route ->
-                        if (route == Routes.MARKETPLACE && !state.isLoading) {
-                            viewModel.refresh(force = true)
-                        }
+            T4BottomBar(
+                currentRoute = currentRoute,
+                onNavigate = onNavigate,
+                onReselect = { route ->
+                    if (route == Routes.MARKETPLACE && !state.isLoading) {
+                        viewModel.refresh(force = true)
                     }
-                )
-            }
+                }
+            )
         }
     ) { innerPadding ->
         PullToRefreshBox(
@@ -338,7 +337,8 @@ private fun QuickTaskBanner(onClick: () -> Unit) {
 private fun HomeTopBar(
     user: SessionUser?,
     unreadNotifications: Int,
-    onOpenNotifications: () -> Unit
+    onOpenNotifications: () -> Unit,
+    onOpenProfile: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -349,18 +349,24 @@ private fun HomeTopBar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
-            Text(
-                text = "Hola,",
-                style = MaterialTheme.typography.labelMedium,
-                color = T4TextMuted
-            )
-            Text(
-                text = user?.firstName?.ifBlank { "T4KASH" } ?: "T4KASH",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.ExtraBold,
-                color = T4Text
-            )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            T4BrandMark(showName = false)
+            Column {
+                Text(
+                    text = "Hola,",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = T4TextMuted
+                )
+                Text(
+                    text = user?.firstName?.ifBlank { "T4KASH" } ?: "T4KASH",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = T4Text
+                )
+            }
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -389,7 +395,9 @@ private fun HomeTopBar(
                 }
             }
             Surface(
-                modifier = Modifier.size(44.dp),
+                modifier = Modifier
+                    .size(44.dp)
+                    .clickable(onClick = onOpenProfile),
                 shape = RoundedCornerShape(12.dp),
                 color = T4Primary
             ) {

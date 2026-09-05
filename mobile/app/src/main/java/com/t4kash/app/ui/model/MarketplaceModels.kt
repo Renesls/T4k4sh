@@ -115,13 +115,69 @@ data class WalletMovementDto(
     val fechaRegistro: String
 )
 
+data class CreatePaymentDisputeRequest(
+    val motivo: String,
+    val descripcion: String,
+    val solucionSolicitada: String
+)
+
+data class ResolvePaymentDisputeRequest(
+    val decision: String,
+    val resolucion: String
+)
+
+data class PaymentDisputeDto(
+    val idDisputa: Int,
+    val idPago: Int,
+    val idUsuarioAbre: Int,
+    val idAdminAsignado: Int?,
+    val motivo: String,
+    val descripcion: String,
+    val solucionSolicitada: String,
+    val montoDisputado: Double,
+    val estadoDisputa: String,
+    val prioridad: String,
+    val fechaApertura: String,
+    val fechaLimiteRespuesta: String?,
+    val fechaActualizacion: String,
+    val fechaResolucion: String?,
+    val resolucion: String?
+)
+
+data class RefundDto(
+    val idReembolso: Int,
+    val idPago: Int,
+    val idDisputa: Int?,
+    val montoReembolso: Double,
+    val moneda: String,
+    val motivo: String,
+    val estadoReembolso: String,
+    val fechaSolicitud: String,
+    val fechaConfirmacion: String?
+)
+
+data class PayoutDto(
+    val idDesembolso: Int,
+    val idPago: Int,
+    val idEstudiante: Int,
+    val montoDesembolso: Double,
+    val moneda: String,
+    val proveedorDesembolso: String,
+    val estadoDesembolso: String,
+    val fechaCreacion: String,
+    val fechaConfirmacion: String?
+)
+
 data class WalletDto(
     val moneda: String,
     val balanceDisponible: Double,
     val fondosRetenidos: Double,
     val totalGanado: Double,
     val pagos: List<PaymentDto>,
-    val movimientos: List<WalletMovementDto>
+    val movimientos: List<WalletMovementDto>,
+    val disputas: List<PaymentDisputeDto>,
+    val reembolsos: List<RefundDto>,
+    val desembolsos: List<PayoutDto>
 )
 
 data class JobDto(
@@ -139,12 +195,41 @@ data class CreateDeliveryRequest(
     val descripcionEntrega: String
 )
 
+data class RequestDeliveryChangesRequest(
+    val observacion: String
+)
+
+data class CreateDeliveryCommentRequest(
+    val comentario: String
+)
+
+data class DeliveryCommentDto(
+    val idComentarioEntrega: Int,
+    val idEntrega: Int,
+    val idUsuario: Int,
+    val comentario: String,
+    val tipoComentario: String,
+    val fechaComentario: String
+)
+
+data class DeliveryReviewDto(
+    val idRevisionEntrega: Int,
+    val idEntrega: Int,
+    val idUsuarioRevisa: Int,
+    val resultadoRevision: String,
+    val observacion: String?,
+    val fechaRevision: String,
+    val estadoRevision: String
+)
+
 data class DeliveryDto(
     val idEntrega: Int,
     val idTrabajo: Int,
     val descripcionEntrega: String,
     val fechaEntrega: String,
-    val estadoEntrega: String
+    val estadoEntrega: String,
+    val comentarios: List<DeliveryCommentDto> = emptyList(),
+    val revisiones: List<DeliveryReviewDto> = emptyList()
 )
 
 data class CreateRatingRequest(
@@ -166,7 +251,8 @@ data class RatingDto(
 data class PendingAttachment(
     val name: String,
     val mimeType: String,
-    val content: ByteArray
+    val localPath: String,
+    val sizeBytes: Long
 )
 
 data class AttachmentDto(
@@ -215,7 +301,8 @@ data class AdminDashboardData(
     val summary: AdminSummaryDto,
     val verifications: List<StudentVerificationDto>,
     val reports: List<ReportDto>,
-    val tasks: List<TaskDto>
+    val tasks: List<TaskDto>,
+    val paymentDisputes: List<PaymentDisputeDto>
 )
 
 data class CreateTaskReportRequest(

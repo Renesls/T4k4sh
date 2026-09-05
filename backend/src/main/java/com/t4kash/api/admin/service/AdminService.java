@@ -62,6 +62,11 @@ public class AdminService {
     }
 
     @Transactional
+    public List<TaskResponse> listTasks(int page, int size) {
+        return taskService.listTasksForAdmin(page, size);
+    }
+
+    @Transactional
     public TaskResponse cancelTask(
             Integer adminUserId,
             Integer taskId,

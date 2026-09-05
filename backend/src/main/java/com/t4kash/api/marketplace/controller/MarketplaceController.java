@@ -8,6 +8,7 @@ import com.t4kash.api.finance.dto.AcceptApplicationRequest;
 import com.t4kash.api.marketplace.dto.ApplicationResponse;
 import com.t4kash.api.marketplace.dto.CategoriaResponse;
 import com.t4kash.api.marketplace.dto.CreateApplicationRequest;
+import com.t4kash.api.marketplace.dto.CreateDeliveryCommentRequest;
 import com.t4kash.api.marketplace.dto.CreateDeliveryRequest;
 import com.t4kash.api.marketplace.dto.CreateRatingRequest;
 import com.t4kash.api.marketplace.dto.CreateTaskRequest;
@@ -15,6 +16,7 @@ import com.t4kash.api.marketplace.dto.DeliveryResponse;
 import com.t4kash.api.marketplace.dto.JobResponse;
 import com.t4kash.api.marketplace.dto.QuickTaskResponse;
 import com.t4kash.api.marketplace.dto.RatingResponse;
+import com.t4kash.api.marketplace.dto.RequestDeliveryChangesRequest;
 import com.t4kash.api.marketplace.dto.TaskResponse;
 import com.t4kash.api.marketplace.service.ApplicationService;
 import com.t4kash.api.marketplace.service.CalificacionService;
@@ -75,8 +77,11 @@ public class MarketplaceController {
 
     @GetMapping("/tasks")
     @Operation(summary = "Listar oportunidades")
-    public List<TaskResponse> listTasks() {
-        return enrichTasks(taskService.listTasks());
+    public List<TaskResponse> listTasks(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size
+    ) {
+        return enrichTasks(taskService.listTasks(page, size));
     }
 
     @PostMapping("/tasks")
@@ -264,6 +269,28 @@ public class MarketplaceController {
             @Valid @RequestBody CreateRatingRequest request
     ) {
         return enrichRating(calificacionService.crear(user.idUsuario(), idTrabajo, request));
+    }
+
+    @PostMapping("/deliveries/{idEntrega}/request-changes")
+    @Operation(summary = "Solicitar correcciones sobre una entrega")
+    @SecurityRequirement(name = "bearerAuth")
+    public DeliveryResponse requestDeliveryChanges(
+            @CurrentUser(role = "CLIENTE") AuthenticatedUserResponse user,
+            @PathVariable Integer idEntrega,
+            @Valid @RequestBody RequestDeliveryChangesRequest request
+    ) {
+        return deliveryService.requestChanges(user.idUsuario(), idEntrega, request);
+    }
+
+    @PostMapping("/deliveries/{idEntrega}/comments")
+    @Operation(summary = "Comentar en el historial de una entrega")
+    @SecurityRequirement(name = "bearerAuth")
+    public DeliveryResponse commentDelivery(
+            @CurrentUser AuthenticatedUserResponse user,
+            @PathVariable Integer idEntrega,
+            @Valid @RequestBody CreateDeliveryCommentRequest request
+    ) {
+        return deliveryService.addComment(user.idUsuario(), idEntrega, request);
     }
 
     private List<TaskResponse> enrichTasks(List<TaskResponse> tasks) {

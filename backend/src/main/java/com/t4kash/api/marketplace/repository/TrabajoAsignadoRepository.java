@@ -1,7 +1,9 @@
 package com.t4kash.api.marketplace.repository;
 
 import com.t4kash.api.marketplace.entity.TrabajoAsignado;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -10,6 +12,10 @@ import java.util.Optional;
 
 public interface TrabajoAsignadoRepository extends JpaRepository<TrabajoAsignado, Integer> {
     Optional<TrabajoAsignado> findByIdTarea(Integer idTarea);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT trabajo FROM TrabajoAsignado trabajo WHERE trabajo.idTrabajo = :idTrabajo")
+    Optional<TrabajoAsignado> findByIdForUpdate(@Param("idTrabajo") Integer idTrabajo);
 
     long countByIdEstudianteAndEstadoTrabajo(
             Integer idEstudiante,

@@ -45,6 +45,9 @@ public class EventoWebhookPago {
     @Column(name = "ultimo_error", length = 700)
     private String ultimoError;
 
+    public String getEstadoProcesamiento() { return estadoProcesamiento; }
+    public Integer getIntentosProcesamiento() { return intentosProcesamiento; }
+
     public void setIdPago(Integer value) { this.idPago = value; }
     public void setProveedorPago(String value) { this.proveedorPago = value; }
     public void setEntornoPago(String value) { this.entornoPago = value; }

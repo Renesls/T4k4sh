@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -54,17 +55,18 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.t4kash.app.ui.components.ConnectionErrorState
+import com.t4kash.app.ui.components.AppPreferences
+import com.t4kash.app.ui.components.ChatBackground
 import com.t4kash.app.ui.components.EmptyState
 import com.t4kash.app.ui.components.T4BottomBar
 import com.t4kash.app.ui.components.T4PatternSurface
 import com.t4kash.app.ui.components.T4TopBar
-import com.t4kash.app.ui.components.isSoftwareKeyboardVisible
 import com.t4kash.app.ui.components.keepVisibleAboveKeyboard
 import com.t4kash.app.ui.formatApiDateTime
 import com.t4kash.app.ui.formatDaySeparator
@@ -97,7 +99,6 @@ fun ChatScreen(
     onOpenNotifications: () -> Unit
 ) {
     val state = viewModel.uiState
-    val keyboardVisible = isSoftwareKeyboardVisible()
     var query by remember { mutableStateOf("") }
     val conversations = remember(state.conversations, query) {
         state.conversations.filter {
@@ -128,13 +129,11 @@ fun ChatScreen(
             )
         },
         bottomBar = {
-            if (!keyboardVisible) {
-                T4BottomBar(
-                    currentRoute = Routes.CHAT,
-                    onNavigate = onNavigate,
-                    onReselect = { viewModel.refreshOverview() }
-                )
-            }
+            T4BottomBar(
+                currentRoute = Routes.CHAT,
+                onNavigate = onNavigate,
+                onReselect = { viewModel.refreshOverview() }
+            )
         }
     ) { innerPadding ->
         PullToRefreshBox(
@@ -270,6 +269,8 @@ fun ConversationScreen(
     }
     val chatItems = remember(messages) { buildChatItems(messages) }
     val listState = rememberLazyListState()
+    val context = LocalContext.current
+    val chatTheme = remember { AppPreferences.getChatBackgroundTheme(context) }
     var draft by remember(conversationId) { mutableStateOf("") }
     var stickToBottom by remember(conversationId) { mutableStateOf(true) }
 
@@ -330,60 +331,68 @@ fun ConversationScreen(
             )
         }
     ) { innerPadding ->
-        LazyColumn(
-            state = listState,
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(
-                horizontal = 14.dp,
-                vertical = 16.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(innerPadding)
         ) {
-            if (state.isLoadingMessages && messages.isEmpty()) {
-                item { LoadingBlock() }
-            } else if (state.messageError != null && messages.isEmpty()) {
-                item {
-                    ConnectionErrorState(
-                        message = state.messageError,
-                        onRetry = {
-                            viewModel.loadMessages(conversationId)
+            ChatBackground(
+                theme = chatTheme,
+                modifier = Modifier.fillMaxSize()
+            )
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    horizontal = 14.dp,
+                    vertical = 16.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (state.isLoadingMessages && messages.isEmpty()) {
+                    item { LoadingBlock() }
+                } else if (state.messageError != null && messages.isEmpty()) {
+                    item {
+                        ConnectionErrorState(
+                            message = state.messageError,
+                            onRetry = {
+                                viewModel.loadMessages(conversationId)
+                            }
+                        )
+                    }
+                } else if (messages.isEmpty()) {
+                    item {
+                        EmptyState(
+                            title = "Inicia la conversacion",
+                            message = "Escribe el primer mensaje sobre este trabajo."
+                        )
+                    }
+                } else {
+                    itemsIndexed(
+                        items = chatItems,
+                        key = { index, chatItem ->
+                            when (chatItem) {
+                                is ChatListItem.DateHeader -> "date-header-$index"
+                                is ChatListItem.MessageItem -> chatItem.message.idMensaje
+                            }
                         }
-                    )
-                }
-            } else if (messages.isEmpty()) {
-                item {
-                    EmptyState(
-                        title = "Inicia la conversacion",
-                        message = "Escribe el primer mensaje sobre este trabajo."
-                    )
-                }
-            } else {
-                itemsIndexed(
-                    items = chatItems,
-                    key = { index, chatItem ->
+                    ) { _, chatItem ->
                         when (chatItem) {
-                            is ChatListItem.DateHeader -> "date-header-$index"
-                            is ChatListItem.MessageItem -> chatItem.message.idMensaje
+                            is ChatListItem.DateHeader -> DateSeparator(chatItem.label)
+                            is ChatListItem.MessageItem -> MessageBubble(message = chatItem.message)
                         }
                     }
-                ) { _, chatItem ->
-                    when (chatItem) {
-                        is ChatListItem.DateHeader -> DateSeparator(chatItem.label)
-                        is ChatListItem.MessageItem -> MessageBubble(message = chatItem.message)
-                    }
                 }
-            }
 
-            if (state.messageError != null && messages.isNotEmpty()) {
-                item {
-                    Text(
-                        text = state.messageError,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(horizontal = 8.dp)
-                    )
+                if (state.messageError != null && messages.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = state.messageError,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+                    }
                 }
             }
         }
@@ -650,17 +659,18 @@ private fun ConversationCard(
 
 @Composable
 private fun MessageBubble(message: MessageDto) {
-    val maxBubbleWidth = (LocalConfiguration.current.screenWidthDp * 0.78f).dp
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (message.propio) {
-            Arrangement.End
-        } else {
-            Arrangement.Start
-        }
-    ) {
-        Surface(
-            modifier = Modifier.widthIn(max = maxBubbleWidth),
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val maxBubbleWidth = maxWidth * 0.78f
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = if (message.propio) {
+                Arrangement.End
+            } else {
+                Arrangement.Start
+            }
+        ) {
+            Surface(
+                modifier = Modifier.widthIn(max = maxBubbleWidth),
             shape = RoundedCornerShape(
                 topStart = 16.dp,
                 topEnd = 16.dp,
@@ -674,8 +684,8 @@ private fun MessageBubble(message: MessageDto) {
             } else {
                 BorderStroke(1.dp, T4Border)
             }
-        ) {
-            Column(
+            ) {
+                Column(
                 modifier = Modifier.padding(
                     horizontal = 13.dp,
                     vertical = 9.dp
@@ -726,6 +736,7 @@ private fun MessageBubble(message: MessageDto) {
                             }
                         )
                     }
+                }
                 }
             }
         }
