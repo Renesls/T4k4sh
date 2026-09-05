@@ -50,6 +50,10 @@ public class Pago {
     private BigDecimal porcentajeComisionPlataforma;
     @Column(name = "comision_plataforma", nullable = false, precision = 12, scale = 2)
     private BigDecimal comisionPlataforma;
+    @Column(name = "comision_cliente", nullable = false, precision = 12, scale = 2)
+    private BigDecimal comisionCliente;
+    @Column(name = "comision_estudiante", nullable = false, precision = 12, scale = 2)
+    private BigDecimal comisionEstudiante;
     @Column(name = "comision_procesador", nullable = false, precision = 12, scale = 2)
     private BigDecimal comisionProcesador;
     @Column(name = "impuesto_procesador", nullable = false, precision = 12, scale = 2)
@@ -105,6 +109,10 @@ public class Pago {
     public void setPorcentajeComisionPlataforma(BigDecimal value) { this.porcentajeComisionPlataforma = value; }
     public BigDecimal getComisionPlataforma() { return comisionPlataforma; }
     public void setComisionPlataforma(BigDecimal value) { this.comisionPlataforma = value; }
+    public BigDecimal getComisionCliente() { return comisionCliente; }
+    public void setComisionCliente(BigDecimal value) { this.comisionCliente = value; }
+    public BigDecimal getComisionEstudiante() { return comisionEstudiante; }
+    public void setComisionEstudiante(BigDecimal value) { this.comisionEstudiante = value; }
     public BigDecimal getComisionProcesador() { return comisionProcesador; }
     public void setComisionProcesador(BigDecimal value) { this.comisionProcesador = value; }
     public BigDecimal getImpuestoProcesador() { return impuestoProcesador; }

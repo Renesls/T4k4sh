@@ -279,6 +279,8 @@ CREATE TABLE pagos (
     monto_estudiante numeric(12,2) NOT NULL,
     porcentaje_comision_plataforma numeric(5,2) NOT NULL DEFAULT 15.00,
     comision_plataforma numeric(12,2) NOT NULL DEFAULT 0,
+    comision_cliente numeric(12,2) NOT NULL DEFAULT 0,
+    comision_estudiante numeric(12,2) NOT NULL DEFAULT 0,
     comision_procesador numeric(12,2) NOT NULL DEFAULT 0,
     impuesto_procesador numeric(12,2) NOT NULL DEFAULT 0,
     monto_total_cliente numeric(12,2) NOT NULL,
@@ -299,6 +301,9 @@ CREATE TABLE pagos (
         monto_estudiante >= 0
         AND porcentaje_comision_plataforma BETWEEN 0 AND 100
         AND comision_plataforma >= 0
+        AND comision_cliente >= 0
+        AND comision_estudiante >= 0
+        AND comision_plataforma = comision_cliente + comision_estudiante
         AND comision_procesador >= 0
         AND impuesto_procesador >= 0
         AND monto_total_cliente = monto_estudiante

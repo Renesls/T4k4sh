@@ -81,6 +81,8 @@ data class PaymentDto(
     val montoEstudiante: Double,
     val porcentajeComisionPlataforma: Double,
     val comisionPlataforma: Double,
+    val comisionCliente: Double = 0.0,
+    val comisionEstudiante: Double = 0.0,
     val comisionProcesador: Double,
     val impuestoProcesador: Double,
     val montoTotalCliente: Double,

@@ -325,9 +325,24 @@ private fun PaymentCard(
                 AmountColumn("Recibe estudiante", payment.montoEstudiante)
                 AmountColumn("Total cliente", payment.montoTotalCliente)
             }
+            // El wallet es del estudiante: primero lo que se le retiene a el, y solo
+            // despues el total que cobra la plataforma entre las dos partes.
+            if (payment.comisionEstudiante > 0.0) {
+                Text(
+                    text = "Se te retiene: " + formatNioCurrency(payment.comisionEstudiante),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = T4Text
+                )
+            }
             Text(
-                text = "Servicio T4KASH ${payment.porcentajeComisionPlataforma}%: " +
-                    formatNioCurrency(payment.comisionPlataforma),
+                text = if (payment.comisionCliente > 0.0 || payment.comisionEstudiante > 0.0) {
+                    "Comision T4KASH " + formatNioCurrency(payment.comisionPlataforma) +
+                        ": " + formatNioCurrency(payment.comisionCliente) + " del cliente + " +
+                        formatNioCurrency(payment.comisionEstudiante) + " tuyo"
+                } else {
+                    "Sin comision: pago presencial en efectivo"
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = T4TextMuted
             )

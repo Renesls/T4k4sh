@@ -161,6 +161,8 @@ public class PaymentService {
         payment.setMontoEstudiante(studentAmount);
         payment.setPorcentajeComisionPlataforma(feePercent);
         payment.setComisionPlataforma(platformFee);
+        payment.setComisionCliente(clientFee);
+        payment.setComisionEstudiante(studentFee);
         payment.setComisionProcesador(processorFee);
         payment.setImpuestoProcesador(processorTax);
         payment.setMontoTotalCliente(total);
